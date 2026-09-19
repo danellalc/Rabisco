@@ -15,7 +15,8 @@
 </button>
 <span class="save-state" id="save-state"></span>
 <button class="text-button" id="share" type="button" data-i18n="share">Share</button>
-<button class="icon-button more" id="menu" type="button" aria-label="More" data-i18n-label="more">⋯</button>
+<button class="icon-button more" id="menu" type="button" aria-label="More" data-i18n-label="more" aria-controls="menu-panel">⋯</button>
+<div class="menu" id="menu-panel" hidden></div>
 </header>
 <main class="note-area" id="note-area">
 <div class="note" id="note" contenteditable="true" data-placeholder="Write" data-i18n-placeholder="placeholder"></div>
@@ -24,5 +25,6 @@
 </div>
 </main>
 <div class="toast" id="toast" hidden></div>
+<div class="chooser" id="paste-choice" hidden></div>
 </body>
 </html>

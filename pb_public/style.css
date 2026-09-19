@@ -1,11 +1,19 @@
 :root{
+color-scheme:light;
 --bg:#efefef;--bg2:#e2e2e2;--fg:#141414;--fg2:#5e5e5e;--line:#d6d6d6;--acc:#3d4a47;
 --hl1:#d8c98a;--hl2:#a9bfa0;--hl3:#d3a9ac;--c1:#8f4a42;--c2:#4d647a;--c3:#5e5e5e;
 --shadow:0 2px 6px rgba(33,28,22,.14),0 8px 20px -8px rgba(33,28,22,.22);
 --s1:4px;--s2:8px;--s3:12px;--s4:16px;--s5:24px;
 --column:640px;--sidebar:296px
 }
-@media (prefers-color-scheme:dark){:root{
+:root[data-theme=dark]{
+color-scheme:dark;
+--bg:#161616;--bg2:#212121;--fg:#ececec;--fg2:#a3a3a3;--line:#333;--acc:#8fa39d;
+--hl1:#7a6636;--hl2:#3c4a3a;--hl3:#4a3436;--c1:#c98d85;--c2:#9db3c4;--c3:#a3a3a3;
+--shadow:0 2px 6px rgba(0,0,0,.3),0 8px 20px -8px rgba(0,0,0,.45)
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme=light]){
+color-scheme:dark;
 --bg:#161616;--bg2:#212121;--fg:#ececec;--fg2:#a3a3a3;--line:#333;--acc:#8fa39d;
 --hl1:#7a6636;--hl2:#3c4a3a;--hl3:#4a3436;--c1:#c98d85;--c2:#9db3c4;--c3:#a3a3a3;
 --shadow:0 2px 6px rgba(0,0,0,.3),0 8px 20px -8px rgba(0,0,0,.45)
@@ -16,17 +24,28 @@ html,body{height:100%}
 body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;display:flex;flex-direction:column}
 button{font:inherit;color:inherit;background:none;border:0;padding:0;cursor:pointer}
 :focus-visible{outline:2px solid var(--acc);outline-offset:2px}
-.note-header{display:flex;align-items:center;gap:var(--s4);padding:var(--s3) var(--s4);border-bottom:1px solid var(--line);flex-shrink:0}
+.note-header{position:relative;display:flex;align-items:center;gap:var(--s4);padding:var(--s3) var(--s4);border-bottom:1px solid var(--line);flex-shrink:0}
 .icon-button{width:44px;height:44px;display:inline-flex;align-items:center;justify-content:center;margin-left:-12px}
 .more{margin:0 -10px 0 0;letter-spacing:.08em}
 .save-state{flex:1;font-size:13px;letter-spacing:.04em;text-transform:uppercase;color:var(--fg2)}
 .text-button{font-size:15px}
+.menu{position:absolute;top:100%;right:var(--s4);z-index:2;margin-top:var(--s2);min-width:260px;padding:var(--s2);border-radius:8px;background:var(--bg2);box-shadow:var(--shadow);font-size:15px}
+.menu-row{display:flex;align-items:center;gap:var(--s2);padding:var(--s1) var(--s2)}
+.menu-row span{flex:1;color:var(--fg2)}
+.menu-row button{min-height:32px;padding:2px var(--s2);border-radius:4px}
+.menu-row button[aria-pressed=true]{background:var(--bg);color:var(--acc);font-weight:700}
 .note-area{flex:1;overflow-y:auto;position:relative}
 .note{max-width:var(--column);min-height:100%;margin:0 auto;padding:var(--s5) var(--s4);outline:0;caret-color:var(--acc);overflow-wrap:anywhere}
+:root[data-width=wide] .note{max-width:none;padding:var(--s5)}
 .note:empty::before{content:attr(data-placeholder);color:var(--fg2);pointer-events:none}
 .note>*{margin:0 0 var(--s4)}
-.note img{display:block;max-width:100%;height:auto;border-radius:4px}
+.note img{display:block;max-width:100%;height:auto;border-radius:4px;cursor:grab}
+.note table{display:block;overflow-x:auto;border-collapse:collapse;font-size:15px}
+.note td{border:1px solid var(--line);padding:var(--s1) var(--s2);vertical-align:top;min-width:2em}
 .image-selection{position:absolute;pointer-events:none;outline:2px solid var(--acc);outline-offset:2px}
 .resize-handle{position:absolute;right:-16px;bottom:-16px;width:32px;height:32px;display:flex;align-items:flex-end;justify-content:flex-end;pointer-events:auto;cursor:nwse-resize;touch-action:none}
 .resize-handle::after{content:"";width:12px;height:12px;margin:0 2px 2px 0;background:var(--bg);border:1.75px solid var(--acc)}
 .toast{position:fixed;left:50%;bottom:var(--s5);transform:translateX(-50%);max-width:calc(100% - 32px);padding:var(--s3) var(--s4);border-radius:8px;background:var(--fg);color:var(--bg);box-shadow:var(--shadow);font-size:15px}
+.chooser{position:fixed;left:50%;bottom:var(--s5);transform:translateX(-50%);display:flex;align-items:center;gap:var(--s2);padding:var(--s2) var(--s3);border-radius:8px;background:var(--bg2);box-shadow:var(--shadow);font-size:15px}
+.chooser span{color:var(--fg2);margin-right:var(--s1)}
+.chooser button{min-height:36px;padding:var(--s1) var(--s3);border:1.5px solid var(--acc);border-radius:4px;color:var(--acc)}

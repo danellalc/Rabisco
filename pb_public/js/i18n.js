@@ -4,14 +4,36 @@ export const dictionaries = {
     share: 'Share',
     back: 'Back',
     more: 'More',
-    imageUnreadable: 'That image could not be read'
+    imageUnreadable: 'That image could not be read',
+    pasteAs: 'Paste as',
+    asImage: 'Image',
+    asText: 'Text',
+    asTable: 'Spreadsheet',
+    theme: 'Theme',
+    themeSystem: 'System',
+    themeLight: 'Light',
+    themeDark: 'Dark',
+    width: 'Width',
+    widthNormal: 'Normal',
+    widthWide: 'Wide'
   },
   'pt-BR': {
     placeholder: 'Escreva',
     share: 'Compartilhar',
     back: 'Voltar',
     more: 'Mais',
-    imageUnreadable: 'Não deu pra ler essa imagem'
+    imageUnreadable: 'Não deu pra ler essa imagem',
+    pasteAs: 'Colar como',
+    asImage: 'Imagem',
+    asText: 'Texto',
+    asTable: 'Planilha',
+    theme: 'Tema',
+    themeSystem: 'Sistema',
+    themeLight: 'Claro',
+    themeDark: 'Escuro',
+    width: 'Largura',
+    widthNormal: 'Normal',
+    widthWide: 'Ampla'
   }
 }
 
