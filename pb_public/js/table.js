@@ -1,7 +1,9 @@
 import { insertBlock } from './editor.js'
 
 export function looksTabular(text) {
-  return typeof text === 'string' && text.includes('\t')
+  if (typeof text !== 'string') return false
+  const lines = text.replace(/\r\n?/g, '\n').split('\n').filter((line) => line.trim() !== '')
+  return lines.length > 0 && lines.every((line) => line.includes('\t'))
 }
 
 export function parseTable(text) {

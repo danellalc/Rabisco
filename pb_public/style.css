@@ -41,14 +41,15 @@ button{font:inherit;color:inherit;background:none;border:0;padding:0;cursor:poin
 .note>*{margin:0 0 var(--s4)}
 .note img{display:block;max-width:100%;height:auto;border-radius:4px;cursor:grab;user-select:none;-webkit-user-drag:none;-webkit-touch-callout:none}
 .drop-marker{position:absolute;height:2px;border-radius:1px;background:var(--acc);pointer-events:none}
-.drag-ghost{position:fixed;z-index:5;height:auto;opacity:.6;border-radius:4px;pointer-events:none}
-.dragging,.dragging *{cursor:grabbing}
+.drag-ghost{position:fixed;z-index:5;height:auto;opacity:.6;pointer-events:none}
+.dragging *{cursor:grabbing}
 .note table{display:block;overflow-x:auto;border-collapse:collapse;font-size:15px}
 .note td{border:1px solid var(--line);padding:var(--s1) var(--s2);vertical-align:top;min-width:2em}
 .image-selection{position:absolute;pointer-events:none;outline:2px solid var(--acc);outline-offset:2px}
-.resize-handle{position:absolute;right:-16px;bottom:-16px;width:32px;height:32px;display:flex;align-items:flex-end;justify-content:flex-end;pointer-events:auto;cursor:nwse-resize;touch-action:none}
-.resize-handle::after{content:"";width:12px;height:12px;margin:0 2px 2px 0;background:var(--bg);border:1.75px solid var(--acc)}
+.resize-handle{position:absolute;right:-6px;bottom:-6px;width:32px;height:32px;display:flex;align-items:flex-end;justify-content:flex-end;pointer-events:auto;cursor:nwse-resize;touch-action:none}
+.resize-handle::after{content:"";width:12px;height:12px;background:var(--bg);border:1.75px solid var(--acc)}
 .toast{position:fixed;left:50%;bottom:var(--s5);transform:translateX(-50%);max-width:calc(100% - 32px);padding:var(--s3) var(--s4);border-radius:8px;background:var(--fg);color:var(--bg);box-shadow:var(--shadow);font-size:15px}
 .chooser{position:fixed;left:50%;bottom:var(--s5);transform:translateX(-50%);display:flex;align-items:center;gap:var(--s2);padding:var(--s2) var(--s3);border-radius:8px;background:var(--bg2);box-shadow:var(--shadow);font-size:15px}
-.chooser span{color:var(--fg2);margin-right:var(--s1)}
+.chooser span{color:var(--fg2)}
 .chooser button{min-height:36px;padding:var(--s1) var(--s3);border:1.5px solid var(--acc);border-radius:4px;color:var(--acc)}
+@media (max-width:719px){.toast,.chooser{top:var(--s3);bottom:auto;z-index:6}}

@@ -1,5 +1,5 @@
 import { createChooser, createToast } from './dom.js'
-import { createInsertImage, insertText, placeCaretAtEnd, removeImageBlock } from './editor.js'
+import { clearIfBlank, createInsertImage, insertText, placeCaretAtEnd, removeImageBlock } from './editor.js'
 import { bindHistoryKeys, createHistory } from './history.js'
 import { applyTranslations, createTranslator, pickLanguage } from './i18n.js'
 import { compressImage } from './images.js'
@@ -28,7 +28,9 @@ const chooser = createChooser(document.getElementById('paste-choice'))
 
 const imageSelection = initResize({ note, area, selection, handle, beforeChange: () => history.capture() })
 const history = createHistory(note, { onRestore: () => imageSelection.clear() })
+note.addEventListener('beforeinput', () => chooser.settle())
 bindHistoryKeys(note, history)
+note.addEventListener('input', () => clearIfBlank(note))
 
 const recorded = (action) => (...args) => {
   history.capture()
@@ -54,7 +56,7 @@ const insertImage = createInsertImage(note, {
 })
 
 const choose = (question, options) => {
-  chooser(translate(question), options.map((option) => ({ label: translate(option.label), run: option.run })))
+  chooser.open(translate(question), options.map((option) => ({ label: translate(option.label), run: option.run })))
 }
 
 initMove({

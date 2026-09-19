@@ -1,3 +1,5 @@
+const INLINE_TAGS = new Set(['B', 'I', 'U', 'S', 'A', 'SPAN', 'MARK', 'BR'])
+
 export function contentWidth(element) {
   const style = getComputedStyle(element)
   return element.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight)
@@ -52,24 +54,45 @@ export function blockOf(node, root) {
 
 export function isBlank(node) {
   if (node.textContent !== '') return false
-  return !(node.nodeType === Node.ELEMENT_NODE && node.querySelector('img'))
+  return !(node.nodeType === Node.ELEMENT_NODE && node.querySelector('img,table'))
+}
+
+export function clearIfBlank(root) {
+  if (root.childNodes.length > 0 && isBlank(root)) root.replaceChildren()
+}
+
+function isInline(node) {
+  return node.nodeType !== Node.ELEMENT_NODE || INLINE_TAGS.has(node.tagName)
 }
 
 function endOffset(node) {
   return node.nodeType === Node.TEXT_NODE ? node.length : node.childNodes.length
 }
 
-function splitBlockAfterCaret(range, block) {
-  const tail = document.createRange()
-  tail.setStart(range.startContainer, range.startOffset)
-  tail.setEnd(block, endOffset(block))
-  return tail.extractContents()
-}
-
 function emptyLine() {
   const line = document.createElement('div')
   line.append(document.createElement('br'))
   return line
+}
+
+function wrapInlineRun(node) {
+  let first = node
+  while (first.previousSibling && isInline(first.previousSibling)) first = first.previousSibling
+  let last = node
+  while (last.nextSibling && isInline(last.nextSibling)) last = last.nextSibling
+  const run = []
+  for (let current = first; current; current = current === last ? null : current.nextSibling) run.push(current)
+  const wrapper = document.createElement('div')
+  first.before(wrapper)
+  wrapper.append(...run)
+  return wrapper
+}
+
+function splitBlockAfterCaret(start, block) {
+  const tail = document.createRange()
+  tail.setStart(start.node, start.offset)
+  tail.setEnd(block, endOffset(block))
+  return tail.extractContents()
 }
 
 export function snapshotCaret(root) {
@@ -83,18 +106,32 @@ export function restoreCaret(root, range) {
   selection.addRange(range)
 }
 
+export function placeCaretAfter(root, block) {
+  let next = block.nextSibling
+  if (!next) {
+    next = emptyLine()
+    root.append(next)
+  }
+  placeCaret(next, 0)
+  return { node: next, offset: 0 }
+}
+
 export function insertBlock(root, block) {
   const range = currentRange(root)
   range.deleteContents()
+  const start = { node: range.startContainer, offset: range.startOffset }
   const after = document.createElement('div')
-  const current = blockOf(range.startContainer, root)
-  if (current) {
-    after.append(splitBlockAfterCaret(range, current))
+  let current = blockOf(start.node, root)
+  if (current && isInline(current)) current = wrapInlineRun(current)
+  if (!current) {
+    root.insertBefore(after, root.childNodes[start.offset] ?? null)
+    after.before(block)
+  } else if (current.tagName === 'TABLE') {
+    current.after(block, after)
+  } else {
+    after.append(splitBlockAfterCaret(start, current))
     current.after(block, after)
     if (isBlank(current)) current.remove()
-  } else {
-    root.insertBefore(after, root.childNodes[range.startOffset] ?? null)
-    after.before(block)
   }
   if (isBlank(after)) after.replaceChildren(document.createElement('br'))
   placeCaret(after)
@@ -118,6 +155,11 @@ export function removeImageBlock(root, img) {
   if (block !== root) block.remove()
   if (next && next.parentNode === root) {
     placeCaret(next)
+    return
+  }
+  if (isBlank(root)) {
+    root.replaceChildren()
+    placeCaret(root)
     return
   }
   const line = emptyLine()

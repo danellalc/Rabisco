@@ -2,10 +2,15 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { looksTabular, parseTable } from '../pb_public/js/table.js'
 
-test('text with tabs is treated as a spreadsheet', () => {
+test('text where every line has tabs is treated as a spreadsheet', () => {
   assert.equal(looksTabular('a\tb'), true)
+  assert.equal(looksTabular('a\tb\r\nc\td\r\n'), true)
   assert.equal(looksTabular('plain sentence'), false)
   assert.equal(looksTabular(''), false)
+})
+
+test('tab indented code is not a spreadsheet', () => {
+  assert.equal(looksTabular('function x() {\n\treturn 1\n}'), false)
 })
 
 test('rows split on newlines and cells on tabs', () => {

@@ -1,4 +1,4 @@
-import { contentWidth, removeImageBlock, shiftImageBlock } from './editor.js'
+import { contentWidth, placeCaretAfter, removeImageBlock, shiftImageBlock } from './editor.js'
 
 export const MIN_WIDTH = 60
 
@@ -12,6 +12,7 @@ export function toPercent(width, total) {
 
 export function initResize({ note, area, selection, handle, beforeChange }) {
   let selected = null
+  let expectedCaret = null
   let drag = null
 
   const reposition = () => {
@@ -24,15 +25,24 @@ export function initResize({ note, area, selection, handle, beforeChange }) {
     selection.style.height = `${box.height}px`
   }
 
+  const clear = () => {
+    selected = null
+    expectedCaret = null
+    selection.hidden = true
+  }
+
   const select = (img) => {
     selected = img
     selection.hidden = false
     reposition()
+    note.focus({ preventScroll: true })
+    expectedCaret = placeCaretAfter(note, img.parentElement)
   }
 
-  const clear = () => {
-    selected = null
-    selection.hidden = true
+  const caretStillExpected = () => {
+    const current = document.getSelection()
+    return current.rangeCount > 0 && current.isCollapsed
+      && current.anchorNode === expectedCaret.node && current.anchorOffset === expectedCaret.offset
   }
 
   note.addEventListener('click', (event) => {
@@ -49,8 +59,14 @@ export function initResize({ note, area, selection, handle, beforeChange }) {
     reposition()
   })
 
+  document.addEventListener('selectionchange', () => {
+    if (selected && !caretStillExpected()) clear()
+  })
+
+  note.addEventListener('focusout', clear)
+
   document.addEventListener('keydown', (event) => {
-    if (!selected) return
+    if (!selected || !note.contains(document.activeElement)) return
     if (event.key === 'Escape') {
       clear()
       return
@@ -59,7 +75,7 @@ export function initResize({ note, area, selection, handle, beforeChange }) {
       event.preventDefault()
       beforeChange()
       shiftImageBlock(note, selected, event.key === 'ArrowUp' ? -1 : 1)
-      reposition()
+      select(selected)
       return
     }
     if (event.key !== 'Backspace' && event.key !== 'Delete') return
@@ -68,11 +84,6 @@ export function initResize({ note, area, selection, handle, beforeChange }) {
     clear()
     beforeChange()
     removeImageBlock(note, img)
-  })
-
-  document.addEventListener('pointerdown', (event) => {
-    if (!selected || note.contains(event.target) || handle.contains(event.target)) return
-    clear()
   })
 
   handle.addEventListener('pointerdown', (event) => {
@@ -94,10 +105,6 @@ export function initResize({ note, area, selection, handle, beforeChange }) {
   handle.addEventListener('pointerup', endDrag)
   handle.addEventListener('pointercancel', endDrag)
 
-  note.addEventListener('input', () => {
-    if (selected && !note.contains(selected)) clear()
-    else reposition()
-  })
   area.addEventListener('scroll', reposition)
   window.addEventListener('resize', reposition)
 
