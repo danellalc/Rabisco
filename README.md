@@ -6,7 +6,17 @@ Vanilla HTML, CSS and JavaScript served by PocketBase. No frameworks, no build s
 
 ## Status
 
-Stage 1 of 6: local editor. Writing, pasting or dropping images, resizing them. No backend yet.
+Stage 1 of 7 is done on the client side: writing, pasting or dropping images, resizing, moving, undo and redo, spreadsheet cells as a table, lightbox, copy and download of an image, theme and width settings, English and Portuguese. Backend schema, hooks and infrastructure exist but the app does not talk to them yet.
+
+## Roadmap
+
+1. Local editor: done.
+2. Formatting: floating bar, line start shortcuts, `---` for a rule, date shortcut, links.
+3. Backend: sign in by email code, save and load, image upload, local draft with a save indicator, shrink guard before saving, conflict detection between tabs and devices.
+4. Note list: create, search, pin, delete with undo.
+5. Sharing: view or edit link, optional expiry, revoke and rotate, Open Graph preview, clean reading mode, duplicate into your account.
+6. Extras: print stylesheet, export to text and markdown, installable app, share target on Android.
+7. After the MVP: crop and annotate a pasted screenshot, version history, find in note, markdown paste, captions and image alignment.
 
 ## Run locally
 
