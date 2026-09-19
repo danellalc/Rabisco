@@ -1,16 +1,20 @@
 import { createChooser, createToast } from './dom.js'
 import { clearIfBlank, createInsertImage, insertText, placeCaretAtEnd, removeImageBlock } from './editor.js'
+import { createFormatter, initChecklistToggle } from './format.js'
 import { bindHistoryKeys, createHistory } from './history.js'
 import { applyTranslations, createTranslator, pickLanguage } from './i18n.js'
 import { compressImage, copyImage, downloadBlob, fileExtension } from './images.js'
 import { createLightbox } from './lightbox.js'
+import { initLinks, linkSelection } from './links.js'
 import { initMenu } from './menu.js'
 import { initMove } from './move.js'
 import { initPaste } from './paste.js'
 import { initResize } from './resize.js'
 import { applySettings, readSettings, writeSettings } from './settings.js'
+import { initShortcuts } from './shortcuts.js'
 import { store } from './store.js'
 import { createInsertTable } from './table.js'
+import { initToolbar } from './toolbar.js'
 
 store.settings = readSettings(localStorage)
 applySettings(document.documentElement, store.settings)
@@ -27,6 +31,7 @@ const handle = document.getElementById('resize-handle')
 const showToast = createToast(document.getElementById('toast'))
 const chooser = createChooser(document.getElementById('paste-choice'))
 const openLightbox = createLightbox(document.getElementById('lightbox'))
+const formatter = createFormatter(note)
 
 const imageBlob = async (img) => store.pendingImages.get(img.src) || (await fetch(img.src)).blob()
 
@@ -59,14 +64,22 @@ const imageSelection = initResize({
   onDownload: downloadImage
 })
 const history = createHistory(note, { onRestore: () => imageSelection.clear() })
-note.addEventListener('beforeinput', () => chooser.settle())
-bindHistoryKeys(note, history)
-note.addEventListener('input', () => clearIfBlank(note))
-
+const beforeChange = () => history.capture()
 const recorded = (action) => (...args) => {
-  history.capture()
+  beforeChange()
   return action(...args)
 }
+
+note.addEventListener('beforeinput', () => chooser.settle())
+initShortcuts({
+  note,
+  apply: formatter.apply,
+  beforeChange,
+  insertDate: () => recorded(insertText)(new Intl.DateTimeFormat(language, { dateStyle: 'short' }).format(new Date()))
+})
+initLinks({ note, beforeChange })
+bindHistoryKeys(note, history)
+note.addEventListener('input', () => clearIfBlank(note))
 
 const discardImage = (img) => {
   if (!img.isConnected) return
@@ -94,15 +107,18 @@ initMove({
   note,
   area,
   marker: document.getElementById('drop-marker'),
-  beforeChange: () => history.capture(),
+  beforeChange,
   onMoved: () => imageSelection.clear()
 })
 initPaste(note, {
   insertImage: recorded(insertImage),
   insertText: recorded(insertText),
   insertTable: recorded(createInsertTable(note)),
+  linkSelection: recorded((url) => linkSelection(note, url)),
   choose
 })
+initToolbar({ note, area, bar: document.getElementById('toolbar'), apply: formatter.apply, active: formatter.active, beforeChange })
+initChecklistToggle(note, beforeChange)
 initMenu({
   button: document.getElementById('menu'),
   menu: document.getElementById('menu-panel'),
@@ -119,5 +135,7 @@ area.addEventListener('click', (event) => {
   placeCaretAtEnd(note)
 })
 
+document.execCommand('styleWithCSS', false, 'false')
+document.execCommand('defaultParagraphSeparator', false, 'div')
 document.execCommand('enableObjectResizing', false, 'false')
 note.focus()

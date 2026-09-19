@@ -1,4 +1,5 @@
 import { placeCaretAtPoint, restoreCaret, snapshotCaret } from './editor.js'
+import { isUrl } from './links.js'
 import { looksTabular } from './table.js'
 
 export function isImageType(type) {
@@ -26,11 +27,20 @@ function askTableOrOther(root, files, text, handlers) {
   handlers.choose('pasteAs', [other, { label: 'asTable', run: later(() => handlers.insertTable(text)) }])
 }
 
+function hasTextSelection() {
+  const selection = document.getSelection()
+  return selection.rangeCount > 0 && !selection.isCollapsed
+}
+
 function insertFromTransfer(root, transfer, handlers) {
   const files = imageFiles(transfer)
   const text = transfer.getData('text/plain')
   if (looksTabular(text)) {
     askTableOrOther(root, files, text, handlers)
+    return
+  }
+  if (files.length === 0 && isUrl(text) && hasTextSelection()) {
+    handlers.linkSelection(text)
     return
   }
   if (files.length > 0) {

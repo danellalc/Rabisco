@@ -18,7 +18,25 @@ export const dictionaries = {
     themeDark: 'Dark',
     width: 'Width',
     widthNormal: 'Normal',
-    widthWide: 'Wide'
+    widthWide: 'Wide',
+    bold: 'Bold',
+    italic: 'Italic',
+    underline: 'Underline',
+    strike: 'Strikethrough',
+    heading1: 'Heading 1',
+    heading2: 'Heading 2',
+    bulletList: 'Bullet list',
+    numberedList: 'Numbered list',
+    checklist: 'Checklist',
+    hl1: 'Yellow highlight',
+    hl2: 'Green highlight',
+    hl3: 'Pink highlight',
+    hlNone: 'Remove highlight',
+    c1: 'Red text',
+    c2: 'Blue text',
+    c3: 'Gray text',
+    cDefault: 'Default color',
+    clear: 'Clear formatting'
   },
   'pt-BR': {
     placeholder: 'Escreva',
@@ -39,7 +57,25 @@ export const dictionaries = {
     themeDark: 'Escuro',
     width: 'Largura',
     widthNormal: 'Normal',
-    widthWide: 'Ampla'
+    widthWide: 'Ampla',
+    bold: 'Negrito',
+    italic: 'Itálico',
+    underline: 'Sublinhado',
+    strike: 'Riscado',
+    heading1: 'Título',
+    heading2: 'Subtítulo',
+    bulletList: 'Lista',
+    numberedList: 'Lista numerada',
+    checklist: 'Checklist',
+    hl1: 'Marca-texto amarelo',
+    hl2: 'Marca-texto verde',
+    hl3: 'Marca-texto rosa',
+    hlNone: 'Remover marca-texto',
+    c1: 'Texto vermelho',
+    c2: 'Texto azul',
+    c3: 'Texto cinza',
+    cDefault: 'Cor padrão',
+    clear: 'Limpar formatação'
   }
 }
 
