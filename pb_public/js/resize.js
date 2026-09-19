@@ -10,7 +10,7 @@ export function toPercent(width, total) {
   return Math.round((width / total) * 1000) / 10
 }
 
-export function initResize({ note, area, selection, handle, beforeChange }) {
+export function initResize({ note, area, selection, handle, beforeChange, onOpen, onCopy, onDownload }) {
   let selected = null
   let expectedCaret = null
   let drag = null
@@ -39,6 +39,12 @@ export function initResize({ note, area, selection, handle, beforeChange }) {
     expectedCaret = placeCaretAfter(note, img.parentElement)
   }
 
+  const resetWidth = () => {
+    beforeChange()
+    selected.style.removeProperty('width')
+    reposition()
+  }
+
   const caretStillExpected = () => {
     const current = document.getSelection()
     return current.rangeCount > 0 && current.isCollapsed
@@ -53,10 +59,11 @@ export function initResize({ note, area, selection, handle, beforeChange }) {
 
   note.addEventListener('dblclick', (event) => {
     const img = event.target.closest('img')
-    if (!img) return
-    beforeChange()
-    img.style.removeProperty('width')
-    reposition()
+    if (img) onOpen(img)
+  })
+
+  handle.addEventListener('dblclick', () => {
+    if (selected) resetWidth()
   })
 
   document.addEventListener('selectionchange', () => {
@@ -67,8 +74,30 @@ export function initResize({ note, area, selection, handle, beforeChange }) {
 
   document.addEventListener('keydown', (event) => {
     if (!selected || !note.contains(document.activeElement)) return
+    const modifier = event.ctrlKey || event.metaKey
+    const key = event.key.toLowerCase()
     if (event.key === 'Escape') {
       clear()
+      return
+    }
+    if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault()
+      onOpen(selected)
+      return
+    }
+    if (modifier && key === 'c') {
+      event.preventDefault()
+      onCopy(selected)
+      return
+    }
+    if (modifier && key === 's') {
+      event.preventDefault()
+      onDownload(selected)
+      return
+    }
+    if (event.altKey && key === '0') {
+      event.preventDefault()
+      resetWidth()
       return
     }
     if (event.altKey && (event.key === 'ArrowUp' || event.key === 'ArrowDown')) {

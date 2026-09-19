@@ -39,7 +39,11 @@ button{font:inherit;color:inherit;background:none;border:0;padding:0;cursor:poin
 :root[data-width=wide] .note{max-width:none;padding:var(--s5)}
 .note:empty::before{content:attr(data-placeholder);color:var(--fg2);pointer-events:none}
 .note>*{margin:0 0 var(--s4)}
-.note img{display:block;max-width:100%;height:auto;border-radius:4px;cursor:grab;user-select:none;-webkit-user-drag:none;-webkit-touch-callout:none}
+.note img{display:block;max-width:100%;height:auto;border-radius:4px;cursor:grab;user-select:none;-webkit-user-drag:none;-webkit-touch-callout:none;touch-action:manipulation;content-visibility:auto}
+.lightbox{position:fixed;inset:0;width:auto;height:auto;max-width:none;max-height:none;margin:0;padding:0;border:0;background:rgba(0,0,0,.92);cursor:zoom-out}
+.lightbox[open]{display:grid;place-items:center}
+.lightbox img{max-width:100%;max-height:100%;object-fit:contain}
+.lightbox-download{position:fixed;top:var(--s3);right:var(--s4);padding:var(--s1) var(--s3);border:1.5px solid #fff;border-radius:4px;color:#fff;font-size:15px;cursor:pointer}
 .drop-marker{position:absolute;height:2px;border-radius:1px;background:var(--acc);pointer-events:none}
 .drag-ghost{position:fixed;z-index:5;height:auto;opacity:.6;pointer-events:none}
 .dragging *{cursor:grabbing}

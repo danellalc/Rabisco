@@ -191,7 +191,10 @@ export function createInsertImage(root, { onInserted, onFailed }) {
     const img = document.createElement('img')
     img.alt = ''
     img.draggable = false
+    img.decoding = 'async'
     img.addEventListener('load', () => {
+      img.width = img.naturalWidth
+      img.height = img.naturalHeight
       if (img.naturalWidth > contentWidth(root)) img.style.width = '100%'
     }, { once: true })
     img.addEventListener('error', () => onFailed(img), { once: true })
