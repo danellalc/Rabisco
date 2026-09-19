@@ -1,5 +1,6 @@
 import { createChooser, createToast } from './dom.js'
 import { createInsertImage, insertText, placeCaretAtEnd, removeImageBlock } from './editor.js'
+import { bindHistoryKeys, createHistory } from './history.js'
 import { applyTranslations, createTranslator, pickLanguage } from './i18n.js'
 import { compressImage } from './images.js'
 import { initMenu } from './menu.js'
@@ -25,22 +26,26 @@ const handle = document.getElementById('resize-handle')
 const showToast = createToast(document.getElementById('toast'))
 const chooser = createChooser(document.getElementById('paste-choice'))
 
-const releaseImage = (img) => {
-  URL.revokeObjectURL(img.src)
-  store.pendingImages.delete(img)
+const imageSelection = initResize({ note, area, selection, handle, beforeChange: () => history.capture() })
+const history = createHistory(note, { onRestore: () => imageSelection.clear() })
+bindHistoryKeys(note, history)
+
+const recorded = (action) => (...args) => {
+  history.capture()
+  return action(...args)
 }
 
 const discardImage = (img) => {
   if (!img.isConnected) return
   removeImageBlock(note, img)
-  releaseImage(img)
+  store.pendingImages.delete(img.src)
   showToast(translate('imageUnreadable'))
 }
 
 const insertImage = createInsertImage(note, {
   onInserted: async (img, file) => {
     try {
-      store.pendingImages.set(img, await compressImage(file))
+      store.pendingImages.set(img.src, await compressImage(file))
     } catch {
       discardImage(img)
     }
@@ -52,9 +57,19 @@ const choose = (question, options) => {
   chooser(translate(question), options.map((option) => ({ label: translate(option.label), run: option.run })))
 }
 
-const dropMovedImage = initMove(note)
-initPaste(note, { insertImage, insertText, insertTable: createInsertTable(note), choose, dropMovedImage })
-initResize({ note, area, selection, handle, onRemove: releaseImage })
+initMove({
+  note,
+  area,
+  marker: document.getElementById('drop-marker'),
+  beforeChange: () => history.capture(),
+  onMoved: () => imageSelection.clear()
+})
+initPaste(note, {
+  insertImage: recorded(insertImage),
+  insertText: recorded(insertText),
+  insertTable: recorded(createInsertTable(note)),
+  choose
+})
 initMenu({
   button: document.getElementById('menu'),
   menu: document.getElementById('menu-panel'),

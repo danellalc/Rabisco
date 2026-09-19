@@ -39,7 +39,10 @@ button{font:inherit;color:inherit;background:none;border:0;padding:0;cursor:poin
 :root[data-width=wide] .note{max-width:none;padding:var(--s5)}
 .note:empty::before{content:attr(data-placeholder);color:var(--fg2);pointer-events:none}
 .note>*{margin:0 0 var(--s4)}
-.note img{display:block;max-width:100%;height:auto;border-radius:4px;cursor:grab}
+.note img{display:block;max-width:100%;height:auto;border-radius:4px;cursor:grab;user-select:none;-webkit-user-drag:none;-webkit-touch-callout:none}
+.drop-marker{position:absolute;height:2px;border-radius:1px;background:var(--acc);pointer-events:none}
+.drag-ghost{position:fixed;z-index:5;height:auto;opacity:.6;border-radius:4px;pointer-events:none}
+.dragging,.dragging *{cursor:grabbing}
 .note table{display:block;overflow-x:auto;border-collapse:collapse;font-size:15px}
 .note td{border:1px solid var(--line);padding:var(--s1) var(--s2);vertical-align:top;min-width:2em}
 .image-selection{position:absolute;pointer-events:none;outline:2px solid var(--acc);outline-offset:2px}

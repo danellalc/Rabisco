@@ -51,7 +51,6 @@ export function initPaste(root, handlers) {
   root.addEventListener('drop', (event) => {
     event.preventDefault()
     root.focus()
-    if (handlers.dropMovedImage(event.clientX, event.clientY)) return
     placeCaretAtPoint(event.clientX, event.clientY)
     insertFromTransfer(root, event.dataTransfer, handlers)
   })

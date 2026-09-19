@@ -10,7 +10,7 @@ export function toPercent(width, total) {
   return Math.round((width / total) * 1000) / 10
 }
 
-export function initResize({ note, area, selection, handle, onRemove }) {
+export function initResize({ note, area, selection, handle, beforeChange }) {
   let selected = null
   let drag = null
 
@@ -44,6 +44,7 @@ export function initResize({ note, area, selection, handle, onRemove }) {
   note.addEventListener('dblclick', (event) => {
     const img = event.target.closest('img')
     if (!img) return
+    beforeChange()
     img.style.removeProperty('width')
     reposition()
   })
@@ -56,6 +57,7 @@ export function initResize({ note, area, selection, handle, onRemove }) {
     }
     if (event.altKey && (event.key === 'ArrowUp' || event.key === 'ArrowDown')) {
       event.preventDefault()
+      beforeChange()
       shiftImageBlock(note, selected, event.key === 'ArrowUp' ? -1 : 1)
       reposition()
       return
@@ -64,8 +66,8 @@ export function initResize({ note, area, selection, handle, onRemove }) {
     event.preventDefault()
     const img = selected
     clear()
+    beforeChange()
     removeImageBlock(note, img)
-    onRemove(img)
   })
 
   document.addEventListener('pointerdown', (event) => {
@@ -77,6 +79,7 @@ export function initResize({ note, area, selection, handle, onRemove }) {
     if (!selected) return
     event.preventDefault()
     handle.setPointerCapture(event.pointerId)
+    beforeChange()
     drag = { startX: event.clientX, startWidth: selected.getBoundingClientRect().width, max: contentWidth(note) }
   })
 
@@ -97,4 +100,6 @@ export function initResize({ note, area, selection, handle, onRemove }) {
   })
   area.addEventListener('scroll', reposition)
   window.addEventListener('resize', reposition)
+
+  return { clear }
 }
