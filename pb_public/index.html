@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="light dark">
+<title>Rabisco</title>
+<link rel="stylesheet" href="style.css">
+<script type="module" src="js/main.js"></script>
+</head>
+<body>
+<header class="note-header">
+<button class="icon-button" id="back" type="button" aria-label="Back">
+<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M20 12H4M11 19l-7-7 7-7"/></svg>
+</button>
+<span class="save-state" id="save-state"></span>
+<button class="text-button" id="share" type="button">Share</button>
+<button class="icon-button more" id="menu" type="button" aria-label="More">⋯</button>
+</header>
+<main class="note-area" id="note-area">
+<div class="note" id="note" contenteditable="true" data-placeholder="Write"></div>
+<div class="image-selection" id="image-selection" hidden>
+<div class="resize-handle" id="resize-handle"></div>
+</div>
+</main>
+<div class="toast" id="toast" hidden></div>
+</body>
+</html>
