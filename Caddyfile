@@ -1,0 +1,13 @@
+{$DOMAIN} {
+	encode zstd gzip
+	@static path /style.css /manifest.json /icon.svg /js/*
+	header @static Cache-Control "public, max-age=3600, stale-while-revalidate=86400" {
+		defer
+	}
+	@shell path / /index.html /sw.js /s /s/*
+	header @shell Cache-Control "no-cache" {
+		defer
+	}
+	header -Server
+	reverse_proxy pb:8080
+}
