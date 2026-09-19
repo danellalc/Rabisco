@@ -21,8 +21,8 @@ Objetivo: o app mais leve possível que AINDA faça tudo que está neste documen
 - Sem imagens na interface, só o ícone do app.
 
 **Orçamento de peso (limite duro, não meta).**
-- Total do front (HTML+CSS+JS): até 40 KB sem minificar, até 12 KB com gzip.
-- `app.js` até 30 KB. `style.css` até 6 KB.
+- Total do front (HTML+CSS+JS): até 80 KB sem minificar, até 24 KB com gzip (limite dobrado em 19/09/2026 para caber tabela de planilha, tema e largura configuráveis, arrastar imagem e histórico próprio de desfazer).
+- JavaScript somado até 60 KB. `style.css` até 12 KB.
 - Primeira abertura: no máximo 4 requisições (html, css, js, lista de notas).
 - Aberturas seguintes: app sai do cache do service worker; só a lista de notas vem da rede, e aparece antes pelo cache local.
 - Pronto pra digitar em menos de 300 ms numa conexão 4G.
