@@ -1,3 +1,6 @@
+import { placeCaretAtPoint, restoreCaret, snapshotCaret } from './editor.js'
+import { looksTabular } from './table.js'
+
 export function isImageType(type) {
   return typeof type === 'string' && type.startsWith('image/')
 }
@@ -11,37 +14,36 @@ export function imageFiles(transfer) {
   return [...transfer.files].filter((file) => isImageType(file.type))
 }
 
-function moveCaretToPoint(x, y) {
-  const selection = document.getSelection()
-  if (document.caretPositionFromPoint) {
-    const position = document.caretPositionFromPoint(x, y)
-    if (!position) return
-    const range = document.createRange()
-    range.setStart(position.offsetNode, position.offset)
-    range.collapse(true)
-    selection.removeAllRanges()
-    selection.addRange(range)
-    return
+function askTableOrOther(root, files, text, handlers) {
+  const caret = snapshotCaret(root)
+  const later = (action) => () => {
+    restoreCaret(root, caret)
+    action()
   }
-  const range = document.caretRangeFromPoint(x, y)
-  if (!range) return
-  selection.removeAllRanges()
-  selection.addRange(range)
+  const other = files.length > 0
+    ? { label: 'asImage', run: later(() => files.forEach(handlers.insertImage)) }
+    : { label: 'asText', run: later(() => handlers.insertText(text)) }
+  handlers.choose('pasteAs', [other, { label: 'asTable', run: later(() => handlers.insertTable(text)) }])
 }
 
-function insertFromTransfer(transfer, { insertImage, insertText }) {
+function insertFromTransfer(root, transfer, handlers) {
   const files = imageFiles(transfer)
-  if (files.length > 0) {
-    files.forEach(insertImage)
+  const text = transfer.getData('text/plain')
+  if (looksTabular(text)) {
+    askTableOrOther(root, files, text, handlers)
     return
   }
-  insertText(transfer.getData('text/plain'))
+  if (files.length > 0) {
+    files.forEach(handlers.insertImage)
+    return
+  }
+  handlers.insertText(text)
 }
 
 export function initPaste(root, handlers) {
   root.addEventListener('paste', (event) => {
     event.preventDefault()
-    insertFromTransfer(event.clipboardData, handlers)
+    insertFromTransfer(root, event.clipboardData, handlers)
   })
 
   root.addEventListener('dragover', (event) => event.preventDefault())
@@ -49,7 +51,8 @@ export function initPaste(root, handlers) {
   root.addEventListener('drop', (event) => {
     event.preventDefault()
     root.focus()
-    moveCaretToPoint(event.clientX, event.clientY)
-    insertFromTransfer(event.dataTransfer, handlers)
+    if (handlers.dropMovedImage(event.clientX, event.clientY)) return
+    placeCaretAtPoint(event.clientX, event.clientY)
+    insertFromTransfer(root, event.dataTransfer, handlers)
   })
 }
