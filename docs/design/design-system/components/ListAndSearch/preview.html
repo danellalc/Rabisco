@@ -1,0 +1,47 @@
+<!-- @dsCard group="Navegação" height=520 subtitle="Busca, fixada, ativa, só-imagem e vazia" -->
+<style>
+  .rb-list { font-family:var(--font-sans, system-ui, sans-serif); background:var(--bg); color:var(--fg); width:320px; padding:var(--space-16); }
+  .rb-search { display:block; width:100%; border:none; border-bottom:1px solid var(--line); background:transparent; padding:var(--space-8) var(--space-4); color:var(--fg); outline:none; margin-bottom:var(--space-12); -webkit-appearance:none; }
+  .rb-search::placeholder { color:var(--fg2); }
+  .rb-row { display:flex; align-items:center; gap:var(--space-8); padding:var(--space-8); border-radius:var(--radius-4); }
+  .rb-row.active { background:var(--bg2); }
+  .rb-row .rb-main { flex:1; min-width:0; }
+  .rb-title { white-space:nowrap; overflow:hidden; text-overflow:ellipsis; margin:0; }
+  .rb-time { color:var(--fg2); text-transform:uppercase; white-space:nowrap; margin-left:var(--space-8); }
+  .rb-pin { color:var(--fg2); flex-shrink:0; }
+  .rb-thumb { width:40px; height:40px; border-radius:var(--radius-4); background:var(--bg2); flex-shrink:0; margin-left:var(--space-8); }
+  .rb-hr { border:none; border-top:1px solid var(--line); margin:var(--space-16) 0; }
+  .rb-empty { color:var(--fg2); margin:0; padding:var(--space-8); }
+  .rb-foot { display:flex; justify-content:space-between; align-items:baseline; margin-top:var(--space-16); padding-top:var(--space-12); border-top:1px solid var(--line); }
+</style>
+<div class="rb-list">
+  <input class="rb-search body" type="search" placeholder="Buscar">
+  <div class="rb-row">
+    <svg class="rb-pin" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21C12 21 5.5 14.8 5.5 9.8C5.5 6 8.4 3 12 3C15.6 3 18.5 6 18.5 9.8C18.5 14.8 12 21 12 21Z M13.6 9.8a1.6 1.6 0 11-3.2 0 1.6 1.6 0 013.2 0Z"/></svg>
+    <div class="rb-main"><p class="rb-title body">Ideias para o offsite</p></div>
+    <span class="rb-time meta">ontem</span>
+  </div>
+  <div class="rb-row active">
+    <div class="rb-main"><p class="rb-title body">Lista de compras</p></div>
+    <span class="rb-time meta">agora</span>
+  </div>
+  <div class="rb-row">
+    <div class="rb-main"><p class="rb-title body">Rascunho do e-mail pro Marcos sobre o contrato novo</p></div>
+    <span class="rb-time meta">há 2 h</span>
+  </div>
+  <div class="rb-row">
+    <div class="rb-main"><p class="rb-title body">Imagem</p></div>
+    <span class="rb-time meta">12 set</span>
+    <div class="rb-thumb"></div>
+  </div>
+  <div class="rb-row">
+    <div class="rb-main"><p class="rb-title body">Nova nota</p></div>
+    <span class="rb-time meta">12 set 25</span>
+  </div>
+  <hr class="rb-hr">
+  <p class="rb-empty body">Nenhuma nota encontrada</p>
+  <div class="rb-foot">
+    <span class="meta" style="color:var(--fg2)">ana@exemplo.com</span>
+    <span class="ui" style="color:var(--acc); text-decoration:underline; cursor:pointer;">Sair</span>
+  </div>
+</div>

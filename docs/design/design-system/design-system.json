@@ -1,0 +1,34 @@
+{
+  "v": 3,
+  "layout": "files",
+  "createdOnFiles": { "v": 1, "at": "2026-09-19T18:35:06Z" },
+  "title": "Rabisco",
+  "namespace": "Rabisco",
+  "libraries": [],
+  "sections": {},
+  "groups": ["Icons"],
+  "assetGroups": {
+    "Icons": {
+      "name": "Icons",
+      "tile": "s",
+      "order": ["back.svg", "share.svg", "pin.svg", "list-bullet.svg", "list-number.svg", "checklist.svg", "clear-format.svg", "sidebar.svg"],
+      "files": {
+        "back.svg": { "name": "back.svg", "blob": "98eea1786124bf6d2058061dfbb928d9", "size": 208, "type": "image/svg+xml" },
+        "share.svg": { "name": "share.svg", "blob": "eee393fef5f276821354415f343d5aae", "size": 253, "type": "image/svg+xml" },
+        "pin.svg": { "name": "pin.svg", "blob": "429d48668316b46da50ef920e8ddf544", "size": 325, "type": "image/svg+xml" },
+        "list-bullet.svg": { "name": "list-bullet.svg", "blob": "b26720e6a0f976cd593472eec3a02a68", "size": 240, "type": "image/svg+xml" },
+        "list-number.svg": { "name": "list-number.svg", "blob": "58dfb812046a8bb7375934545977005c", "size": 286, "type": "image/svg+xml" },
+        "checklist.svg": { "name": "checklist.svg", "blob": "ff498bd018ee742ce882adeff4fbb812", "size": 224, "type": "image/svg+xml" },
+        "clear-format.svg": { "name": "clear-format.svg", "blob": "a559323f7f3de712690015997e93e281", "size": 224, "type": "image/svg+xml" },
+        "sidebar.svg": { "name": "sidebar.svg", "blob": "c698b6f2e26094b674dd7cd68cfb0d8a", "size": 206, "type": "image/svg+xml" }
+      }
+    }
+  },
+  "blobs": {},
+  "docs": { "readme": "project/README.md", "sections": [] },
+  "lastChange": {
+    "by": "Luiz",
+    "at": "2026-09-19T18:46:40Z",
+    "note": "Trocada a paleta (rust/papel-quente saía parecido com paletas repetidas em outros produtos) por uma direção quase monocromática — cinza neutro + acc quase sem matiz — a pedido do usuário, com ajustes de peso/sublinhado onde a cor sozinha deixou de bastar como sinal de estado."
+  }
+}

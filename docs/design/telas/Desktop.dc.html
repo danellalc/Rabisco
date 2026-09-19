@@ -1,0 +1,201 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Rabisco — mesa</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+*,*::before,*::after{box-sizing:border-box;}
+body{margin:0;font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;}
+a{color:inherit;text-decoration:none;}
+button{font:inherit;color:inherit;background:none;border:none;padding:0;margin:0;cursor:pointer;}
+.sidebar{display:flex;flex-direction:column;overflow:hidden;flex-shrink:0;transition:width 150ms ease;}
+.sbtop{display:flex;align-items:center;gap:8px;padding:16px 16px 8px;flex-shrink:0;}
+.search{display:block;width:100%;background:transparent;outline:none;padding:8px 4px;font-size:16px;line-height:1.5;border:none;border-bottom:1px solid var(--ln,#ccc);}
+.new{width:32px;height:32px;flex-shrink:0;display:inline-flex;align-items:center;justify-content:center;font-size:22px;line-height:1;}
+.rows{flex:1;overflow-y:auto;padding:0 8px;}
+.row{display:flex;align-items:center;gap:8px;padding:10px 8px;border-radius:4px;min-height:40px;}
+.title{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin:0;font-size:16px;line-height:1.5;}
+.time{text-transform:uppercase;white-space:nowrap;margin-left:8px;font-size:13px;line-height:1.5;letter-spacing:0.04em;}
+.sbfoot{display:flex;justify-content:space-between;align-items:baseline;padding:12px 16px;flex-shrink:0;}
+.hdr{position:relative;display:flex;align-items:center;gap:16px;padding:12px 24px;flex-shrink:0;}
+.iconbtn{width:32px;height:32px;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;border-radius:4px;}
+.ind{flex:1;font-size:13px;line-height:1.5;letter-spacing:0.04em;text-transform:uppercase;}
+.more{letter-spacing:0.08em;width:32px;height:32px;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;}
+.content{flex:1;overflow-y:auto;padding:24px 40px;}
+.page{max-width:640px;margin:0 auto;}
+.page>*{margin:0 0 16px;}
+.page ul,.page ol{margin:0 0 16px;padding-left:1.3em;}
+.page li{margin:0 0 4px;font-size:16px;line-height:1.5;}
+.check{list-style:none;padding-left:0;}
+.check li{display:flex;gap:8px;align-items:flex-start;}
+.bar{display:inline-flex;align-items:center;gap:2px;border-radius:4px;padding:4px;margin-bottom:12px;}
+.ctl{width:30px;height:30px;display:inline-flex;align-items:center;justify-content:center;border-radius:4px;font-size:15px;}
+.ctl.txt{font-size:12px;font-weight:700;}
+.divider{width:1px;align-self:stretch;margin:4px 2px;}
+.dot{width:14px;height:14px;border-radius:50%;display:inline-block;}
+.pop{position:absolute;top:100%;right:24px;margin-top:8px;border-radius:8px;padding:12px;z-index:5;}
+.opt{display:block;width:100%;padding:8px 4px;font-size:15px;line-height:1.5;}
+.hr{border:none;border-top:1px solid;margin:8px 0;}
+.linkrow{display:flex;align-items:center;gap:8px;padding:4px;}
+.url{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:13px;line-height:1.5;letter-spacing:0.04em;}
+.copy{flex-shrink:0;border-radius:4px;padding:4px 8px;font-size:15px;line-height:1.5;}
+.menupop{position:absolute;top:100%;right:24px;margin-top:8px;border-radius:8px;padding:8px;width:170px;z-index:5;}
+.mitem{display:block;width:100%;padding:8px;font-size:15px;line-height:1.5;}
+[data-theme="light"] :focus-visible{outline:2px solid #3d4a47;outline-offset:2px;}
+[data-theme="dark"] :focus-visible{outline:2px solid #8fa39d;outline-offset:2px;}
+[data-theme="light"] .search::placeholder{color:#5e5e5e;opacity:1;}
+[data-theme="dark"] .search::placeholder{color:#a3a3a3;opacity:1;}
+</style>
+</helmet>
+<div data-theme="{{theme}}" style="width:1440px;height:900px;background:{{t.bg}};color:{{t.fg}};display:flex;overflow:hidden;">
+
+<div class="sidebar" style="width:{{sidebarW}};border-right:{{sidebarBorder}};">
+<div class="sbtop">
+<input class="search" type="search" placeholder="Buscar" aria-label="Buscar notas" style="border-bottom-color:{{t.line}};">
+<button class="new" aria-label="Nova nota" style="color:{{t.fg}};">+</button>
+</div>
+<div class="rows">
+<div class="row" style="color:{{t.fg}};">
+<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;color:{{t.fg2}};"><path d="M12 21C12 21 5.5 14.8 5.5 9.8C5.5 6 8.4 3 12 3C15.6 3 18.5 6 18.5 9.8C18.5 14.8 12 21 12 21Z M13.6 9.8a1.6 1.6 0 11-3.2 0 1.6 1.6 0 013.2 0Z"/></svg>
+<span style="flex:1;min-width:0;"><p class="title">Ideias para o offsite</p></span>
+<span class="time" style="color:{{t.fg2}};">ontem</span>
+</div>
+<div class="row" style="background:{{t.bg2}};color:{{t.fg}};">
+<span style="flex:1;min-width:0;"><p class="title">Reunião de planejamento — Q1</p></span>
+<span class="time" style="color:{{t.fg2}};">agora</span>
+</div>
+<div class="row" style="color:{{t.fg}};">
+<span style="flex:1;min-width:0;"><p class="title">Rascunho do e-mail pro Marcos sobre o contrato novo</p></span>
+<span class="time" style="color:{{t.fg2}};">há 2 h</span>
+</div>
+<div class="row" style="color:{{t.fg}};">
+<span style="flex:1;min-width:0;"><p class="title">Lista de compras</p></span>
+<span class="time" style="color:{{t.fg2}};">ontem</span>
+</div>
+</div>
+<div class="sbfoot" style="border-top:1px solid {{t.line}};">
+<span style="color:{{t.fg2}};font-size:13px;line-height:1.5;letter-spacing:0.04em;text-transform:uppercase;">ana@exemplo.com</span>
+<button style="color:{{t.acc}};text-decoration:underline;font-size:15px;line-height:1.5;">Sair</button>
+</div>
+</div>
+
+<div style="flex:1;display:flex;flex-direction:column;min-width:0;">
+
+<div class="hdr" style="border-bottom:1px solid {{t.line}};">
+<button class="iconbtn" onClick="{{toggleSidebar}}" aria-label="{{sidebarLabel}}" style="color:{{t.fg}};">
+<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5h16v14H4z M9 5v14"/></svg>
+</button>
+<span class="ind" style="color:{{t.fg2}};">salvo</span>
+<button onClick="{{toggleShare}}" style="font-size:15px;line-height:1.5;color:{{t.acc}};text-decoration:{{shareDeco}};">Compartilhar</button>
+<button class="more" onClick="{{toggleMenu}}" aria-label="Mais opções" style="color:{{t.fg}};">⋯</button>
+
+<sc-if value="{{shareOpen}}" hint-placeholder-val="{{false}}">
+<div class="pop" style="width:260px;background:{{t.bg2}};box-shadow:{{t.shadow}};">
+<button class="opt" style="color:{{t.fg}};">Desativado</button>
+<button class="opt" style="color:{{t.acc}};font-weight:700;">Só ver</button>
+<button class="opt" style="color:{{t.fg}};">Pode editar</button>
+<hr class="hr" style="border-top-color:{{t.line}};">
+<div class="linkrow">
+<span class="url" style="color:{{t.fg2}};">rabisco.app/n/8k2n-fx91-qz…</span>
+<button class="copy" style="border:1.5px solid {{t.acc}};color:{{t.acc}};background:{{t.bg2}};">Copiar</button>
+</div>
+</div>
+</sc-if>
+
+<sc-if value="{{menuOpen}}" hint-placeholder-val="{{false}}">
+<div class="menupop" style="background:{{t.bg2}};box-shadow:{{t.shadow}};">
+<button class="mitem" style="color:{{t.fg}};">Fixar</button>
+<button class="mitem" style="color:{{t.fg}};">Baixar .txt</button>
+<button class="mitem" style="color:{{t.fg}};">Baixar .md</button>
+<button class="mitem" style="color:{{t.c1}};">Apagar</button>
+</div>
+</sc-if>
+</div>
+
+<div class="content">
+<div class="page">
+<p style="font-size:32px;font-weight:700;line-height:1.5;margin:0 0 16px;">Reunião de planejamento — Q1</p>
+
+<div class="bar" style="background:{{t.bg2}};">
+<span class="ctl" style="background:{{t.bg}};color:{{t.fg}};"><b>B</b></span>
+<span class="ctl" style="color:{{t.fg}};"><i>I</i></span>
+<span class="ctl" style="color:{{t.fg}};text-decoration:underline;">U</span>
+<span class="ctl" style="color:{{t.fg}};text-decoration:line-through;">S</span>
+<div class="divider" style="background:{{t.line}};"></div>
+<span class="ctl txt" style="color:{{t.fg}};">H1</span>
+<span class="ctl txt" style="color:{{t.fg}};">H2</span>
+<div class="divider" style="background:{{t.line}};"></div>
+<span class="ctl" style="color:{{t.fg}};"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 6h.01M4.5 12h.01M4.5 18h.01M9 6h11M9 12h11M9 18h11"/></svg></span>
+<span class="ctl" style="color:{{t.fg}};"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M4.6 5.3L5.6 3.9V8.1M4.3 9.9H6.6L4.3 14.1H6.6M4.3 16H6.6L4.3 18H6.6L4.3 20H6.6M9 6h11M9 12h11M9 18h11"/></svg></span>
+<span class="ctl" style="color:{{t.fg}};"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 5.5h9v9h-9z M7 10.2l1.7 1.7L13 8.3"/></svg></span>
+<div class="divider" style="background:{{t.line}};"></div>
+<span class="ctl" style="box-shadow:0 0 0 2px {{t.bg2}}, 0 0 0 4px {{t.acc}};"><span class="dot" style="background:{{t.hl1}};"></span></span>
+<span class="ctl"><span class="dot" style="background:{{t.hl2}};"></span></span>
+<span class="ctl"><span class="dot" style="background:{{t.hl3}};"></span></span>
+<span class="ctl txt" style="color:{{t.fg}};">×</span>
+<div class="divider" style="background:{{t.line}};"></div>
+<span class="ctl"><span class="dot" style="background:{{t.c1}};"></span></span>
+<span class="ctl"><span class="dot" style="background:{{t.c2}};"></span></span>
+<span class="ctl"><span class="dot" style="background:{{t.c3}};"></span></span>
+<div class="divider" style="background:{{t.line}};"></div>
+<span class="ctl" style="color:{{t.fg}};"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M8 4L3 18M8 4l5 14M5.2 13h6.4M4 20L20 4"/></svg></span>
+</div>
+
+<p style="font-size:16px;line-height:1.5;">Combinamos de revisar as <span style="background:{{t.hl1}};color:{{t.fg}};">prioridades</span> antes da sexta. Colei os pontos principais abaixo pra não perder.</p>
+<p style="font-size:21px;font-weight:700;line-height:1.5;">Decisões</p>
+<ul>
+<li>Adiar o lançamento em duas semanas</li>
+<li>Marcus assume a página de preços</li>
+<li>Revisar o texto do onboarding</li>
+</ul>
+<p style="font-size:21px;font-weight:700;line-height:1.5;">Ordem de execução</p>
+<ol>
+<li>Fechar o escopo com o time</li>
+<li>Validar com o Marcus</li>
+</ol>
+<ul class="check">
+<li><span style="flex-shrink:0;font-size:16px;line-height:1.5;">☑</span><span style="font-size:16px;line-height:1.5;color:{{t.fg2}};">Enviar o resumo pro grupo</span></li>
+<li><span style="flex-shrink:0;font-size:16px;line-height:1.5;">☐</span><span style="font-size:16px;line-height:1.5;">Agendar retro com o time</span></li>
+</ul>
+</div>
+</div>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"theme":{"editor":"enum","options":["light","dark"],"default":"light","section":"Tema"}}'>
+const THEMES = {
+  light: { bg:'#efefef', bg2:'#e2e2e2', fg:'#141414', fg2:'#5e5e5e', line:'#d6d6d6', acc:'#3d4a47', hl1:'#d8c98a', hl2:'#a9bfa0', hl3:'#d3a9ac', c1:'#8f4a42', c2:'#4d647a', c3:'#5e5e5e', shadow:'0 2px 6px rgba(33,28,22,0.14), 0 8px 20px -8px rgba(33,28,22,0.22)' },
+  dark:  { bg:'#161616', bg2:'#212121', fg:'#ececec', fg2:'#a3a3a3', line:'#333333', acc:'#8fa39d', hl1:'#7a6636', hl2:'#3c4a3a', hl3:'#4a3436', c1:'#c98d85', c2:'#9db3c4', c3:'#a3a3a3', shadow:'0 2px 6px rgba(0,0,0,0.3), 0 8px 20px -8px rgba(0,0,0,0.45)' }
+};
+class Component extends DCLogic {
+  constructor(props){
+    super(props);
+    this.state = { sidebarCollapsed: false, overlay: 'none' };
+  }
+  renderVals(){
+    const theme = this.props.theme === 'dark' ? 'dark' : 'light';
+    const t = THEMES[theme];
+    const collapsed = this.state.sidebarCollapsed;
+    const shareOpen = this.state.overlay === 'share';
+    const menuOpen = this.state.overlay === 'menu';
+    return {
+      t, theme,
+      sidebarW: collapsed ? '0px' : '296px',
+      sidebarBorder: collapsed ? 'none' : ('1px solid ' + t.line),
+      sidebarLabel: collapsed ? 'Mostrar lista' : 'Recolher lista',
+      shareOpen, menuOpen,
+      shareDeco: shareOpen ? 'underline' : 'none',
+      toggleSidebar: () => this.setState({ sidebarCollapsed: !collapsed }),
+      toggleShare: () => this.setState({ overlay: shareOpen ? 'none' : 'share' }),
+      toggleMenu: () => this.setState({ overlay: menuOpen ? 'none' : 'menu' })
+    };
+  }
+}
+</script>
+</body>
+</html>

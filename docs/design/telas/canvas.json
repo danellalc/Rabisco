@@ -1,0 +1,22 @@
+{
+  "v": 3,
+  "createdOnFiles": { "v": 1, "at": "2026-09-19T19:03:39Z" },
+  "title": "Rabisco",
+  "launch": { "view": "canvas" },
+  "pages": [],
+  "boards": {
+    "Login.dc.html": { "x": 0, "y": 0, "w": 390, "h": 844, "title": "Entrar", "is_interactive": true },
+    "Lista.dc.html": { "x": 470, "y": 0, "w": 390, "h": 844, "title": "Lista — celular", "is_interactive": true },
+    "Editor.dc.html": { "x": 940, "y": 0, "w": 390, "h": 844, "title": "Editor — celular", "is_interactive": true },
+    "Desktop.dc.html": { "x": 0, "y": 964, "w": 1440, "h": 900, "title": "Lista + editor — mesa", "is_interactive": true },
+    "Compartilhado.dc.html": { "x": 1520, "y": 964, "w": 1280, "h": 800, "title": "Nota compartilhada", "is_interactive": true }
+  },
+  "order": ["Login.dc.html", "Lista.dc.html", "Editor.dc.html", "Desktop.dc.html", "Compartilhado.dc.html"],
+  "notes": {
+    "lbl-mobile": { "x": 550, "y": -260, "text": "Celular", "kind": "title1" },
+    "lbl-desktop": { "x": 1300, "y": 700, "text": "Mesa", "kind": "title1" }
+  },
+  "designSystems": [
+    { "title": "Rabisco", "namespace": "rabisco", "version": null, "copiedAt": "2026-09-19T19:03:39Z" }
+  ]
+}

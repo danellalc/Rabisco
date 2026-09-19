@@ -1,0 +1,24 @@
+<!-- @dsCard height=288 -->
+<!--
+  blocks: acc 400x180 (bleeding top+right), fg 190x84, hl1 186x84 — todos com cantos quadrados (radius 0), o "square system" do Rabisco
+  arrangement: mesmo quase sem matiz, `acc` ainda é a laje dominante que sangra pela borda superior/direita — é a cor que existe, então é ela quem carrega a identidade, não o quanto a UI a usa; fg e hl1 (o único ponto de cor "de verdade" do sistema) são satélites menores embaixo, com um respiro de papel entre os dois níveis
+  pattern: duas linhas finas em `line` no respiro entre a laje e os satélites — "borda, não sombra" é como o sistema inteiro se separa de superfícies, então o padrão do cover é a mesma régua, não um efeito novo
+  scales: bordas em múltiplos de space-8/space-24; raio 0 em todo bloco (o sistema não usa raio grande em nada)
+-->
+<style>
+  .rb-cover { position:relative; width:960px; height:288px; background:var(--bg); overflow:hidden; font-family:var(--font-sans, system-ui, sans-serif); }
+  .rb-cover svg { position:absolute; top:0; left:0; }
+  .rb-cover .name { position:absolute; left:64px; bottom:74px; margin:0; color:var(--fg); font-weight:700; font-size:98px; line-height:0.95; letter-spacing:-0.01em; }
+  .rb-cover .tagline { position:absolute; left:66px; bottom:44px; margin:0; color:var(--fg2); font-size:14px; }
+</style>
+<div class="rb-cover">
+  <svg width="960" height="288" viewBox="0 0 960 288">
+    <rect class="brand" x="560" y="0" width="400" height="180" fill="var(--acc)"/>
+    <rect class="ink" x="560" y="204" width="190" height="84" fill="var(--fg)"/>
+    <rect class="tint" x="774" y="204" width="186" height="84" fill="var(--hl1)"/>
+    <line x1="560" y1="190" x2="960" y2="190" stroke="var(--line)" stroke-width="1"/>
+    <line x1="560" y1="198" x2="960" y2="198" stroke="var(--line)" stroke-width="1"/>
+  </svg>
+  <p class="name">Rabisco</p>
+  <p class="tagline">Abriu, escreveu.</p>
+</div>

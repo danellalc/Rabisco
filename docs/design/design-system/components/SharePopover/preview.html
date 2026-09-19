@@ -1,0 +1,28 @@
+<!-- @dsCard group="Compartilhar" height=280 subtitle="Desativado, e com link ativo (só ver)" -->
+<style>
+  .rb-wrap { font-family:var(--font-sans, system-ui, sans-serif); color:var(--fg); display:flex; gap:var(--space-24); flex-wrap:wrap; }
+  .rb-pop { width:240px; background:var(--bg2); border-radius:var(--radius-8); box-shadow:var(--shadow-1); padding:var(--space-12); }
+  .rb-opt { padding:var(--space-8) var(--space-4); cursor:pointer; }
+  .rb-opt.sel { color:var(--acc); font-weight:700; }
+  .rb-hr { border:none; border-top:1px solid var(--line); margin:var(--space-8) 0; }
+  .rb-linkrow { display:flex; align-items:center; gap:var(--space-8); padding:var(--space-4); }
+  .rb-linkrow span.url { flex:1; min-width:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; color:var(--fg2); }
+  .rb-copy { flex-shrink:0; border:1.5px solid var(--acc); color:var(--acc); background:var(--bg2); border-radius:var(--radius-4); padding:4px var(--space-8); cursor:pointer; }
+</style>
+<div class="rb-wrap">
+  <div class="rb-pop ui">
+    <div class="rb-opt sel">Desativado</div>
+    <div class="rb-opt">Só ver</div>
+    <div class="rb-opt">Pode editar</div>
+  </div>
+  <div class="rb-pop ui">
+    <div class="rb-opt">Desativado</div>
+    <div class="rb-opt sel">Só ver</div>
+    <div class="rb-opt">Pode editar</div>
+    <div class="rb-hr"></div>
+    <div class="rb-linkrow">
+      <span class="url meta">rabisco.app/n/8k2n-fx91-qz…</span>
+      <span class="rb-copy ui">Copiar</span>
+    </div>
+  </div>
+</div>

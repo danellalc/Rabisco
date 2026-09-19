@@ -1,0 +1,41 @@
+<!-- @dsCard group="Editor" height=360 subtitle="Celular, mesa, e os 3 estados do indicador" -->
+<style>
+  .rb-wrap { font-family:var(--font-sans, system-ui, sans-serif); color:var(--fg); display:flex; flex-direction:column; gap:var(--space-24); }
+  .rb-hdr { display:flex; align-items:center; gap:var(--space-16); background:var(--bg); padding:var(--space-12) var(--space-16); width:420px; border-bottom:1px solid var(--line); }
+  .rb-hdr svg { flex-shrink:0; color:var(--fg); }
+  .rb-ind { flex:1; color:var(--fg2); }
+  .rb-share { color:var(--fg); cursor:pointer; }
+  .rb-share.on { color:var(--acc); text-decoration:underline; }
+  .rb-more { color:var(--fg); cursor:pointer; letter-spacing:0.08em; }
+  .rb-states { display:flex; gap:var(--space-24); }
+  .rb-states div { color:var(--fg2); }
+  .rb-label { color:var(--fg2); text-transform:uppercase; margin:0 0 var(--space-8); }
+</style>
+<div class="rb-wrap">
+  <div>
+    <p class="rb-label meta">Celular</p>
+    <div class="rb-hdr">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M20 12H4M11 19l-7-7 7-7"/></svg>
+      <span class="rb-ind meta">salvo</span>
+      <span class="rb-share ui">Compartilhar</span>
+      <span class="rb-more">⋯</span>
+    </div>
+  </div>
+  <div>
+    <p class="rb-label meta">Mesa</p>
+    <div class="rb-hdr">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5h16v14H4z M9 5v14"/></svg>
+      <span class="rb-ind meta">salvando…</span>
+      <span class="rb-share ui on">Compartilhar</span>
+      <span class="rb-more">⋯</span>
+    </div>
+  </div>
+  <div>
+    <p class="rb-label meta">Indicador — os 3 estados possíveis</p>
+    <div class="rb-states body">
+      <div>salvando…</div>
+      <div>salvo</div>
+      <div>sem conexão · não salvo</div>
+    </div>
+  </div>
+</div>

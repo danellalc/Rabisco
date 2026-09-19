@@ -1,0 +1,36 @@
+<!-- @dsCard group="Entrar" height=480 subtitle="Passo 1 com erro, e passo 2" -->
+<style>
+  .rb-auth-wrap { display:flex; gap:32px; flex-wrap:wrap; font-family:var(--font-sans, system-ui, sans-serif); }
+  .rb-phone { width:280px; background:var(--bg); color:var(--fg); padding:var(--space-24) var(--space-16); }
+  .rb-name { margin:0 0 var(--space-24); }
+  .rb-field { display:block; width:100%; border:none; border-bottom:1px solid var(--line); background:transparent; padding:var(--space-8) 0; color:var(--fg); outline:none; margin-bottom:var(--space-4); }
+  .rb-field::placeholder { color:var(--fg2); }
+  .rb-field.rb-err { border-bottom-color:var(--c1); }
+  .rb-error { color:var(--c1); margin:0 0 var(--space-16); }
+  .rb-note { color:var(--fg2); margin:0 0 var(--space-24); }
+  .rb-btn { display:inline-block; background:var(--bg); color:var(--acc); border:1.5px solid var(--acc); border-radius:var(--radius-4); padding:var(--space-8) var(--space-16); cursor:pointer; }
+  .rb-btn:focus-visible { outline:2px solid var(--acc); outline-offset:2px; }
+  .rb-btn[disabled] { color:var(--fg2); border-color:var(--line); }
+  .rb-links { margin-top:var(--space-16); display:flex; flex-direction:column; gap:var(--space-8); }
+  .rb-link { color:var(--acc); text-decoration:underline; cursor:pointer; width:fit-content; }
+  .rb-gap { height:var(--space-24); }
+</style>
+<div class="rb-auth-wrap">
+  <div class="rb-phone">
+    <p class="rb-name h2">Rabisco</p>
+    <input class="rb-field body rb-err" placeholder="seu@email.com" value="ana@exemplo"><!-- proposital: e-mail incompleto, gerando o erro mostrado abaixo -->
+    <p class="rb-error ui">E-mail inválido</p>
+    <button class="rb-btn ui">Receber código</button>
+  </div>
+  <div class="rb-phone">
+    <p class="rb-name h2">Rabisco</p>
+    <p class="rb-note body">Enviamos um código para ana@exemplo.com. Ele vale por 10 minutos.</p>
+    <input class="rb-field body" placeholder="Código de 6 dígitos">
+    <div class="rb-gap"></div>
+    <button class="rb-btn ui" disabled>Enviando…</button>
+    <div class="rb-links">
+      <span class="rb-link ui">Reenviar código</span>
+      <span class="rb-link ui">Trocar e-mail</span>
+    </div>
+  </div>
+</div>

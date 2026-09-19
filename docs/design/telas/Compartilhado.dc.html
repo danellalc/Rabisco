@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Nota compartilhada</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+*,*::before,*::after{box-sizing:border-box;}
+body{margin:0;font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;}
+a{text-decoration:underline;}
+.page{max-width:640px;width:100%;}
+.page>*{margin:0 0 16px;}
+.page ul,.page ol{margin:0 0 16px;padding-left:1.3em;}
+.page li{margin:0 0 4px;font-size:16px;line-height:1.5;}
+.check{list-style:none;padding-left:0;}
+.check li{display:flex;gap:8px;align-items:flex-start;}
+.foot{margin-top:24px;padding-top:16px;border-top:1px solid;font-size:13px;line-height:1.5;letter-spacing:0.04em;}
+[data-theme="light"] :focus-visible{outline:2px solid #3d4a47;outline-offset:2px;}
+[data-theme="dark"] :focus-visible{outline:2px solid #8fa39d;outline-offset:2px;}
+</style>
+</helmet>
+<div data-theme="{{theme}}" style="width:1280px;height:800px;background:{{t.bg}};color:{{t.fg}};display:flex;justify-content:center;padding:56px 24px;overflow-y:auto;">
+<div class="page">
+
+<sc-if value="{{editando}}" hint-placeholder-val="{{false}}">
+<p style="margin:0 0 16px;text-align:right;font-size:13px;line-height:1.5;letter-spacing:0.04em;text-transform:uppercase;color:{{t.fg2}};">salvo</p>
+</sc-if>
+
+<p style="font-size:32px;font-weight:700;line-height:1.5;">Reunião de planejamento — Q1</p>
+<p style="font-size:16px;line-height:1.5;">Combinamos de revisar as prioridades antes da sexta. Colei os pontos principais abaixo pra não perder.</p>
+<p style="font-size:21px;font-weight:700;line-height:1.5;">Decisões</p>
+<ul>
+<li>Adiar o lançamento em duas semanas</li>
+<li>Marcus assume a página de preços</li>
+<li>Revisar o texto do onboarding</li>
+</ul>
+<p style="font-size:21px;font-weight:700;line-height:1.5;">Ordem de execução</p>
+<ol>
+<li>Fechar o escopo com o time</li>
+<li>Validar com o Marcus</li>
+</ol>
+<ul class="check">
+<li><span style="flex-shrink:0;font-size:16px;line-height:1.5;">☑</span><span style="font-size:16px;line-height:1.5;color:{{t.fg2}};">Enviar o resumo pro grupo</span></li>
+<li><span style="flex-shrink:0;font-size:16px;line-height:1.5;">☐</span><span style="font-size:16px;line-height:1.5;">Agendar retro com o time</span></li>
+</ul>
+
+<p class="foot" style="color:{{t.fg2}};border-top-color:{{t.line}};">Feito com Rabisco · <a href="Login.dc.html" style="color:{{t.acc}};">Crie a sua nota</a></p>
+
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"theme":{"editor":"enum","options":["light","dark"],"default":"light","section":"Tema"},"modo":{"editor":"enum","options":["ver","editar"],"default":"ver","section":"Revisão"}}'>
+const THEMES = {
+  light: { bg:'#efefef', bg2:'#e2e2e2', fg:'#141414', fg2:'#5e5e5e', line:'#d6d6d6', acc:'#3d4a47', hl1:'#d8c98a', hl2:'#a9bfa0', hl3:'#d3a9ac', c1:'#8f4a42', c2:'#4d647a', c3:'#5e5e5e' },
+  dark:  { bg:'#161616', bg2:'#212121', fg:'#ececec', fg2:'#a3a3a3', line:'#333333', acc:'#8fa39d', hl1:'#7a6636', hl2:'#3c4a3a', hl3:'#4a3436', c1:'#c98d85', c2:'#9db3c4', c3:'#a3a3a3' }
+};
+class Component extends DCLogic {
+  renderVals(){
+    const theme = this.props.theme === 'dark' ? 'dark' : 'light';
+    const t = THEMES[theme];
+    return { t, theme, editando: this.props.modo === 'editar' };
+  }
+}
+</script>
+</body>
+</html>

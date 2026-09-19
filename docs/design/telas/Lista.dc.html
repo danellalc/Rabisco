@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Lista de notas</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+*,*::before,*::after{box-sizing:border-box;}
+body{margin:0;font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;}
+a{color:inherit;text-decoration:none;}
+input{font:inherit;color:inherit;}
+.search{display:block;width:100%;background:transparent;outline:none;padding:8px 4px;font-size:16px;line-height:1.5;border:none;}
+.new{width:44px;height:44px;flex-shrink:0;display:inline-flex;align-items:center;justify-content:center;font-size:26px;line-height:1;}
+.row{display:flex;align-items:center;gap:8px;padding:10px 4px;min-height:44px;}
+.title{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin:0;font-size:16px;line-height:1.5;}
+.time{text-transform:uppercase;white-space:nowrap;margin-left:8px;font-size:13px;line-height:1.5;letter-spacing:0.04em;}
+.thumb{width:40px;height:40px;border-radius:4px;flex-shrink:0;margin-left:8px;}
+.foot{display:flex;justify-content:space-between;align-items:baseline;padding-top:12px;}
+.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;}
+[data-theme="light"] :focus-visible{outline:2px solid #3d4a47;outline-offset:2px;}
+[data-theme="dark"] :focus-visible{outline:2px solid #8fa39d;outline-offset:2px;}
+[data-theme="light"] .search::placeholder{color:#5e5e5e;opacity:1;}
+[data-theme="dark"] .search::placeholder{color:#a3a3a3;opacity:1;}
+</style>
+</helmet>
+<div data-theme="{{theme}}" style="width:390px;height:844px;background:{{t.bg}};color:{{t.fg}};display:flex;flex-direction:column;padding:16px;">
+
+<div style="display:flex;align-items:center;gap:8px;flex-shrink:0;padding-bottom:4px;">
+<label for="q" class="sr-only">Buscar notas</label>
+<input id="q" class="search" type="search" placeholder="Buscar" style="border-bottom:1px solid {{t.line}};flex:1;">
+<a class="new" href="Editor.dc.html" aria-label="Nova nota" style="color:{{t.fg}};">+</a>
+</div>
+
+<div style="flex:1;overflow-y:auto;">
+<sc-if value="{{temNotas}}" hint-placeholder-val="{{true}}">
+<div>
+<a class="row" href="Editor.dc.html" style="color:{{t.fg}};">
+<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;color:{{t.fg2}};"><path d="M12 21C12 21 5.5 14.8 5.5 9.8C5.5 6 8.4 3 12 3C15.6 3 18.5 6 18.5 9.8C18.5 14.8 12 21 12 21Z M13.6 9.8a1.6 1.6 0 11-3.2 0 1.6 1.6 0 013.2 0Z"/></svg>
+<span style="flex:1;min-width:0;"><p class="title">Ideias para o offsite</p></span>
+<span class="time" style="color:{{t.fg2}};">ontem</span>
+</a>
+<a class="row" href="Editor.dc.html" style="color:{{t.fg}};">
+<span style="flex:1;min-width:0;"><p class="title">Lista de compras</p></span>
+<span class="time" style="color:{{t.fg2}};">agora</span>
+</a>
+<a class="row" href="Editor.dc.html" style="color:{{t.fg}};">
+<span style="flex:1;min-width:0;"><p class="title">Rascunho do e-mail pro Marcos sobre o contrato novo</p></span>
+<span class="time" style="color:{{t.fg2}};">há 2 h</span>
+</a>
+<a class="row" href="Editor.dc.html" style="color:{{t.fg}};">
+<span style="flex:1;min-width:0;"><p class="title">Imagem</p></span>
+<span class="time" style="color:{{t.fg2}};">12 set</span>
+<span class="thumb" style="background:{{t.bg2}};"></span>
+</a>
+<a class="row" href="Editor.dc.html" style="color:{{t.fg}};">
+<span style="flex:1;min-width:0;"><p class="title">Nova nota</p></span>
+<span class="time" style="color:{{t.fg2}};">12 set 25</span>
+</a>
+</div>
+</sc-if>
+<sc-if value="{{vazia}}" hint-placeholder-val="{{false}}">
+<p style="color:{{t.fg2}};font-size:16px;line-height:1.5;padding:10px 4px;margin:0;">Nenhuma nota encontrada</p>
+</sc-if>
+</div>
+
+<div class="foot" style="border-top:1px solid {{t.line}};flex-shrink:0;">
+<span style="color:{{t.fg2}};font-size:13px;line-height:1.5;letter-spacing:0.04em;text-transform:uppercase;">ana@exemplo.com</span>
+<button style="font:inherit;background:none;border:none;padding:0;cursor:pointer;color:{{t.acc}};text-decoration:underline;font-size:15px;line-height:1.5;">Sair</button>
+</div>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"theme":{"editor":"enum","options":["light","dark"],"default":"light","section":"Tema"},"estado":{"editor":"enum","options":["notas","vazio"],"default":"notas","section":"Revisão"}}'>
+const THEMES = {
+  light: { bg:'#efefef', bg2:'#e2e2e2', fg:'#141414', fg2:'#5e5e5e', line:'#d6d6d6', acc:'#3d4a47', hl1:'#d8c98a', hl2:'#a9bfa0', hl3:'#d3a9ac', c1:'#8f4a42', c2:'#4d647a', c3:'#5e5e5e' },
+  dark:  { bg:'#161616', bg2:'#212121', fg:'#ececec', fg2:'#a3a3a3', line:'#333333', acc:'#8fa39d', hl1:'#7a6636', hl2:'#3c4a3a', hl3:'#4a3436', c1:'#c98d85', c2:'#9db3c4', c3:'#a3a3a3' }
+};
+class Component extends DCLogic {
+  renderVals(){
+    const theme = this.props.theme === 'dark' ? 'dark' : 'light';
+    const t = THEMES[theme];
+    const estado = this.props.estado === 'vazio' ? 'vazio' : 'notas';
+    return {
+      t, theme,
+      temNotas: estado === 'notas',
+      vazia: estado === 'vazio'
+    };
+  }
+}
+</script>
+</body>
+</html>

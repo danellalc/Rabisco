@@ -1,0 +1,10 @@
+<!-- @dsCard group="Estados" height=160 subtitle="Simples, e com ação de desfazer" -->
+<style>
+  .rb-wrap { font-family:var(--font-sans, system-ui, sans-serif); display:flex; flex-direction:column; gap:var(--space-16); align-items:center; }
+  .rb-toast { background:var(--fg); color:var(--bg); border-radius:var(--radius-8); box-shadow:var(--shadow-1); padding:var(--space-12) var(--space-16); display:inline-flex; align-items:center; gap:var(--space-16); }
+  .rb-toast .action { text-decoration:underline; cursor:pointer; flex-shrink:0; }
+</style>
+<div class="rb-wrap">
+  <div class="rb-toast ui">Link copiado</div>
+  <div class="rb-toast ui">Nota apagada <span class="action">Desfazer</span></div>
+</div>

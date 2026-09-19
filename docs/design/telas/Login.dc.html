@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Entrar</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+*,*::before,*::after{box-sizing:border-box;}
+body{margin:0;font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;}
+button{font:inherit;color:inherit;background:none;border:none;padding:0;margin:0;cursor:pointer;text-align:left;}
+a{color:inherit;text-decoration:none;}
+input{font:inherit;color:inherit;}
+.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;}
+.field{display:block;width:100%;background:transparent;outline:none;padding:8px 0;font-size:16px;line-height:1.5;min-height:40px;}
+.primary{display:inline-flex;align-items:center;justify-content:center;border-radius:4px;padding:8px 16px;font-size:15px;line-height:1.5;min-height:44px;}
+.textlink{font-size:15px;line-height:1.5;width:fit-content;text-decoration:underline;}
+[data-theme="light"] :focus-visible{outline:2px solid #3d4a47;outline-offset:2px;}
+[data-theme="dark"] :focus-visible{outline:2px solid #8fa39d;outline-offset:2px;}
+[data-theme="light"] .field::placeholder{color:#5e5e5e;opacity:1;}
+[data-theme="dark"] .field::placeholder{color:#a3a3a3;opacity:1;}
+</style>
+</helmet>
+<div data-theme="{{theme}}" style="width:390px;height:844px;background:{{t.bg}};color:{{t.fg}};display:flex;flex-direction:column;justify-content:center;padding:24px;">
+
+<sc-if value="{{isEmail}}" hint-placeholder-val="{{true}}">
+<div>
+<h1 style="margin:0 0 24px;font-size:32px;font-weight:700;line-height:1.5;">Rabisco</h1>
+<label for="in-email" class="sr-only">E-mail</label>
+<input id="in-email" class="field" type="email" placeholder="seu@email.com" value="ana@exemplo" style="border:none;border-bottom:1px solid {{errColor}};margin:0 0 4px;">
+<sc-if value="{{erro}}" hint-placeholder-val="{{false}}">
+<p style="color:{{t.c1}};font-size:15px;line-height:1.5;margin:0 0 16px;">E-mail inválido</p>
+</sc-if>
+<button class="primary" onClick="{{goCode}}" style="background:{{t.bg}};color:{{t.acc}};border:1.5px solid {{t.acc}};">Receber código</button>
+</div>
+</sc-if>
+
+<sc-if value="{{isCode}}" hint-placeholder-val="{{false}}">
+<div>
+<h1 style="margin:0 0 24px;font-size:32px;font-weight:700;line-height:1.5;">Rabisco</h1>
+<p style="font-size:16px;line-height:1.5;margin:0 0 24px;">Enviamos um código para ana@exemplo.com. Ele vale por 10 minutos.</p>
+<label for="in-code" class="sr-only">Código de 6 dígitos</label>
+<input id="in-code" class="field" type="text" inputmode="numeric" placeholder="Código de 6 dígitos" style="border:none;border-bottom:1px solid {{t.line}};margin:0 0 24px;">
+<a class="primary" href="Lista.dc.html" style="background:{{t.bg}};color:{{t.acc}};border:1.5px solid {{t.acc}};margin-bottom:16px;">Entrar</a>
+<div style="display:flex;flex-direction:column;gap:8px;">
+<button class="textlink" style="color:{{t.acc}};">Reenviar código</button>
+<button class="textlink" onClick="{{goEmail}}" style="color:{{t.acc}};">Trocar e-mail</button>
+</div>
+</div>
+</sc-if>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"theme":{"editor":"enum","options":["light","dark"],"default":"light","section":"Tema"},"erro":{"editor":"boolean","default":false,"section":"Revisão"}}'>
+const THEMES = {
+  light: { bg:'#efefef', bg2:'#e2e2e2', fg:'#141414', fg2:'#5e5e5e', line:'#d6d6d6', acc:'#3d4a47', hl1:'#d8c98a', hl2:'#a9bfa0', hl3:'#d3a9ac', c1:'#8f4a42', c2:'#4d647a', c3:'#5e5e5e' },
+  dark:  { bg:'#161616', bg2:'#212121', fg:'#ececec', fg2:'#a3a3a3', line:'#333333', acc:'#8fa39d', hl1:'#7a6636', hl2:'#3c4a3a', hl3:'#4a3436', c1:'#c98d85', c2:'#9db3c4', c3:'#a3a3a3' }
+};
+class Component extends DCLogic {
+  constructor(props){
+    super(props);
+    this.state = { step: 'email' };
+  }
+  renderVals(){
+    const theme = this.props.theme === 'dark' ? 'dark' : 'light';
+    const t = THEMES[theme];
+    const erro = !!this.props.erro;
+    return {
+      t, theme, erro,
+      errColor: erro ? t.c1 : t.line,
+      isEmail: this.state.step === 'email',
+      isCode: this.state.step === 'code',
+      goCode: () => this.setState({ step: 'code' }),
+      goEmail: () => this.setState({ step: 'email' })
+    };
+  }
+}
+</script>
+</body>
+</html>

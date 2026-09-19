@@ -1,0 +1,78 @@
+<!-- @dsCard group="Editor" height=460 subtitle="Contextual de mesa e fixa de celular, com os 18 controles" -->
+<style>
+  .rb-wrap { font-family:var(--font-sans, system-ui, sans-serif); color:var(--fg); display:flex; flex-direction:column; gap:var(--space-24); }
+  .rb-label { color:var(--fg2); text-transform:uppercase; margin:0 0 var(--space-8); }
+  .rb-bar { display:inline-flex; align-items:center; gap:2px; background:var(--bg2); border-radius:var(--radius-4); padding:var(--space-4); }
+  .rb-ctl { width:30px; height:30px; display:inline-flex; align-items:center; justify-content:center; border-radius:var(--radius-4); cursor:pointer; color:var(--fg); background:transparent; }
+  .rb-ctl.on { background:var(--bg); }
+  .rb-ctl b, .rb-ctl i, .rb-ctl span.u, .rb-ctl span.s { font-size:15px; font-family:var(--font-sans, system-ui, sans-serif); }
+  .rb-ctl span.u { text-decoration:underline; }
+  .rb-ctl span.s { text-decoration:line-through; }
+  .rb-ctl.txt { font-size:12px; font-weight:700; }
+  .rb-div { width:1px; align-self:stretch; margin:var(--space-4) 2px; background:var(--line); }
+  .rb-dot { width:14px; height:14px; border-radius:50%; display:inline-block; }
+  .rb-dot.ring { box-shadow:0 0 0 2px var(--bg2), 0 0 0 4px var(--acc); }
+  .rb-mobile { width:375px; background:var(--bg2); padding:var(--space-4); display:flex; flex-direction:column; gap:2px; border-top:1px solid var(--line); }
+  .rb-mrow { display:flex; }
+  .rb-mrow .rb-ctl { flex:1; height:40px; }
+  .rb-context { max-width:420px; color:var(--fg2); }
+  .rb-context mark { background:none; color:inherit; }
+</style>
+<div class="rb-wrap">
+  <div>
+    <p class="rb-label meta">Mesa — contextual, aparece sobre a seleção</p>
+    <p class="body rb-context">Selecionou um trecho? A barra some quando a seleção some.</p>
+    <div class="rb-bar">
+      <span class="rb-ctl on"><b>B</b></span>
+      <span class="rb-ctl"><i>I</i></span>
+      <span class="rb-ctl"><span class="u">U</span></span>
+      <span class="rb-ctl"><span class="s">S</span></span>
+      <div class="rb-div"></div>
+      <span class="rb-ctl txt">H1</span>
+      <span class="rb-ctl txt">H2</span>
+      <div class="rb-div"></div>
+      <span class="rb-ctl"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 6h.01M4.5 12h.01M4.5 18h.01M9 6h11M9 12h11M9 18h11"/></svg></span>
+      <span class="rb-ctl"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M4.6 5.3L5.6 3.9V8.1M4.3 9.9H6.6L4.3 14.1H6.6M4.3 16H6.6L4.3 18H6.6L4.3 20H6.6M9 6h11M9 12h11M9 18h11"/></svg></span>
+      <span class="rb-ctl"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 5.5h9v9h-9z M7 10.2l1.7 1.7L13 8.3"/></svg></span>
+      <div class="rb-div"></div>
+      <span class="rb-ctl ring"><span class="rb-dot" style="background:var(--hl1)"></span></span>
+      <span class="rb-ctl"><span class="rb-dot" style="background:var(--hl2)"></span></span>
+      <span class="rb-ctl"><span class="rb-dot" style="background:var(--hl3)"></span></span>
+      <span class="rb-ctl txt">×</span>
+      <div class="rb-div"></div>
+      <span class="rb-ctl"><span class="rb-dot" style="background:var(--c1)"></span></span>
+      <span class="rb-ctl"><span class="rb-dot" style="background:var(--c2)"></span></span>
+      <span class="rb-ctl"><span class="rb-dot" style="background:var(--c3)"></span></span>
+      <span class="rb-ctl"><span class="rb-dot" style="background:var(--fg)"></span></span>
+      <div class="rb-div"></div>
+      <span class="rb-ctl"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M8 4L3 18M8 4l5 14M5.2 13h6.4M4 20L20 4"/></svg></span>
+    </div>
+  </div>
+  <div>
+    <p class="rb-label meta">Celular — fixa, colada acima do teclado, em duas linhas</p>
+    <div class="rb-mobile">
+      <div class="rb-mrow">
+        <span class="rb-ctl on"><b>B</b></span>
+        <span class="rb-ctl"><i>I</i></span>
+        <span class="rb-ctl"><span class="u">U</span></span>
+        <span class="rb-ctl"><span class="s">S</span></span>
+        <span class="rb-ctl txt">H1</span>
+        <span class="rb-ctl txt">H2</span>
+        <span class="rb-ctl"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 6h.01M4.5 12h.01M4.5 18h.01M9 6h11M9 12h11M9 18h11"/></svg></span>
+        <span class="rb-ctl"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M4.6 5.3L5.6 3.9V8.1M4.3 9.9H6.6L4.3 14.1H6.6M4.3 16H6.6L4.3 18H6.6L4.3 20H6.6M9 6h11M9 12h11M9 18h11"/></svg></span>
+        <span class="rb-ctl"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 5.5h9v9h-9z M7 10.2l1.7 1.7L13 8.3"/></svg></span>
+      </div>
+      <div class="rb-mrow">
+        <span class="rb-ctl ring"><span class="rb-dot" style="background:var(--hl1)"></span></span>
+        <span class="rb-ctl"><span class="rb-dot" style="background:var(--hl2)"></span></span>
+        <span class="rb-ctl"><span class="rb-dot" style="background:var(--hl3)"></span></span>
+        <span class="rb-ctl txt">×</span>
+        <span class="rb-ctl"><span class="rb-dot" style="background:var(--c1)"></span></span>
+        <span class="rb-ctl"><span class="rb-dot" style="background:var(--c2)"></span></span>
+        <span class="rb-ctl"><span class="rb-dot" style="background:var(--c3)"></span></span>
+        <span class="rb-ctl"><span class="rb-dot" style="background:var(--fg)"></span></span>
+        <span class="rb-ctl"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M8 4L3 18M8 4l5 14M5.2 13h6.4M4 20L20 4"/></svg></span>
+      </div>
+    </div>
+  </div>
+</div>

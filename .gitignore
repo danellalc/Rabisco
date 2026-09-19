@@ -1,0 +1,6 @@
+pb_data/
+node_modules/
+.env
+pocketbase
+pocketbase.exe
+*.zip

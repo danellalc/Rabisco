@@ -1,0 +1,30 @@
+<!-- @dsCard group="Editor" height=560 subtitle="Título, parágrafo, H2, listas e checklist" -->
+<style>
+  .rb-page { font-family:var(--font-sans, system-ui, sans-serif); background:var(--bg); color:var(--fg); max-width:var(--column-width); margin:0 auto; padding:var(--space-24) var(--space-16); }
+  .rb-page > * { margin:0 0 var(--space-16); }
+  .rb-page ul, .rb-page ol { margin:0 0 var(--space-16); padding-left:1.3em; }
+  .rb-page li { margin:0 0 var(--space-4); }
+  .rb-check { list-style:none; padding-left:0; }
+  .rb-check li { display:flex; gap:var(--space-8); align-items:flex-start; }
+  .rb-check .done { color:var(--fg2); }
+  .rb-box { flex-shrink:0; }
+</style>
+<div class="rb-page">
+  <p class="h1">Reunião de planejamento — Q1</p>
+  <p class="body">Combinamos de revisar as prioridades antes da sexta. Colei os pontos principais abaixo pra não perder.</p>
+  <p class="h2">Decisões</p>
+  <ul class="body">
+    <li>Adiar o lançamento em duas semanas</li>
+    <li>Marcus assume a página de preços</li>
+    <li>Revisar o texto do onboarding</li>
+  </ul>
+  <p class="h2">Ordem de execução</p>
+  <ol class="body">
+    <li>Fechar o escopo com o time</li>
+    <li>Validar com o Marcus</li>
+  </ol>
+  <ul class="rb-check body">
+    <li><span class="rb-box">☑</span><span class="done">Enviar o resumo pro grupo</span></li>
+    <li><span class="rb-box">☐</span><span>Agendar retro com o time</span></li>
+  </ul>
+</div>
