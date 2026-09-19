@@ -1,6 +1,6 @@
 const storageKey = 'rabisco.settings'
 
-export const defaults = { theme: 'system', width: 'normal' }
+export const defaults = { theme: 'system', width: 'wide' }
 export const choices = { theme: ['system', 'light', 'dark'], width: ['normal', 'wide'] }
 
 export function sanitizeSettings(raw) {
