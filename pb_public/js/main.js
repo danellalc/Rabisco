@@ -1,9 +1,15 @@
 import { createToast } from './dom.js'
 import { createInsertImage, insertText, placeCaretAtEnd, removeImageBlock } from './editor.js'
+import { applyTranslations, createTranslator, pickLanguage } from './i18n.js'
 import { compressImage } from './images.js'
 import { initPaste } from './paste.js'
 import { initResize } from './resize.js'
 import { store } from './store.js'
+
+const language = pickLanguage(navigator.languages)
+const translate = createTranslator(language)
+document.documentElement.lang = language
+applyTranslations(document, translate)
 
 const note = document.getElementById('note')
 const area = document.getElementById('note-area')
@@ -20,7 +26,7 @@ const discardImage = (img) => {
   if (!img.isConnected) return
   removeImageBlock(note, img)
   releaseImage(img)
-  showToast('That image could not be read')
+  showToast(translate('imageUnreadable'))
 }
 
 const insertImage = createInsertImage(note, {
