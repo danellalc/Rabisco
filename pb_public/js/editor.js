@@ -21,6 +21,20 @@ export function placeCaretAtEnd(root) {
   placeCaret(root, root.childNodes.length)
 }
 
+export function placeCaretAtPoint(x, y) {
+  const selection = document.getSelection()
+  if (document.caretPositionFromPoint) {
+    const position = document.caretPositionFromPoint(x, y)
+    if (!position) return
+    placeCaret(position.offsetNode, position.offset)
+    return
+  }
+  const range = document.caretRangeFromPoint(x, y)
+  if (!range) return
+  selection.removeAllRanges()
+  selection.addRange(range)
+}
+
 export function currentRange(root) {
   const selection = document.getSelection()
   if (selection.rangeCount > 0 && root.contains(selection.anchorNode)) return selection.getRangeAt(0)
@@ -58,23 +72,38 @@ function emptyLine() {
   return line
 }
 
-export function insertImageBlock(root, img) {
+export function snapshotCaret(root) {
+  return currentRange(root).cloneRange()
+}
+
+export function restoreCaret(root, range) {
+  root.focus()
+  const selection = document.getSelection()
+  selection.removeAllRanges()
+  selection.addRange(range)
+}
+
+export function insertBlock(root, block) {
   const range = currentRange(root)
   range.deleteContents()
-  const figure = document.createElement('div')
-  figure.append(img)
   const after = document.createElement('div')
-  const block = blockOf(range.startContainer, root)
-  if (block) {
-    after.append(splitBlockAfterCaret(range, block))
-    block.after(figure, after)
-    if (isBlank(block)) block.remove()
+  const current = blockOf(range.startContainer, root)
+  if (current) {
+    after.append(splitBlockAfterCaret(range, current))
+    current.after(block, after)
+    if (isBlank(current)) current.remove()
   } else {
     root.insertBefore(after, root.childNodes[range.startOffset] ?? null)
-    after.before(figure)
+    after.before(block)
   }
   if (isBlank(after)) after.replaceChildren(document.createElement('br'))
   placeCaret(after)
+}
+
+export function insertImageBlock(root, img) {
+  const figure = document.createElement('div')
+  figure.append(img)
+  insertBlock(root, figure)
 }
 
 export function removeImageBlock(root, img) {
@@ -94,6 +123,25 @@ export function removeImageBlock(root, img) {
   const line = emptyLine()
   root.append(line)
   placeCaret(line)
+}
+
+export function moveImageBlock(root, img) {
+  const range = currentRange(root)
+  const block = img.parentElement
+  if (block !== root && block.contains(range.startContainer)) return
+  img.remove()
+  if (block !== root && isBlank(block)) block.remove()
+  insertImageBlock(root, img)
+}
+
+export function shiftImageBlock(root, img, direction) {
+  const block = img.parentElement
+  if (block === root) return
+  const sibling = direction < 0 ? block.previousElementSibling : block.nextElementSibling
+  if (!sibling) return
+  if (direction < 0) sibling.before(block)
+  else sibling.after(block)
+  block.scrollIntoView({ block: 'nearest' })
 }
 
 export function createInsertImage(root, { onInserted, onFailed }) {

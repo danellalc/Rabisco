@@ -1,4 +1,4 @@
-import { contentWidth, removeImageBlock } from './editor.js'
+import { contentWidth, removeImageBlock, shiftImageBlock } from './editor.js'
 
 export const MIN_WIDTH = 60
 
@@ -52,6 +52,12 @@ export function initResize({ note, area, selection, handle, onRemove }) {
     if (!selected) return
     if (event.key === 'Escape') {
       clear()
+      return
+    }
+    if (event.altKey && (event.key === 'ArrowUp' || event.key === 'ArrowDown')) {
+      event.preventDefault()
+      shiftImageBlock(note, selected, event.key === 'ArrowUp' ? -1 : 1)
+      reposition()
       return
     }
     if (event.key !== 'Backspace' && event.key !== 'Delete') return
