@@ -9,6 +9,7 @@ test('file helpers on the client mirror the server: kinds, blocked names, sizes 
   assert.equal(kindOf('trilha.mp3'), 'audio')
   assert.equal(kindOf('anything'), 'generic')
   assert.equal(isBlockedName('a.exe'), true)
+  assert.equal(isBlockedName('a.exe. '), true)
   assert.equal(isBlockedName('a.zip'), false)
   assert.equal(isMedia('video'), true)
   assert.equal(isMedia('pdf'), false)

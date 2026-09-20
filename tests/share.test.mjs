@@ -4,7 +4,7 @@ import { createRequire } from 'node:module'
 import { expiryDate, shareTarget, shareUrl, tokenFromHash } from '../pb_public/js/share.js'
 
 const require = createRequire(import.meta.url)
-const { filterContent, isExpired, parseIds, shareMode, sharedItemIds } = require('../pb_hooks/share.js')
+const { filterContent, isExpired, isScoped, parseBoard, parseIds, shareMode, sharedItemIds } = require('../pb_hooks/share.js')
 
 const record = (expires) => ({ getString: () => expires })
 const content = JSON.stringify([
@@ -12,6 +12,7 @@ const content = JSON.stringify([
   { id: 'fil00001', type: 'file', x: 0, y: 0, z: 2, file: 'f1', name: 'r.pdf', size: 1, kind: 'pdf' },
   { id: 'img00001', type: 'image', x: 0, y: 0, z: 3, w: 100, src: '/api/files/images/a/b.webp' }
 ])
+const items = parseBoard(content)
 
 test('expiry is detected on the server', () => {
   assert.equal(isExpired(record('')), false)
@@ -22,21 +23,29 @@ test('expiry is detected on the server', () => {
 test('shared item ids are validated against the board and deduplicated', () => {
   assert.deepEqual(parseIds('["txt00001", 3, "bad id", "fil00001"]'), ['txt00001', 'fil00001'])
   assert.deepEqual(parseIds('{nope'), [])
-  assert.deepEqual(sharedItemIds(content, '["fil00001","ghost001","fil00001"]'), ['fil00001'])
-  assert.deepEqual(sharedItemIds(content, '[]'), [])
-  assert.deepEqual(sharedItemIds(content, ''), [])
+  assert.deepEqual(sharedItemIds(items, '["fil00001","ghost001","fil00001"]'), ['fil00001'])
+  assert.deepEqual(sharedItemIds(items, '[]'), [])
+  assert.deepEqual(sharedItemIds(items, ''), [])
+  assert.deepEqual(parseBoard('{broken'), [])
+})
+
+test('a scoped share whose items vanished never widens to the whole board', () => {
+  assert.equal(isScoped('["ghost001"]'), true)
+  assert.equal(isScoped('[]'), false)
+  assert.equal(isScoped(''), false)
+  assert.deepEqual(sharedItemIds(items, '["ghost001"]'), [])
 })
 
 test('a selection or file share is always view only, a board share can edit', () => {
-  assert.equal(shareMode('edit', []), 'edit')
-  assert.equal(shareMode('view', []), 'view')
-  assert.equal(shareMode('anything', []), 'view')
-  assert.equal(shareMode('edit', ['fil00001']), 'view')
+  assert.equal(shareMode('edit', false), 'edit')
+  assert.equal(shareMode('view', false), 'view')
+  assert.equal(shareMode('anything', false), 'view')
+  assert.equal(shareMode('edit', true), 'view')
 })
 
 test('the visitor only receives the shared items', () => {
-  assert.equal(filterContent(content, []), content)
-  assert.deepEqual(JSON.parse(filterContent(content, ['fil00001', 'img00001'])).map((item) => item.id), ['fil00001', 'img00001'])
+  assert.equal(filterContent(content, items, []), content)
+  assert.deepEqual(JSON.parse(filterContent(content, items, ['fil00001', 'img00001'])).map((item) => item.id), ['fil00001', 'img00001'])
 })
 
 test('expiry choices become dates from now', () => {

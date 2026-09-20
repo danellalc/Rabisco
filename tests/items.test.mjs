@@ -66,7 +66,15 @@ test('file items only survive when the file belongs to the board, and carry the 
 })
 
 test('file helpers classify names and block executables', () => {
-  const { cleanName, extensionOf, isBlocked, kindOf } = require('../pb_hooks/files.js')
+  const { cleanName, extensionOf, isBlocked, kindOf, storageIds } = require('../pb_hooks/files.js')
+  assert.deepEqual(storageIds(JSON.stringify([
+    { id: 'f1', type: 'file', file: 'abcdefghijklmno' },
+    { id: 'f2', type: 'file', file: 'abcdefghijklmno' },
+    { id: 'i1', type: 'image', src: '/api/files/images/aaaaaaaaaaaaaaa/x_1234567890.webp' },
+    { id: 't1', type: 'text', html: '<div><img src="/api/files/images/bbbbbbbbbbbbbbb/y_1234567890.webp"><img src="/api/files/images/aaaaaaaaaaaaaaa/x_1234567890.webp"></div>' },
+    { id: 'l1', type: 'link', url: 'https://x.test/api/files/images/ccccccccccccccc/' }
+  ])), { files: ['abcdefghijklmno'], images: ['aaaaaaaaaaaaaaa', 'bbbbbbbbbbbbbbb', 'ccccccccccccccc'] })
+  assert.deepEqual(storageIds('{broken'), { files: [], images: [] })
   assert.equal(kindOf('Relatorio.PDF'), 'pdf')
   assert.equal(kindOf('site-v2.zip'), 'zip')
   assert.equal(kindOf('teaser.mp4'), 'video')
@@ -81,6 +89,8 @@ test('file helpers classify names and block executables', () => {
   assert.equal(isBlocked('script.PS1'), true)
   assert.equal(isBlocked('archive.zip'), false)
   assert.equal(cleanName('C:\\Users\\x\\..\\evil\u0000.pdf'), 'evil.pdf')
+  assert.equal(cleanName('payload.exe.'), 'payload.exe')
+  assert.equal(isBlocked(cleanName('evil.bat. .')), true)
   assert.equal(cleanName(''), 'file')
   assert.equal(cleanName('x'.repeat(300)).length, 200)
 })

@@ -33,7 +33,7 @@ function isBlocked(name) {
 }
 
 function cleanName(name) {
-  const base = String(name || '').split(/[\\/]/).pop().replace(/[\u0000-\u001f]/g, '').trim()
+  const base = String(name || '').split(/[\\/]/).pop().replace(/[\u0000-\u001f]/g, '').trim().replace(/[.\s]+$/, '')
   return (base || 'file').slice(0, NAME_LIMIT)
 }
 
@@ -46,10 +46,57 @@ function quotaOf(user) {
 function usedBytes(app, userId) {
   const result = new DynamicModel({ total: 0 })
   app.db()
-    .newQuery("SELECT COALESCE((SELECT SUM(size) FROM files WHERE user = {:user} AND EXISTS (SELECT 1 FROM boards WHERE boards.user = {:user} AND boards.content LIKE '%\"file\":\"' || files.id || '\"%')), 0) + COALESCE((SELECT SUM(size) FROM images WHERE user = {:user} AND EXISTS (SELECT 1 FROM boards WHERE boards.user = {:user} AND boards.content LIKE '%/api/files/images/' || images.id || '/%')), 0) AS total")
+    .newQuery("SELECT COALESCE((SELECT SUM(size) FROM files WHERE user = {:user} AND orphaned = ''), 0) + COALESCE((SELECT SUM(size) FROM images WHERE user = {:user} AND orphaned = ''), 0) AS total")
     .bind({ user: userId })
     .one(result)
   return Number(result.total) || 0
+}
+
+function storageIds(content) {
+  const files = []
+  const images = []
+  let items = []
+  try {
+    items = JSON.parse(String(content || '[]'))
+  } catch (error) {
+    items = []
+  }
+  for (let index = 0; index < items.length; index++) {
+    const item = items[index]
+    if (item && item.type === 'file' && typeof item.file === 'string' && files.indexOf(item.file) < 0) files.push(item.file)
+  }
+  const pattern = /\/api\/files\/images\/([a-z0-9]{15})\//g
+  let match = pattern.exec(String(content || ''))
+  while (match !== null) {
+    if (images.indexOf(match[1]) < 0) images.push(match[1])
+    match = pattern.exec(String(content || ''))
+  }
+  return { files, images }
+}
+
+function markCollection(app, name, boardId, ids) {
+  const params = { board: boardId }
+  const placeholders = []
+  for (let index = 0; index < ids.length; index++) {
+    params['id' + index] = ids[index]
+    placeholders.push('{:id' + index + '}')
+  }
+  const list = placeholders.join(',')
+  app.db()
+    .newQuery('UPDATE ' + name + " SET orphaned = strftime('%Y-%m-%d %H:%M:%fZ', 'now') WHERE board = {:board} AND orphaned = ''" + (list ? ' AND id NOT IN (' + list + ')' : ''))
+    .bind(params)
+    .execute()
+  if (!list) return
+  app.db()
+    .newQuery('UPDATE ' + name + " SET orphaned = '' WHERE board = {:board} AND orphaned != '' AND id IN (" + list + ')')
+    .bind(params)
+    .execute()
+}
+
+function markStorage(app, boardId, content) {
+  const ids = storageIds(content)
+  markCollection(app, 'files', boardId, ids.files)
+  markCollection(app, 'images', boardId, ids.images)
 }
 
 function assertQuota(app, user, incoming) {
@@ -108,15 +155,15 @@ function fileItemInfo(app, boardId, userId) {
   }
 }
 
-function deleteOrphans(app) {
+function deleteUnreferenced(app, condition) {
   const collections = { files: '%"file":"', images: '%/api/files/images/' }
   const names = Object.keys(collections)
   for (let index = 0; index < names.length; index++) {
     const name = names[index]
     const prefix = collections[name]
-    const rows = []
+    const rows = arrayOf(new DynamicModel({ id: '' }))
     app.db()
-      .newQuery("SELECT id FROM " + name + " WHERE created < datetime('now', '-1 day') AND NOT EXISTS (SELECT 1 FROM boards WHERE boards.content LIKE {:prefix} || " + name + ".id || '%')")
+      .newQuery('SELECT id FROM ' + name + ' WHERE ' + condition + ' AND NOT EXISTS (SELECT 1 FROM boards WHERE boards.content LIKE {:prefix} || ' + name + ".id || '%')")
       .bind({ prefix })
       .all(rows)
     for (let row = 0; row < rows.length; row++) {
@@ -129,4 +176,12 @@ function deleteOrphans(app) {
   }
 }
 
-module.exports = { BLOCKED, KINDS, extensionOf, kindOf, isBlocked, cleanName, quotaOf, usedBytes, assertQuota, downloadLink, serveDownload, fileItemInfo, deleteOrphans }
+function deleteNeverPlaced(app) {
+  deleteUnreferenced(app, "orphaned = '' AND created < datetime('now', '-1 day')")
+}
+
+function deleteOrphans(app) {
+  deleteUnreferenced(app, "orphaned != '' AND orphaned < datetime('now', '-1 hour')")
+}
+
+module.exports = { BLOCKED, KINDS, extensionOf, kindOf, isBlocked, cleanName, quotaOf, usedBytes, assertQuota, downloadLink, serveDownload, fileItemInfo, storageIds, markStorage, deleteNeverPlaced, deleteOrphans }

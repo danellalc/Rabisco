@@ -29,7 +29,7 @@ export function kindOf(name) {
 }
 
 export function isBlockedName(name) {
-  return BLOCKED_EXTENSIONS.includes(extensionOf(name))
+  return BLOCKED_EXTENSIONS.includes(extensionOf(String(name || '').replace(/[.\s]+$/, '')))
 }
 
 export function formatSize(bytes, language) {

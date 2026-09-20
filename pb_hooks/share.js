@@ -15,22 +15,39 @@ function parseIds(raw) {
   }
 }
 
-function sharedItemIds(content, requested) {
-  const ids = parseIds(requested).slice(0, MAX_SHARED_ITEMS)
-  if (ids.length === 0) return []
-  const present = ids.filter((id) => content.indexOf('"id":"' + id + '"') >= 0)
-  return present.filter((id, index) => present.indexOf(id) === index)
+function parseBoard(content) {
+  try {
+    const parsed = JSON.parse(String(content || '[]'))
+    return Array.isArray(parsed) ? parsed : []
+  } catch (error) {
+    return []
+  }
 }
 
-function shareMode(mode, itemIds) {
-  if (itemIds.length > 0) return 'view'
+function sharedItemIds(items, requested) {
+  const ids = parseIds(requested).slice(0, MAX_SHARED_ITEMS)
+  if (ids.length === 0) return []
+  const present = new Set(items.map((item) => item.id))
+  const kept = new Set()
+  for (let index = 0; index < ids.length; index++) {
+    if (present.has(ids[index])) kept.add(ids[index])
+  }
+  return Array.from(kept)
+}
+
+function isScoped(requested) {
+  return parseIds(requested).length > 0
+}
+
+function shareMode(mode, scoped) {
+  if (scoped) return 'view'
   return mode === 'edit' ? 'edit' : 'view'
 }
 
-function filterContent(content, itemIds) {
+function filterContent(content, items, itemIds) {
   if (itemIds.length === 0) return content
-  const items = JSON.parse(content)
-  return JSON.stringify(items.filter((item) => itemIds.indexOf(item.id) >= 0))
+  const wanted = new Set(itemIds)
+  return JSON.stringify(items.filter((item) => wanted.has(item.id)))
 }
 
 function findShared(e) {
@@ -50,8 +67,12 @@ function findShared(e) {
   } catch (error) {
     throw new NotFoundError('Link not active.')
   }
-  const itemIds = sharedItemIds(board.getString('content'), share.getString('items'))
-  return { share, board, itemIds, mode: shareMode(share.getString('mode'), itemIds) }
+  const content = board.getString('content')
+  const items = parseBoard(content)
+  const scoped = isScoped(share.getString('items'))
+  const itemIds = sharedItemIds(items, share.getString('items'))
+  if (scoped && itemIds.length === 0) throw new NotFoundError('Link not active.')
+  return { share, board, scoped, itemIds, mode: shareMode(share.getString('mode'), scoped), content: filterContent(content, items, itemIds) }
 }
 
 function expireShares(app) {
@@ -59,4 +80,4 @@ function expireShares(app) {
   for (let index = 0; index < records.length; index++) app.delete(records[index])
 }
 
-module.exports = { findShared, isExpired, parseIds, sharedItemIds, shareMode, filterContent, expireShares }
+module.exports = { findShared, isExpired, parseIds, parseBoard, sharedItemIds, isScoped, shareMode, filterContent, expireShares }
