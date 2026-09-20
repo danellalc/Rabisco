@@ -23,6 +23,7 @@ color-scheme:dark;
 html,body{height:100%}
 body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;display:flex;flex-direction:column}
 button{font:inherit;color:inherit;background:none;border:0;padding:0;cursor:pointer}
+svg{fill:none;stroke:currentColor;stroke-width:1.75;stroke-linecap:round;stroke-linejoin:round}
 :focus-visible{outline:2px solid var(--acc);outline-offset:2px}
 .note-header{position:relative;display:flex;align-items:center;gap:var(--s4);padding:var(--s3) var(--s4);border-bottom:1px solid var(--line);flex-shrink:0}
 .icon-button{width:44px;height:44px;display:inline-flex;align-items:center;justify-content:center;margin-left:-12px}
@@ -47,7 +48,7 @@ button{font:inherit;color:inherit;background:none;border:0;padding:0;cursor:poin
 .note ul.ck>li{position:relative;padding-left:1.6em}
 .note ul.ck>li::before{content:"☐";position:absolute;left:0;cursor:pointer}
 .note ul.ck>li.on::before{content:"☑"}
-.note ul.ck>li.on{color:var(--fg2)}
+.note ul.ck>li.on{opacity:.6}
 .note a{color:var(--acc);text-decoration:underline}
 .note hr{border:0;border-top:1px solid var(--line)}
 .hl1{background:var(--hl1)}
@@ -71,7 +72,7 @@ mark{color:inherit}
 .toolbar .sep{width:1px;align-self:stretch;margin:var(--s1) 2px;background:var(--line)}
 @media (max-width:719px){
 .toolbar{position:fixed;left:0;right:0;flex-wrap:wrap;border-radius:0;border-top:1px solid var(--line)}
-.toolbar button{flex:1 0 11%;height:40px}
+.toolbar button{flex:1 0 10%;height:40px}
 .toolbar .sep{display:none}
 }
 .note img{display:block;max-width:100%;height:auto;border-radius:4px;cursor:grab;user-select:none;-webkit-user-drag:none;-webkit-touch-callout:none;touch-action:manipulation;content-visibility:auto}

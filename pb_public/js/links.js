@@ -1,4 +1,5 @@
 const URL_PATTERN = /^(https?:\/\/|www\.)[^\s<>"']+$/i
+const SAFE_PROTOCOLS = ['http:', 'https:']
 
 export function isUrl(text) {
   return typeof text === 'string' && URL_PATTERN.test(text.trim())
@@ -6,7 +7,12 @@ export function isUrl(text) {
 
 export function toHref(text) {
   const trimmed = text.trim()
-  return /^www\./i.test(trimmed) ? `https://${trimmed}` : trimmed
+  const candidate = /^www\./i.test(trimmed) ? `https://${trimmed}` : trimmed
+  try {
+    return SAFE_PROTOCOLS.includes(new URL(candidate).protocol) ? candidate : null
+  } catch {
+    return null
+  }
 }
 
 export function lastWord(text) {
@@ -15,13 +21,20 @@ export function lastWord(text) {
 }
 
 function secureLink(anchor, href) {
-  anchor.href = href
+  const safe = toHref(href || '')
+  if (!safe) {
+    anchor.replaceWith(...anchor.childNodes)
+    return
+  }
+  anchor.href = safe
   anchor.rel = 'noopener noreferrer'
   anchor.target = '_blank'
 }
 
 export function linkSelection(root, url) {
-  document.execCommand('createLink', false, toHref(url))
+  const href = toHref(url)
+  if (!href) return
+  document.execCommand('createLink', false, href)
   for (const anchor of root.querySelectorAll('a:not([rel])')) secureLink(anchor, anchor.getAttribute('href'))
 }
 
@@ -29,19 +42,21 @@ function linkWordBeforeCaret(word) {
   const selection = document.getSelection()
   const caret = selection.getRangeAt(0)
   const node = caret.startContainer
-  if (node.nodeType !== Node.TEXT_NODE || caret.startOffset < word.length) return
+  if (node.nodeType !== Node.TEXT_NODE || caret.startOffset < word.length) return false
   const range = document.createRange()
   range.setStart(node, caret.startOffset - word.length)
   range.setEnd(node, caret.startOffset)
-  if (range.toString() !== word) return
+  if (range.toString() !== word) return false
   const anchor = document.createElement('a')
-  secureLink(anchor, toHref(word))
+  secureLink(anchor, word)
+  if (!anchor.href) return false
   range.surroundContents(anchor)
   const after = document.createRange()
   after.setStartAfter(anchor)
   after.collapse(true)
   selection.removeAllRanges()
   selection.addRange(after)
+  return true
 }
 
 export function initLinks({ note, beforeChange }) {
@@ -55,8 +70,11 @@ export function initLinks({ note, beforeChange }) {
     if (node.nodeType !== Node.TEXT_NODE || node.parentElement.closest('a')) return
     const word = lastWord(node.data.slice(0, caret.startOffset))
     if (!isUrl(word)) return
+    event.preventDefault()
     beforeChange()
-    linkWordBeforeCaret(word)
+    if (!linkWordBeforeCaret(word)) return
+    if (isSpace) document.execCommand('insertText', false, ' ')
+    else document.execCommand('insertParagraph')
   })
 
   note.addEventListener('click', (event) => {

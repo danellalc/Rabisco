@@ -1,4 +1,4 @@
-import { blockOf, insertBlock } from './editor.js'
+import { blockOf, insertBlock, placeCaret, wrapInlineRun } from './editor.js'
 
 export const LINE_SHORTCUTS = {
   '#': 'heading1',
@@ -10,6 +10,7 @@ export const LINE_SHORTCUTS = {
 }
 
 export const RULE_TRIGGER = '---'
+const NO_SHORTCUT_INSIDE = ['UL', 'OL', 'TABLE']
 
 export function lineShortcut(textBeforeCaret) {
   return LINE_SHORTCUTS[textBeforeCaret] ?? null
@@ -33,10 +34,18 @@ function rangeFromBlockStart(root) {
   if (!caret) return null
   const block = blockOf(caret.startContainer, root)
   if (!block) return null
+  if (block.nodeType === Node.ELEMENT_NODE && NO_SHORTCUT_INSIDE.includes(block.tagName)) return null
   const range = document.createRange()
   range.setStart(block, 0)
   range.setEnd(caret.startContainer, caret.startOffset)
   return { range, block }
+}
+
+function emptyBlock(block) {
+  const wrapped = block.nodeType === Node.ELEMENT_NODE ? block : wrapInlineRun(block)
+  if (wrapped.textContent === '' && !wrapped.querySelector('br')) wrapped.append(document.createElement('br'))
+  placeCaret(wrapped, 0)
+  return wrapped
 }
 
 export function initShortcuts({ note, apply, beforeChange, insertDate }) {
@@ -53,13 +62,15 @@ export function initShortcuts({ note, apply, beforeChange, insertDate }) {
       event.preventDefault()
       beforeChange()
       found.range.deleteContents()
+      emptyBlock(found.block)
       apply(command)
       return
     }
     if (text === RULE_TRIGGER && found.block.textContent === RULE_TRIGGER) {
       event.preventDefault()
       beforeChange()
-      found.block.textContent = ''
+      found.range.deleteContents()
+      emptyBlock(found.block)
       insertBlock(note, document.createElement('hr'))
     }
   })

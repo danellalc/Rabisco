@@ -1,6 +1,6 @@
 import { createChooser, createToast } from './dom.js'
 import { clearIfBlank, createInsertImage, insertText, placeCaretAtEnd, removeImageBlock } from './editor.js'
-import { createFormatter, initChecklistToggle } from './format.js'
+import { createFormatter, initChecklist } from './format.js'
 import { bindHistoryKeys, createHistory } from './history.js'
 import { applyTranslations, createTranslator, pickLanguage } from './i18n.js'
 import { compressImage, copyImage, downloadBlob, fileExtension } from './images.js'
@@ -118,7 +118,7 @@ initPaste(note, {
   choose
 })
 initToolbar({ note, area, bar: document.getElementById('toolbar'), apply: formatter.apply, active: formatter.active, beforeChange })
-initChecklistToggle(note, beforeChange)
+initChecklist(note, beforeChange)
 initMenu({
   button: document.getElementById('menu'),
   menu: document.getElementById('menu-panel'),

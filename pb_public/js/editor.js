@@ -58,7 +58,9 @@ export function isBlank(node) {
 }
 
 export function clearIfBlank(root) {
-  if (root.childNodes.length > 0 && isBlank(root)) root.replaceChildren()
+  if (root.childNodes.length === 0 || !isBlank(root)) return
+  if (root.querySelector('h1,h2,ul,ol,hr')) return
+  root.replaceChildren()
 }
 
 function isInline(node) {
@@ -75,7 +77,7 @@ function emptyLine() {
   return line
 }
 
-function wrapInlineRun(node) {
+export function wrapInlineRun(node) {
   let first = node
   while (first.previousSibling && isInline(first.previousSibling)) first = first.previousSibling
   let last = node

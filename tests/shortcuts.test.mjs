@@ -34,6 +34,12 @@ test('urls are recognized and completed', () => {
   assert.equal(toHref('https://x.io'), 'https://x.io')
 })
 
+test('only http and https survive as link targets', () => {
+  assert.equal(toHref('javascript:alert(1)'), null)
+  assert.equal(toHref('data:text/html,hi'), null)
+  assert.equal(toHref('not a url'), null)
+})
+
 test('the last word before the caret is what gets linked', () => {
   assert.equal(lastWord('veja isso https://x.io'), 'https://x.io')
   assert.equal(lastWord(''), '')

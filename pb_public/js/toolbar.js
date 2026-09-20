@@ -54,7 +54,9 @@ export function initToolbar({ note, area, bar, apply, active, beforeChange }) {
     window.visualViewport.addEventListener('scroll', () => { if (!bar.hidden) update() })
   }
 
-  bar.addEventListener('pointerdown', (event) => event.preventDefault())
+  bar.addEventListener('pointerdown', (event) => {
+    if (event.pointerType === 'mouse') event.preventDefault()
+  })
   bar.addEventListener('click', (event) => {
     const button = event.target.closest('button')
     if (!button) return

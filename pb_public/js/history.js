@@ -92,6 +92,7 @@ export function bindHistoryKeys(root, history) {
       else history.redo()
       return
     }
+    if (event.defaultPrevented) return
     history.captureTyping(event.inputType)
   })
 
