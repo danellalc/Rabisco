@@ -20,9 +20,11 @@ export function createToast(element) {
 
 export function createChooser(element) {
   let fallback = null
+  let dismissed = () => {}
 
   const close = () => {
     fallback = null
+    dismissed = () => {}
     element.hidden = true
     element.replaceChildren()
     document.removeEventListener('pointerdown', settleIfOutside)
@@ -41,12 +43,16 @@ export function createChooser(element) {
   }
 
   const cancelOnEscape = (event) => {
-    if (event.key === 'Escape') close()
+    if (event.key !== 'Escape') return
+    const onDismiss = dismissed
+    close()
+    onDismiss()
   }
 
-  const open = (question, options) => {
+  const open = (question, options, { focus = true, onDismiss } = {}) => {
     close()
     fallback = options[0].run
+    dismissed = onDismiss || (() => {})
     const label = document.createElement('span')
     label.textContent = question
     element.append(label)
@@ -61,7 +67,7 @@ export function createChooser(element) {
       element.append(button)
     }
     element.hidden = false
-    if (matchMedia('(hover: hover)').matches) element.querySelector('button').focus()
+    if (focus && matchMedia('(hover: hover)').matches) element.querySelector('button').focus()
     document.addEventListener('pointerdown', settleIfOutside)
     document.addEventListener('keydown', cancelOnEscape)
   }

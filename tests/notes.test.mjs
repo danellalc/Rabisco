@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { isSuspiciousShrink, readDraft, writeDraft } from '../pb_public/js/notes.js'
+import { isSuspiciousShrink, nextRetryDelay, readDraft, writeDraft } from '../pb_public/js/notes.js'
 import { errorKey, magicLinkFrom, readAuth, writeAuth } from '../pb_public/js/auth.js'
 
 const memoryStorage = () => {
@@ -16,6 +16,13 @@ test('a big note that suddenly shrinks is suspicious, small notes are not', () =
   assert.equal(isSuspiciousShrink(5000, 1000), true)
   assert.equal(isSuspiciousShrink(5000, 4000), false)
   assert.equal(isSuspiciousShrink(500, 10), false)
+})
+
+test('retries back off exponentially up to a ceiling', () => {
+  assert.equal(nextRetryDelay(0), 2000)
+  assert.equal(nextRetryDelay(2000), 4000)
+  assert.equal(nextRetryDelay(16000), 30000)
+  assert.equal(nextRetryDelay(30000), 30000)
 })
 
 test('drafts round trip and reject junk', () => {

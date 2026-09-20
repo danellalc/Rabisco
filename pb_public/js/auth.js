@@ -59,7 +59,7 @@ export function initAuth({ api, store, elements, translate, onSignedIn, onSigned
     onSignedIn()
   }
 
-  const requestCode = async () => {
+  const requestCode = async (errorTarget) => {
     const button = emailForm.querySelector('button[type=submit]')
     button.disabled = true
     button.textContent = translate('sending')
@@ -70,7 +70,7 @@ export function initAuth({ api, store, elements, translate, onSignedIn, onSigned
       codeInput.value = ''
       show('code')
     } catch (error) {
-      showError(emailError, errorKey(error))
+      showError(errorTarget, errorKey(error))
     } finally {
       button.disabled = false
       button.textContent = translate('getCode')
@@ -84,7 +84,7 @@ export function initAuth({ api, store, elements, translate, onSignedIn, onSigned
       showError(emailError, 'emailInvalid')
       return
     }
-    requestCode()
+    requestCode(emailError)
   })
 
   codeForm.addEventListener('submit', async (event) => {
@@ -101,9 +101,13 @@ export function initAuth({ api, store, elements, translate, onSignedIn, onSigned
   })
 
   resend.addEventListener('click', () => {
+    if (!email) {
+      show('email')
+      return
+    }
     resend.disabled = true
     setTimeout(() => { resend.disabled = false }, RESEND_COOLDOWN)
-    requestCode()
+    requestCode(codeError)
   })
 
   changeEmail.addEventListener('click', () => show('email'))
@@ -126,8 +130,8 @@ export function initAuth({ api, store, elements, translate, onSignedIn, onSigned
         finish(await api.signIn(link.id, link.code))
         return
       } catch (error) {
-        show('code')
-        showError(codeError, errorKey(error))
+        show('email')
+        showError(emailError, errorKey(error))
         return
       }
     }

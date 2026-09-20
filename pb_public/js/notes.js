@@ -3,6 +3,8 @@ import { readList, writeList } from './list.js'
 
 const SAVE_DELAY = 1000
 const UNDO_DELAY = 5000
+const RETRY_MIN = 2000
+const RETRY_MAX = 30000
 const SHRINK_MIN_LENGTH = 2000
 const SHRINK_RATIO = 0.3
 const lastKey = 'rabisco.last'
@@ -10,6 +12,10 @@ const draftKey = (id) => `rabisco.draft:${id}`
 
 export function isSuspiciousShrink(previousLength, nextLength) {
   return previousLength > SHRINK_MIN_LENGTH && nextLength < previousLength * SHRINK_RATIO
+}
+
+export function nextRetryDelay(previous) {
+  return Math.min(previous ? previous * 2 : RETRY_MIN, RETRY_MAX)
 }
 
 export function readDraft(storage, id) {
@@ -46,19 +52,30 @@ function writeLast(storage, id) {
   }
 }
 
+const isClientError = (error) => Boolean(error && error.status >= 400 && error.status < 500)
+const failureState = () => (navigator.onLine ? 'error' : 'offline')
+
 export function createNotes({ api, store, note, list, history, chooser, translate, setState, onAuthLost, showToast, onOpened }) {
   let timer = 0
   let saving = false
   let allowShrink = false
+  let retryDelay = 0
   const uploads = new Set()
+  const uploadRetries = new Map()
   const pendingDeletes = new Map()
   const channel = typeof BroadcastChannel === 'undefined' ? null : new BroadcastChannel('rabisco')
 
   const current = () => store.note
 
+  const releaseUploaded = () => {
+    for (const blobUrl of store.uploaded.keys()) URL.revokeObjectURL(blobUrl)
+    store.uploaded.clear()
+  }
+
   const show = (html) => {
     render(note, html)
     history.reset()
+    releaseUploaded()
   }
 
   const swapUploadedImages = () => {
@@ -74,9 +91,9 @@ export function createNotes({ api, store, note, list, history, chooser, translat
     return false
   })
 
-  const schedule = () => {
+  const schedule = (delay = SAVE_DELAY) => {
     clearTimeout(timer)
-    timer = setTimeout(save, SAVE_DELAY)
+    timer = setTimeout(save, delay)
   }
 
   const markDirty = () => {
@@ -93,8 +110,8 @@ export function createNotes({ api, store, note, list, history, chooser, translat
   const applyServer = (record) => {
     store.note = { id: record.id, revision: record.updated, length: record.content.length }
     show(record.content)
+    note.contentEditable = 'true'
     store.dirty = false
-    writeDraft(localStorage, record.id, null)
     list.upsert(summary(record))
     persistList()
     setState('saved')
@@ -102,14 +119,18 @@ export function createNotes({ api, store, note, list, history, chooser, translat
 
   const conflict = () => {
     chooser.open(translate('conflict'), [
-      { label: translate('reload'), run: async () => applyServer(await api.getNote(current().id)) },
       { label: translate('keepMine'), run: async () => {
         const latest = await api.getNote(current().id)
         current().revision = latest.updated
         store.dirty = true
         save()
+      } },
+      { label: translate('reload'), run: async () => {
+        const id = current().id
+        applyServer(await api.getNote(id))
+        writeDraft(localStorage, id, null)
       } }
-    ])
+    ], { focus: false, onDismiss: () => setState('error') })
   }
 
   const save = async () => {
@@ -122,7 +143,7 @@ export function createNotes({ api, store, note, list, history, chooser, translat
       chooser.open(translate('shrunk'), [
         { label: translate('keep'), run: () => { allowShrink = true; save() } },
         { label: translate('undo'), run: () => { history.undo(); store.dirty = true; schedule() } }
-      ])
+      ], { focus: false, onDismiss: () => setState('error') })
       return
     }
     writeDraft(localStorage, active.id, { html, revision: active.revision, at: Date.now() })
@@ -133,6 +154,7 @@ export function createNotes({ api, store, note, list, history, chooser, translat
       active.revision = result.updated
       active.length = html.length
       allowShrink = false
+      retryDelay = 0
       writeDraft(localStorage, active.id, null)
       list.upsert(summary(result))
       persistList()
@@ -147,11 +169,13 @@ export function createNotes({ api, store, note, list, history, chooser, translat
       } else if (error && error.status === 401) {
         setState('error')
         onAuthLost()
-      } else if (error && error.status >= 400 && error.status < 500) {
+      } else if (isClientError(error)) {
         setState('error')
         showToast(translate('saveFailed'))
       } else {
-        setState('offline')
+        setState(failureState())
+        retryDelay = nextRetryDelay(retryDelay)
+        schedule(retryDelay)
       }
     } finally {
       saving = false
@@ -180,15 +204,19 @@ export function createNotes({ api, store, note, list, history, chooser, translat
         })
         store.uploaded.set(blobUrl, url)
         store.pendingImages.delete(blobUrl)
+        uploadRetries.delete(blobUrl)
         swapUploadedImages()
         markDirty()
       } catch (error) {
-        if (error && error.status >= 400 && error.status < 500) {
+        if (isClientError(error)) {
           store.pendingImages.delete(blobUrl)
           showToast(translate('imageUnreadable'))
           markDirty()
         } else {
-          setState('offline')
+          setState(failureState())
+          const delay = nextRetryDelay(uploadRetries.get(blobUrl) || 0)
+          uploadRetries.set(blobUrl, delay)
+          setTimeout(() => upload(blobUrl), delay)
         }
       }
     })()
@@ -218,6 +246,20 @@ export function createNotes({ api, store, note, list, history, chooser, translat
     }
   }
 
+  const restoreDraft = (id, record) => {
+    const draft = readDraft(localStorage, id)
+    if (!draft) return
+    if (draft.revision === record.updated) {
+      show(draft.html)
+      markDirty()
+      return
+    }
+    chooser.open(translate('conflict'), [
+      { label: translate('keepMine'), run: () => { show(draft.html); markDirty() } },
+      { label: translate('reload'), run: () => writeDraft(localStorage, id, null) }
+    ], { focus: false, onDismiss: () => setState('error') })
+  }
+
   const open = async (id) => {
     if (current() && current().id === id) {
       onOpened()
@@ -230,17 +272,7 @@ export function createNotes({ api, store, note, list, history, chooser, translat
     list.setActive(id)
     writeLast(localStorage, id)
     onOpened()
-    const draft = readDraft(localStorage, id)
-    if (!draft) return
-    if (draft.revision === record.updated) {
-      show(draft.html)
-      markDirty()
-      return
-    }
-    chooser.open(translate('conflict'), [
-      { label: translate('reload'), run: () => writeDraft(localStorage, id, null) },
-      { label: translate('keepMine'), run: () => { show(draft.html); markDirty() } }
-    ])
+    restoreDraft(id, record)
   }
 
   const create = async () => {
@@ -317,15 +349,16 @@ export function createNotes({ api, store, note, list, history, chooser, translat
     store.note = null
     store.dirty = false
     store.pendingImages.clear()
-    store.uploaded.clear()
+    releaseUploaded()
     list.set([])
     note.replaceChildren()
+    note.contentEditable = 'false'
   }
 
   if (channel) {
     channel.addEventListener('message', async (event) => {
       const active = current()
-      if (!active || event.data.id !== active.id || event.data.revision === active.revision || store.dirty) return
+      if (!active || saving || store.dirty || event.data.id !== active.id || event.data.revision === active.revision) return
       applyServer(await api.getNote(active.id))
     })
   }
@@ -340,6 +373,8 @@ export function createNotes({ api, store, note, list, history, chooser, translat
     event.preventDefault()
     event.returnValue = ''
   })
+
+  note.contentEditable = 'false'
 
   return { load, open, create, pin, remove, reset, markDirty, upload, save, flush, isPinned: () => { const entry = current() && list.find(current().id); return Boolean(entry && entry.pinned) } }
 }

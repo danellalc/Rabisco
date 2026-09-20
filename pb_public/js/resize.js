@@ -11,7 +11,7 @@ export function toPercent(width, total) {
   return Math.round((width / total) * 1000) / 10
 }
 
-export function initResize({ note, area, selection, handle, beforeChange, onOpen, onCopy, onDownload }) {
+export function initResize({ note, area, selection, handle, beforeChange, afterChange, onOpen, onCopy, onDownload }) {
   let selected = null
   let expectedCaret = null
   let drag = null
@@ -131,7 +131,10 @@ export function initResize({ note, area, selection, handle, beforeChange, onOpen
     reposition()
   })
 
-  const endDrag = () => { drag = null }
+  const endDrag = () => {
+    if (drag) afterChange()
+    drag = null
+  }
   handle.addEventListener('pointerup', endDrag)
   handle.addEventListener('pointercancel', endDrag)
 

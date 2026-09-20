@@ -78,6 +78,7 @@ const imageSelection = initResize({
   selection,
   handle,
   beforeChange: () => beforeChange(),
+  afterChange: () => notes.markDirty(),
   onOpen: (img) => openLightbox(img.src, () => downloadImage(img)),
   onCopy: copySelectedImage,
   onDownload: downloadImage
@@ -222,19 +223,27 @@ const auth = initAuth({
     resend: document.getElementById('resend'),
     changeEmail: document.getElementById('change-email')
   },
-  onSignedIn: async () => {
+  onSignedIn: () => {
     document.getElementById('me').textContent = store.auth.email
     showNote()
-    try {
-      await notes.load()
-      note.focus()
-    } catch (error) {
-      if (error && error.status === 401) auth.signOut()
-      else showToast(translate('loadFailed'))
-    }
+    loadNotes()
   },
   onSignedOut: () => notes.reset()
 })
+
+async function loadNotes() {
+  try {
+    await notes.load()
+    note.focus()
+  } catch (error) {
+    if (error && error.status === 401) {
+      auth.signOut()
+      return
+    }
+    saveState.textContent = translate('loadFailed')
+    window.addEventListener('online', loadNotes, { once: true })
+  }
+}
 
 document.execCommand('styleWithCSS', false, 'false')
 document.execCommand('defaultParagraphSeparator', false, 'div')
