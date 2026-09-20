@@ -33,10 +33,13 @@ export function initResize({ note, area, selection, handle, beforeChange, afterC
   }
 
   const select = (img) => {
+    if (!note.isContentEditable) {
+      onOpen(img)
+      return
+    }
     selected = img
     selection.hidden = false
     reposition()
-    if (!note.isContentEditable) return
     note.focus({ preventScroll: true })
     expectedCaret = placeCaretAfter(note, img.parentElement)
   }
@@ -61,7 +64,7 @@ export function initResize({ note, area, selection, handle, beforeChange, afterC
 
   note.addEventListener('dblclick', (event) => {
     const img = event.target.closest('img')
-    if (img) onOpen(img)
+    if (img && note.isContentEditable) onOpen(img)
   })
 
   handle.addEventListener('dblclick', () => {

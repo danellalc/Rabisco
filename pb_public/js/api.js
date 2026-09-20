@@ -1,6 +1,6 @@
 const REFRESH_WINDOW = 3600000
-const NOTE_FIELDS = 'id,content,updated,title,cover,pinned,share_mode,share_token,share_expires'
-const SUMMARY_FIELDS = 'id,updated,title,cover,pinned,share_mode,share_token,share_expires'
+const NOTE_FIELDS = 'id,content,revision,updated,title,cover,pinned,share_mode,share_token,share_expires'
+const SUMMARY_FIELDS = 'id,revision,updated,title,cover,pinned,share_mode,share_token,share_expires'
 
 export class ApiError extends Error {
   constructor(status, message, data) {
@@ -22,10 +22,10 @@ export function tokenExpiry(token) {
 export function createApi({ getToken, getUserId, onSession = () => {} }) {
   let refreshing = null
 
-  const call = async (method, path, { body, headers = {} } = {}) => {
+  const call = async (method, path, { body, headers = {}, anonymous = false } = {}) => {
     const init = { method, headers: { ...headers } }
     const token = getToken()
-    if (token) init.headers.Authorization = token
+    if (token && !anonymous) init.headers.Authorization = token
     if (body instanceof FormData) init.body = body
     else if (body !== undefined) {
       init.headers['Content-Type'] = 'application/json'
@@ -61,6 +61,8 @@ export function createApi({ getToken, getUserId, onSession = () => {} }) {
     return call(method, path, options)
   }
 
+  const shareBody = (mode, expires) => (expires === undefined ? { share_mode: mode } : { share_mode: mode, share_expires: expires })
+
   return {
     requestCode: (email) => call('POST', '/api/collections/users/request-otp', { body: { email } }),
     signIn: (otpId, code) => call('POST', '/api/collections/users/auth-with-otp', { body: { otpId, password: code } }),
@@ -71,7 +73,7 @@ export function createApi({ getToken, getUserId, onSession = () => {} }) {
     createNote: (content = '') => fresh('POST', `/api/collections/notes/records?fields=${NOTE_FIELDS}`, { body: { content, user: getUserId() } }),
     saveNote: (id, content, revision) => fresh('PATCH', `/api/collections/notes/records/${id}?fields=${SUMMARY_FIELDS}`, { body: { content }, headers: { 'X-Note-Rev': revision } }),
     pinNote: (id, pinned) => fresh('PATCH', `/api/collections/notes/records/${id}?fields=${SUMMARY_FIELDS}`, { body: { pinned } }),
-    shareNote: (id, mode, expires) => fresh('PATCH', `/api/collections/notes/records/${id}?fields=${SUMMARY_FIELDS}`, { body: { share_mode: mode, share_expires: expires } }),
+    shareNote: (id, mode, expires) => fresh('PATCH', `/api/collections/notes/records/${id}?fields=${SUMMARY_FIELDS}`, { body: shareBody(mode, expires) }),
     deleteNote: (id) => fresh('DELETE', `/api/collections/notes/records/${id}`),
     uploadImage: (noteId, blob, name) => {
       const form = new FormData()
@@ -81,7 +83,7 @@ export function createApi({ getToken, getUserId, onSession = () => {} }) {
       return fresh('POST', '/api/collections/images/records?fields=id,file', { body: form })
     },
     imageUrl: (record) => `/api/files/images/${record.id}/${record.file}`,
-    getShared: (token) => call('GET', '/api/shared', { headers: { 'X-Share-Token': token } }),
-    saveShared: (token, content, revision) => call('PATCH', '/api/shared', { body: { content }, headers: { 'X-Share-Token': token, 'X-Note-Rev': revision } })
+    getShared: (token) => call('GET', '/api/shared', { headers: { 'X-Share-Token': token }, anonymous: true }),
+    saveShared: (token, content, revision) => call('PATCH', '/api/shared', { body: { content }, headers: { 'X-Share-Token': token, 'X-Note-Rev': revision }, anonymous: true })
   }
 }

@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { isSuspiciousShrink, nextRetryDelay, readDraft, writeDraft } from '../pb_public/js/notes.js'
+import { expiryChoice, isShareExpired, isSuspiciousShrink, nextRetryDelay, readDraft, writeDraft } from '../pb_public/js/notes.js'
 import { errorKey, magicLinkFrom, readAuth, writeAuth } from '../pb_public/js/auth.js'
 
 const memoryStorage = () => {
@@ -23,6 +23,17 @@ test('retries back off exponentially up to a ceiling', () => {
   assert.equal(nextRetryDelay(2000), 4000)
   assert.equal(nextRetryDelay(16000), 30000)
   assert.equal(nextRetryDelay(30000), 30000)
+})
+
+test('share expiry is read from the stored date', () => {
+  const now = new Date('2026-09-20T12:00:00.000Z').getTime()
+  assert.equal(isShareExpired('', now), false)
+  assert.equal(isShareExpired('2026-09-20 11:59:59.000Z', now), true)
+  assert.equal(isShareExpired('2026-09-20 12:30:00.000Z', now), false)
+  assert.equal(expiryChoice('', now), 'never')
+  assert.equal(expiryChoice('2026-09-20 12:30:00.000Z', now), '1h')
+  assert.equal(expiryChoice('2026-09-21 06:00:00.000Z', now), '1d')
+  assert.equal(expiryChoice('2026-09-26 12:00:00.000Z', now), '7d')
 })
 
 test('drafts round trip and reject junk', () => {

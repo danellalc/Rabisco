@@ -15,12 +15,15 @@ export function createVisitor({ api, token, note, history, chooser, translate, s
 
   const lock = () => {
     mode = 'view'
+    dirty = false
+    clearTimeout(timer)
     note.contentEditable = 'false'
+    onReady('view')
   }
 
   const apply = (shared) => {
     mode = shared.mode
-    revision = shared.updated
+    revision = shared.revision
     render(note, shared.content)
     history.reset()
     note.contentEditable = mode === 'edit' ? 'true' : 'false'
@@ -44,7 +47,7 @@ export function createVisitor({ api, token, note, history, chooser, translate, s
     chooser.open(translate('conflict'), [
       { label: translate('keepMine'), run: async () => {
         const latest = await api.getShared(token)
-        revision = latest.updated
+        revision = latest.revision
         dirty = true
         save()
       } },
@@ -60,7 +63,7 @@ export function createVisitor({ api, token, note, history, chooser, translate, s
     dirty = false
     try {
       const result = await api.saveShared(token, html, revision)
-      revision = result.updated
+      revision = result.revision
       retryDelay = 0
       setState(dirty ? 'saving' : 'saved')
       if (dirty) schedule()
@@ -70,8 +73,7 @@ export function createVisitor({ api, token, note, history, chooser, translate, s
         setState('error')
         conflict()
       } else if (error && (error.status === 404 || error.status === 403)) {
-        setState('error')
-        showToast(translate('linkGone'))
+        showToast(translate(error.status === 403 ? 'linkViewOnly' : 'linkGone'))
         lock()
       } else if (error && error.status >= 400 && error.status < 500) {
         setState('error')
@@ -87,9 +89,15 @@ export function createVisitor({ api, token, note, history, chooser, translate, s
   }
 
   const load = async () => {
-    const shared = await api.getShared(token)
-    apply(shared)
-    onReady(mode)
+    try {
+      apply(await api.getShared(token))
+      onReady(mode)
+    } catch (error) {
+      const gone = Boolean(error && error.status === 404)
+      note.textContent = translate(gone ? 'linkGone' : 'loadFailed')
+      lock()
+      if (!gone) window.addEventListener('online', load, { once: true })
+    }
   }
 
   window.addEventListener('online', () => { if (dirty) schedule() })

@@ -37,6 +37,7 @@ onRecordCreateRequest((e) => {
   e.record.set('content', content)
   e.record.set('title', titleOf(content))
   e.record.set('cover', coverOf(content))
+  e.record.set('revision', $security.randomString(12))
   e.record.set('share_mode', 'off')
   e.record.set('share_token', '')
   e.next()
@@ -47,7 +48,7 @@ routerAdd('GET', '/api/shared', (e) => {
   const record = findShared(e)
   return e.json(200, {
     content: record.getString('content'),
-    updated: record.getString('updated'),
+    revision: record.getString('revision'),
     mode: record.getString('share_mode'),
     title: record.getString('title')
   })
@@ -61,16 +62,19 @@ routerAdd('PATCH', '/api/shared', (e) => {
   if (record.getString('share_mode') !== 'edit') throw new ForbiddenError('This link is view only.')
   const info = e.requestInfo()
   const expected = String(info.headers.x_note_rev || '')
-  if (expected !== '' && expected !== record.getString('updated')) {
-    throw new ApiError(409, 'The note changed elsewhere.', { updated: record.getString('updated') })
+  if (expected !== '' && expected !== record.getString('revision')) {
+    throw new ApiError(409, 'The note changed elsewhere.', { revision: record.getString('revision') })
   }
   const content = sanitizeHtml(String(info.body.content || ''))
+  if (content !== record.getString('content')) record.set('revision', $security.randomString(12))
   record.set('content', content)
   record.set('title', titleOf(content))
   record.set('cover', coverOf(content))
   e.app.save(record)
-  return e.json(200, { updated: record.getString('updated') })
+  return e.json(200, { revision: record.getString('revision') })
 })
+
+routerAdd('POST', '/share-target', (e) => e.redirect(303, '/'))
 
 cronAdd('expire-shares', '*/15 * * * *', () => {
   const { expireShares } = require(`${__hooks}/share.js`)
@@ -79,25 +83,27 @@ cronAdd('expire-shares', '*/15 * * * *', () => {
 
 onRecordUpdateRequest((e) => {
   const { sanitizeHtml } = require(`${__hooks}/sanitize.js`)
-  const original = e.record.original()
-  const expected = e.requestInfo().headers.x_note_rev || ''
-  if (expected !== '' && expected !== original.getString('updated')) {
-    throw new ApiError(409, 'The note changed elsewhere.', { updated: original.getString('updated') })
-  }
   const { titleOf, coverOf } = require(`${__hooks}/summary.js`)
+  const { isExpired, nextShare } = require(`${__hooks}/share.js`)
+  const info = e.requestInfo()
+  const original = e.record.original()
+  const expected = String(info.headers.x_note_rev || '')
+  if (expected !== '' && expected !== original.getString('revision')) {
+    throw new ApiError(409, 'The note changed elsewhere.', { revision: original.getString('revision') })
+  }
   const content = sanitizeHtml(e.record.getString('content'))
+  if (content !== original.getString('content')) e.record.set('revision', $security.randomString(12))
   e.record.set('content', content)
   e.record.set('title', titleOf(content))
   e.record.set('cover', coverOf(content))
-  const mode = e.record.getString('share_mode')
-  const previousToken = original.getString('share_token')
-  if (mode === 'off') {
-    e.record.set('share_token', '')
-    e.record.set('share_expires', '')
-  } else if (original.getString('share_mode') === 'off' || previousToken === '') {
-    e.record.set('share_token', $security.randomString(22))
-  } else {
-    e.record.set('share_token', previousToken)
-  }
+  const share = nextShare({
+    mode: e.record.getString('share_mode'),
+    previousMode: original.getString('share_mode'),
+    previousToken: original.getString('share_token'),
+    previousExpired: isExpired(original),
+    expiresGiven: info.body.share_expires !== undefined
+  }, () => $security.randomString(22))
+  e.record.set('share_token', share.token)
+  if (share.expires !== undefined) e.record.set('share_expires', share.expires)
   e.next()
 }, 'notes')

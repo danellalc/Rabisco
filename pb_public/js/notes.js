@@ -1,5 +1,5 @@
 import { render, serialize } from './sanitize.js'
-import { readList, writeList } from './list.js'
+import { parseDate, readList, writeList } from './list.js'
 import { expiryDate } from './share.js'
 
 const SAVE_DELAY = 1000
@@ -55,13 +55,18 @@ export function writeLast(storage, id) {
 
 export function expiryChoice(expires, now = Date.now()) {
   if (!expires) return 'never'
-  const remaining = new Date(String(expires).replace(' ', 'T')).getTime() - now
+  const remaining = parseDate(expires).getTime() - now
   if (remaining <= 3600000) return '1h'
   if (remaining <= 86400000) return '1d'
   return '7d'
 }
 
+export function isShareExpired(expires, now = Date.now()) {
+  return Boolean(expires) && parseDate(expires).getTime() <= now
+}
+
 const shareOf = (record) => ({ mode: record.share_mode || 'off', token: record.share_token || '', expires: record.share_expires || '' })
+const noShare = { mode: 'off', token: '', expires: '' }
 
 const isClientError = (error) => Boolean(error && error.status >= 400 && error.status < 500)
 const failureState = () => (navigator.onLine ? 'error' : 'offline')
@@ -130,7 +135,7 @@ export function createNotes({ api, store, note, list, history, chooser, translat
 
   const applyServer = (record) => {
     clearTimeout(timer)
-    store.note = { id: record.id, revision: record.updated, length: record.content.length, share: shareOf(record) }
+    store.note = { id: record.id, revision: record.revision, length: record.content.length, share: shareOf(record) }
     show(record.content)
     note.contentEditable = 'true'
     switching = false
@@ -144,7 +149,7 @@ export function createNotes({ api, store, note, list, history, chooser, translat
     chooser.open(translate('conflict'), [
       { label: translate('keepMine'), run: async () => {
         const latest = await api.getNote(current().id)
-        current().revision = latest.updated
+        current().revision = latest.revision
         store.dirty = true
         save()
       } },
@@ -176,7 +181,7 @@ export function createNotes({ api, store, note, list, history, chooser, translat
     store.dirty = false
     try {
       const result = await api.saveNote(active.id, html, active.revision)
-      active.revision = result.updated
+      active.revision = result.revision
       active.length = html.length
       allowShrink = false
       retryDelay = 0
@@ -295,7 +300,7 @@ export function createNotes({ api, store, note, list, history, chooser, translat
   const restoreDraft = (id, record) => {
     const draft = readDraft(localStorage, id)
     if (!draft) return
-    if (draft.revision === record.updated) {
+    if (draft.revision === record.revision) {
       show(draft.html)
       markDirty()
       return
@@ -369,25 +374,29 @@ export function createNotes({ api, store, note, list, history, chooser, translat
     if (!active) return
     const entry = list.find(active.id)
     const record = await api.pinNote(active.id, !(entry && entry.pinned))
-    active.revision = record.updated
     list.upsert(summary(record))
     persistList()
   }
 
   const getShare = () => {
     const active = current()
-    const share = active ? active.share : { mode: 'off', token: '', expires: '' }
+    const share = active && !isShareExpired(active.share.expires) ? active.share : noShare
     return { mode: share.mode, token: share.token, expiry: expiryChoice(share.expires) }
   }
 
   const setShare = async (mode, choice) => {
     const active = current()
     if (!active) return
-    const record = await api.shareNote(active.id, mode, mode === 'off' ? '' : expiryDate(choice))
-    active.revision = record.updated
+    const record = await api.shareNote(active.id, mode, choice === undefined ? undefined : expiryDate(choice))
     active.share = shareOf(record)
     list.upsert(summary(record))
     persistList()
+    if (channel) channel.postMessage({ id: active.id, share: active.share })
+  }
+
+  const title = () => {
+    const entry = current() && list.find(current().id)
+    return entry ? entry.title : ''
   }
 
   const remove = () => serial(async () => {
@@ -449,7 +458,12 @@ export function createNotes({ api, store, note, list, history, chooser, translat
   if (channel) {
     channel.addEventListener('message', async (event) => {
       const active = current()
-      if (!active || saving || switching || store.dirty || event.data.id !== active.id || event.data.revision === active.revision) return
+      if (!active || event.data.id !== active.id) return
+      if (event.data.share) {
+        active.share = event.data.share
+        return
+      }
+      if (saving || switching || store.dirty || event.data.revision === active.revision) return
       applyServer(await api.getNote(active.id))
     })
   }
@@ -467,5 +481,5 @@ export function createNotes({ api, store, note, list, history, chooser, translat
 
   note.contentEditable = 'false'
 
-  return { load, open, create, pin, remove, reset, markDirty, upload, save, flush, getShare, setShare, isPinned: () => { const entry = current() && list.find(current().id); return Boolean(entry && entry.pinned) } }
+  return { load, open, create, pin, remove, reset, markDirty, upload, save, flush, getShare, setShare, title, isPinned: () => { const entry = current() && list.find(current().id); return Boolean(entry && entry.pinned) } }
 }

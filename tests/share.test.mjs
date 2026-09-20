@@ -4,14 +4,30 @@ import { createRequire } from 'node:module'
 import { expiryDate, shareUrl, tokenFromHash } from '../pb_public/js/share.js'
 
 const require = createRequire(import.meta.url)
-const { isExpired } = require('../pb_hooks/share.js')
+const { isExpired, nextShare } = require('../pb_hooks/share.js')
 
 const record = (expires) => ({ getString: () => expires })
+const generate = () => 'fresh'
 
 test('expiry is detected on the server', () => {
   assert.equal(isExpired(record('')), false)
   assert.equal(isExpired(record('2020-01-01 00:00:00.000Z')), true)
   assert.equal(isExpired(record('2999-01-01 00:00:00.000Z')), false)
+})
+
+test('the token only changes when a link is turned off or on', () => {
+  const active = { previousMode: 'view', previousToken: 'old', previousExpired: false }
+  assert.deepEqual(nextShare({ ...active, mode: 'edit', expiresGiven: false }, generate), { token: 'old' })
+  assert.deepEqual(nextShare({ ...active, mode: 'view', expiresGiven: true }, generate), { token: 'old' })
+  assert.deepEqual(nextShare({ ...active, mode: 'off', expiresGiven: false }, generate), { token: '', expires: '' })
+  assert.deepEqual(nextShare({ previousMode: 'off', previousToken: '', previousExpired: false, mode: 'view', expiresGiven: false }, generate), { token: 'fresh', expires: '' })
+  assert.deepEqual(nextShare({ previousMode: 'off', previousToken: '', previousExpired: false, mode: 'view', expiresGiven: true }, generate), { token: 'fresh' })
+})
+
+test('an expired link gets a new token and a clean expiry when enabled again', () => {
+  const expired = { previousMode: 'view', previousToken: 'old', previousExpired: true }
+  assert.deepEqual(nextShare({ ...expired, mode: 'view', expiresGiven: false }, generate), { token: 'fresh', expires: '' })
+  assert.deepEqual(nextShare({ ...expired, mode: 'edit', expiresGiven: true }, generate), { token: 'fresh' })
 })
 
 test('expiry choices become dates from now', () => {

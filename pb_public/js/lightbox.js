@@ -10,6 +10,7 @@ export function createLightbox(dialog) {
   })
 
   return (src, downloadAction) => {
+    if (dialog.open) return
     picture.src = src
     onDownload = downloadAction
     dialog.showModal()

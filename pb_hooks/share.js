@@ -5,6 +5,13 @@ function isExpired(record) {
   return expires !== '' && new Date(expires.replace(' ', 'T')).getTime() < Date.now()
 }
 
+function nextShare({ mode, previousMode, previousToken, previousExpired, expiresGiven }, generateToken) {
+  if (mode === 'off') return { token: '', expires: '' }
+  const wasActive = previousMode !== 'off' && previousToken !== '' && !previousExpired
+  if (wasActive) return { token: previousToken }
+  return expiresGiven ? { token: generateToken() } : { token: generateToken(), expires: '' }
+}
+
 function findShared(e) {
   const token = String(e.requestInfo().headers.x_share_token || '')
   if (token.length < MIN_TOKEN_LENGTH) throw new NotFoundError('Link not active.')
@@ -30,4 +37,4 @@ function expireShares(app) {
   }
 }
 
-module.exports = { findShared, isExpired, expireShares }
+module.exports = { findShared, isExpired, nextShare, expireShares }

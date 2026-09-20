@@ -93,7 +93,13 @@ export const dictionaries = {
     createYours: 'Create your note',
     duplicate: 'Duplicate',
     duplicated: 'Copied to your notes',
-    imagesOwnerOnly: 'Only the owner can add images'
+    imagesOwnerOnly: 'Only the owner can add images',
+    linkViewOnly: 'The owner made this link view only',
+    copyManually: 'Select the link and copy it',
+    downloadTxt: 'Download .txt',
+    downloadMd: 'Download .md',
+    print: 'Print',
+    sharedIn: 'Added to a new note'
   },
   'pt-BR': {
     placeholder: 'Escreva',
@@ -189,7 +195,13 @@ export const dictionaries = {
     createYours: 'Crie a sua nota',
     duplicate: 'Duplicar',
     duplicated: 'Copiada para as suas notas',
-    imagesOwnerOnly: 'Imagens só o dono da nota'
+    imagesOwnerOnly: 'Só o dono da nota pode adicionar imagens',
+    linkViewOnly: 'O dono deixou este link só pra ver',
+    copyManually: 'Selecione o link e copie',
+    downloadTxt: 'Baixar .txt',
+    downloadMd: 'Baixar .md',
+    print: 'Imprimir',
+    sharedIn: 'Colocado numa nota nova'
   }
 }
 
