@@ -5,11 +5,11 @@ function isExpired(record) {
   return expires !== '' && new Date(expires.replace(' ', 'T')).getTime() < Date.now()
 }
 
-function nextShare({ mode, previousMode, previousToken, previousExpired, expiresGiven }, generateToken) {
-  if (mode === 'off') return { token: '', expires: '' }
+function nextShare({ mode, modeGiven, previousMode, previousToken, previousExpired, expiresGiven }, generateToken) {
+  if (mode === 'off' || (previousExpired && !modeGiven)) return { mode: 'off', token: '', expires: '' }
   const wasActive = previousMode !== 'off' && previousToken !== '' && !previousExpired
-  if (wasActive) return { token: previousToken }
-  return expiresGiven ? { token: generateToken() } : { token: generateToken(), expires: '' }
+  if (wasActive) return { mode, token: previousToken }
+  return expiresGiven ? { mode, token: generateToken() } : { mode, token: generateToken(), expires: '' }
 }
 
 function findShared(e) {

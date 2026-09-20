@@ -13,6 +13,7 @@ test('the service worker parses and precaches the shell plus every module', asyn
   const modules = (await readdir(new URL('js/', publicDir))).filter((name) => name.endsWith('.js')).map((name) => `/js/${name}`)
   assert.deepEqual(assets.sort(), ['/', '/style.css', '/manifest.json', '/icon.svg', ...modules].sort())
   assert.match(workerSource, /const VERSION = 'dev'/)
+  assert.match(workerSource, /new Request\(path, \{ cache: 'reload' \}\)/)
 })
 
 test('the manifest is installable and declares the share target', async () => {

@@ -182,6 +182,7 @@ export function createNotes({ api, store, note, list, history, chooser, translat
     try {
       const result = await api.saveNote(active.id, html, active.revision)
       active.revision = result.revision
+      active.share = shareOf(result)
       active.length = html.length
       allowShrink = false
       retryDelay = 0
@@ -374,6 +375,7 @@ export function createNotes({ api, store, note, list, history, chooser, translat
     if (!active) return
     const entry = list.find(active.id)
     const record = await api.pinNote(active.id, !(entry && entry.pinned))
+    active.share = shareOf(record)
     list.upsert(summary(record))
     persistList()
   }

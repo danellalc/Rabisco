@@ -7,7 +7,9 @@ async function copyImage(api, img, noteId) {
     const record = await api.uploadImage(noteId, blob, `image.${fileExtension(blob.type)}`)
     img.src = api.imageUrl(record)
   } catch {
+    const block = img.parentElement
     img.remove()
+    if (block && block.parentElement && block.textContent.trim() === '' && !block.querySelector('img')) block.remove()
   }
 }
 

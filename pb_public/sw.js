@@ -2,6 +2,7 @@ const VERSION = 'dev'
 const CACHE = `rabisco-${VERSION}`
 const SHARE_CACHE = 'rabisco-share'
 const SHARE_PATH = '/share-target'
+const MAX_SHARE_BYTES = 25 * 1024 * 1024
 const ASSETS = [
   '/',
   '/style.css',
@@ -39,19 +40,23 @@ const ASSETS = [
 ]
 
 const shellFor = (path) => (path === '/' || path === '/index.html' || path === '/s' || path.startsWith('/s/') ? '/' : '')
+const isSharedImage = (file) => typeof file !== 'string' && file.type.startsWith('image/') && file.size > 0 && file.size <= MAX_SHARE_BYTES
 
 async function receiveShare(request) {
   const data = await request.formData()
+  await caches.delete(SHARE_CACHE)
   const cache = await caches.open(SHARE_CACHE)
   const text = ['title', 'text', 'url'].map((name) => data.get(name)).filter((value) => typeof value === 'string' && value !== '').join('\n')
-  const files = data.getAll('images').filter((file) => typeof file !== 'string' && file.size > 0)
-  await cache.put(`${SHARE_PATH}/text`, new Response(text))
+  const files = data.getAll('images').filter(isSharedImage)
+  if (text !== '') await cache.put(`${SHARE_PATH}/text`, new Response(text))
   await Promise.all(files.map((file, index) => cache.put(`${SHARE_PATH}/${index}`, new Response(file, { headers: { 'Content-Type': file.type } }))))
   return Response.redirect('/#share-target', 303)
 }
 
 self.addEventListener('install', (event) => {
-  event.waitUntil(caches.open(CACHE).then((cache) => cache.addAll(ASSETS)).then(() => self.skipWaiting()))
+  event.waitUntil(caches.open(CACHE)
+    .then((cache) => cache.addAll(ASSETS.map((path) => new Request(path, { cache: 'reload' }))))
+    .then(() => self.skipWaiting()))
 })
 
 self.addEventListener('activate', (event) => {

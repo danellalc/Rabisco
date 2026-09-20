@@ -16,18 +16,22 @@ test('expiry is detected on the server', () => {
 })
 
 test('the token only changes when a link is turned off or on', () => {
-  const active = { previousMode: 'view', previousToken: 'old', previousExpired: false }
-  assert.deepEqual(nextShare({ ...active, mode: 'edit', expiresGiven: false }, generate), { token: 'old' })
-  assert.deepEqual(nextShare({ ...active, mode: 'view', expiresGiven: true }, generate), { token: 'old' })
-  assert.deepEqual(nextShare({ ...active, mode: 'off', expiresGiven: false }, generate), { token: '', expires: '' })
-  assert.deepEqual(nextShare({ previousMode: 'off', previousToken: '', previousExpired: false, mode: 'view', expiresGiven: false }, generate), { token: 'fresh', expires: '' })
-  assert.deepEqual(nextShare({ previousMode: 'off', previousToken: '', previousExpired: false, mode: 'view', expiresGiven: true }, generate), { token: 'fresh' })
+  const active = { previousMode: 'view', previousToken: 'old', previousExpired: false, modeGiven: true }
+  assert.deepEqual(nextShare({ ...active, mode: 'edit', expiresGiven: false }, generate), { mode: 'edit', token: 'old' })
+  assert.deepEqual(nextShare({ ...active, mode: 'view', expiresGiven: true }, generate), { mode: 'view', token: 'old' })
+  assert.deepEqual(nextShare({ ...active, mode: 'view', modeGiven: false, expiresGiven: false }, generate), { mode: 'view', token: 'old' })
+  assert.deepEqual(nextShare({ ...active, mode: 'off', expiresGiven: false }, generate), { mode: 'off', token: '', expires: '' })
+  const off = { previousMode: 'off', previousToken: '', previousExpired: false, modeGiven: true }
+  assert.deepEqual(nextShare({ ...off, mode: 'view', expiresGiven: false }, generate), { mode: 'view', token: 'fresh', expires: '' })
+  assert.deepEqual(nextShare({ ...off, mode: 'view', expiresGiven: true }, generate), { mode: 'view', token: 'fresh' })
 })
 
-test('an expired link gets a new token and a clean expiry when enabled again', () => {
+test('an expired link gets a new token and a clean expiry only when enabled again on purpose', () => {
   const expired = { previousMode: 'view', previousToken: 'old', previousExpired: true }
-  assert.deepEqual(nextShare({ ...expired, mode: 'view', expiresGiven: false }, generate), { token: 'fresh', expires: '' })
-  assert.deepEqual(nextShare({ ...expired, mode: 'edit', expiresGiven: true }, generate), { token: 'fresh' })
+  assert.deepEqual(nextShare({ ...expired, mode: 'view', modeGiven: true, expiresGiven: false }, generate), { mode: 'view', token: 'fresh', expires: '' })
+  assert.deepEqual(nextShare({ ...expired, mode: 'edit', modeGiven: true, expiresGiven: true }, generate), { mode: 'edit', token: 'fresh' })
+  assert.deepEqual(nextShare({ ...expired, mode: 'view', modeGiven: false, expiresGiven: false }, generate), { mode: 'off', token: '', expires: '' })
+  assert.deepEqual(nextShare({ ...expired, mode: 'view', modeGiven: false, expiresGiven: true }, generate), { mode: 'off', token: '', expires: '' })
 })
 
 test('expiry choices become dates from now', () => {

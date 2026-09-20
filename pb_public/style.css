@@ -151,9 +151,9 @@ mark{color:inherit}
 .chooser button{min-height:36px;padding:var(--s1) var(--s3);border:1.5px solid var(--acc);border-radius:4px;color:var(--acc)}
 @media (max-width:719px){.toast,.chooser{top:var(--s3);bottom:auto;z-index:6}}
 @media print{
-body{--bg:#fff;--bg2:#fff;--fg:#000;--fg2:#444;--line:#999;--acc:#000;display:block;height:auto}
+body{--bg:#fff;--bg2:#fff;--fg:#000;--fg2:#444;--line:#999;--acc:#000;--hl1:#d8c98a;--hl2:#a9bfa0;--hl3:#d3a9ac;--c1:#8f4a42;--c2:#4d647a;--c3:#5e5e5e;display:block;height:auto}
 body[data-view] .app,.pane{display:block}
-.list,.note-header,.shared-foot:not([hidden]),.toolbar:not([hidden]),.toast,.chooser,.image-selection,.drop-marker{display:none}
+.list,.note-header,.shared-foot:not([hidden]),.toolbar:not([hidden]),.toast,.chooser:not([hidden]),.image-selection,.drop-marker{display:none}
 .note-area{overflow:visible}
 .note{max-width:none;min-height:0;padding:0}
 .note img,.note tr,.note li{break-inside:avoid}

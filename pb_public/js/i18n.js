@@ -99,7 +99,9 @@ export const dictionaries = {
     downloadTxt: 'Download .txt',
     downloadMd: 'Download .md',
     print: 'Print',
-    sharedIn: 'Added to a new note'
+    sharedAsk: 'Add the shared content to a new note?',
+    add: 'Add',
+    discard: 'Discard'
   },
   'pt-BR': {
     placeholder: 'Escreva',
@@ -201,7 +203,9 @@ export const dictionaries = {
     downloadTxt: 'Baixar .txt',
     downloadMd: 'Baixar .md',
     print: 'Imprimir',
-    sharedIn: 'Colocado numa nota nova'
+    sharedAsk: 'Colocar o conteúdo compartilhado numa nota nova?',
+    add: 'Adicionar',
+    discard: 'Descartar'
   }
 }
 

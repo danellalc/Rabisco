@@ -39,6 +39,11 @@ test('links, images, rules and line breaks', () => {
   assert.equal(toText(tree, origin), 'see this\nnext line\nhttps://notes.example.com/api/files/images/abc/shot.webp\n---\nbare text at the root\n')
 })
 
+test('parentheses in link targets are escaped so the markdown link survives', () => {
+  const tree = root(h('div', {}, h('a', { href: 'https://x.test/a_(b)' }, 'wiki')))
+  assert.equal(toMarkdown(tree, origin), '[wiki](https://x.test/a_%28b%29)\n')
+})
+
 test('tables become pipe tables in markdown and tab separated text', () => {
   const tree = root(h('table', {}, h('tbody', {}, h('tr', {}, h('td', {}, 'a'), h('td', {}, 'b|c')), h('tr', {}, h('td', {}, '1')))))
   assert.equal(toMarkdown(tree, origin), '| a | b\\|c |\n| --- | --- |\n| 1 |  |\n')
@@ -54,4 +59,11 @@ test('file names come from the title and stay safe', () => {
   assert.equal(fileName('Meeting: notes / plan?', 'md'), 'Meeting notes  plan.md')
   assert.equal(fileName('', 'txt'), 'rabisco.txt')
   assert.equal(fileName('x'.repeat(100), 'md'), `${'x'.repeat(60)}.md`)
+  assert.equal(fileName(`${'x'.repeat(59)}😀 tail`, 'md'), `${'x'.repeat(59)}😀.md`)
+  assert.equal(fileName('word '.repeat(30), 'md'), `${'word '.repeat(11)}word.md`)
+})
+
+test('a list nested inside a heading is exported as a list', () => {
+  const tree = root(h('h1', {}, h('ul', {}, h('li', {}, 'task'))))
+  assert.equal(toMarkdown(tree, origin), '- task\n')
 })

@@ -36,7 +36,8 @@ const translate = createTranslator(language)
 document.documentElement.lang = language
 applyTranslations(document, translate)
 
-const sharedToken = location.pathname.startsWith('/s/') ? tokenFromHash(location.hash) : ''
+const sharedPage = location.pathname.startsWith('/s/')
+const sharedToken = sharedPage ? tokenFromHash(location.hash) : ''
 const duplicateKey = 'rabisco.duplicate'
 const note = document.getElementById('note')
 const area = document.getElementById('note-area')
@@ -166,7 +167,7 @@ document.execCommand('styleWithCSS', false, 'false')
 document.execCommand('defaultParagraphSeparator', false, 'div')
 document.execCommand('enableObjectResizing', false, 'false')
 
-if (sharedToken) {
+if (sharedPage) {
   store.auth = readAuth(localStorage)
   document.body.dataset.view = 'shared'
   document.body.dataset.mode = 'loading'
@@ -338,15 +339,28 @@ if (sharedToken) {
     }
   }
 
+  const addShared = async (shared) => {
+    try {
+      await notes.create()
+      if (shared.text) recorded(insertText)(shared.text)
+      shared.files.forEach(insertRecorded)
+    } catch {
+      showToast(translate('saveFailed'))
+    }
+  }
+
   const receiveShared = async () => {
-    if (location.hash !== SHARE_HASH) return
+    if (location.hash !== SHARE_HASH) {
+      clearShareTarget()
+      return
+    }
     window.history.replaceState(null, '', '/')
     const shared = await readShareTarget()
-    if (!shared) return
-    await notes.create()
-    if (shared.text) recorded(insertText)(shared.text)
-    shared.files.forEach(insertRecorded)
-    showToast(translate('sharedIn'))
+    if (!shared || (!shared.text && shared.files.length === 0)) return
+    chooser.open(translate('sharedAsk'), [
+      { label: translate('discard'), run: () => {} },
+      { label: translate('add'), run: () => addShared(shared) }
+    ])
   }
 
   async function loadNotes() {

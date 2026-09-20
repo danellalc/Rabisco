@@ -11,11 +11,12 @@ export function treeOf(node) {
 }
 
 export function fileName(title, extension) {
-  const clean = String(title || '').replace(/[\\/:*?"<>|\u0000-\u001f]/g, '').trim().slice(0, FILE_NAME_LIMIT)
+  const clean = Array.from(String(title || '').replace(/[\\/:*?"<>|\u0000-\u001f]/g, '')).slice(0, FILE_NAME_LIMIT).join('').trim()
   return `${clean || 'rabisco'}.${extension}`
 }
 
 const isText = (node) => typeof node === 'string'
+const linkTarget = (url) => url.replace(/[()]/g, (char) => (char === '(' ? '%28' : '%29'))
 const isInline = (node) => isText(node) || INLINE.has(node.tag)
 const hasClass = (node, name) => (node.attrs.class || '').split(/\s+/).includes(name)
 
@@ -36,12 +37,12 @@ function inline(nodes, options) {
     if (node.tag === 'img') {
       const url = imageUrl(node, options.origin)
       if (!url) return ''
-      return options.markdown ? `![image](${url})` : url
+      return options.markdown ? `![image](${linkTarget(url)})` : url
     }
     const text = inline(node.children, options)
     if (!options.markdown) return text
     if (WRAPPERS[node.tag]) return wrap(WRAPPERS[node.tag], text)
-    if (node.tag === 'a' && node.attrs.href) return `[${text}](${node.attrs.href})`
+    if (node.tag === 'a' && node.attrs.href) return `[${text}](${linkTarget(node.attrs.href)})`
     return text
   }).join('')
 }
@@ -82,7 +83,7 @@ function tableRows(node, options) {
 function block(node, options, depth) {
   if (isText(node)) return node
   const heading = node.tag === 'h1' ? '# ' : node.tag === 'h2' ? '## ' : ''
-  if (heading) return `${options.markdown ? heading : ''}${inline(node.children, options)}`
+  if (heading && node.children.every(isInline)) return `${options.markdown ? heading : ''}${inline(node.children, options)}`
   if (node.tag === 'hr') return '---'
   if (node.tag === 'ul' || node.tag === 'ol') return listItems(node, options, depth).join('\n')
   if (node.tag === 'table') return tableRows(node, options)

@@ -117,6 +117,7 @@ function isolateItem(list, item) {
 }
 
 function toggleList(root, ordered, checklist) {
+  if (['H1', 'H2'].includes(currentBlockTag(root))) document.execCommand('formatBlock', false, '<div>')
   const element = elementAtCaret(root)
   const item = element ? element.closest('li') : null
   const list = item ? item.parentElement : null
