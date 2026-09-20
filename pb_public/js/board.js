@@ -1,6 +1,6 @@
 import { WHEEL_STEP, ZOOM_STEP, fitCamera, panBy, toScreen, toWorld, zoomAt } from './camera.js'
 import { isBlank, placeCaretAtEnd, placeCaretAtPoint } from './editor.js'
-import { CARD_HEIGHT, CARD_WIDTH, IMAGE_MIN_WIDTH, TEXT_MIN_WIDTH, boundsOf, linkLabel, newId, nextZ, overlaps, parseContent, readingOrder } from './items.js'
+import { CARD_HEIGHT, IMAGE_MIN_WIDTH, TEXT_MIN_WIDTH, boundsOf, extensionOf, formatSize, formatTime, isMedia, kindOf, linkLabel, newId, nextZ, overlaps, parseContent, readingOrder } from './items.js'
 import { render, serialize } from './sanitize.js'
 import { GRID, SNAP_DISTANCE, snapMove, snapToGrid, tidy } from './snap.js'
 
@@ -13,6 +13,20 @@ const IMAGE_MAX_WIDTH = 640
 const EDGE = 40
 const EDGE_STEP = 16
 const LINK_ICON = 'M13.2 18.8l5.6-5.6M11.6 15.2l-2.4 2.4a3.7 3.7 0 1 0 5.2 5.2l2.4-2.4M20.4 16.8l2.4-2.4a3.7 3.7 0 1 0-5.2-5.2l-2.4 2.4'
+const SHEET = 'M19 4H9.5A2.5 2.5 0 0 0 7 6.5v19A2.5 2.5 0 0 0 9.5 28h13a2.5 2.5 0 0 0 2.5-2.5V10.5L19 4Z M19 4.5v6h6'
+const FILE_ICONS = {
+  pdf: SHEET,
+  generic: SHEET,
+  doc: `${SHEET} M11.5 15h9 M11.5 18.5h6`,
+  sheet: `${SHEET} M11.5 14h9v6.5h-9Z M16 14v6.5 M11.5 17.25h9`,
+  slides: `${SHEET} M11.5 14h9v5.5h-9Z M14.5 22h3`,
+  zip: `${SHEET} M15.5 6v1.75 M15.5 9.75v1.75 M15.5 13.5v1.75`,
+  video: `${SHEET} M13.5 14l5.5 3.25-5.5 3.25Z`,
+  audio: `${SHEET} M11 17.5c1.6-3 3.2-3 4.8 0s3.2 3 4.8 0`,
+  code: `${SHEET} M13.5 14l-2.5 3 2.5 3 M18.5 14l2.5 3-2.5 3`
+}
+const CARDS = ['link', 'file']
+const CONTROLS = '.toolbar, .image-selection, .zoom, .menu, .chooser, .board-message, .play, .rename, video'
 
 function svgIcon(path, size) {
   const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg')
@@ -60,7 +74,7 @@ function restoreCaretPath(root, caret) {
   selection.addRange(range)
 }
 
-export function createBoard({ area, layer, lasso, guides, message, translate, onChange, beforeChange, onCamera, onOpenImage, onItemMenu, onImageInserted }) {
+export function createBoard({ area, layer, lasso, guides, message, translate, language, onChange, beforeChange, onCamera, onOpenImage, onOpenFile, onItemMenu, onImageInserted, onFileInserted, onMediaLink, onRenameFile }) {
   let items = []
   const elements = new Map()
   let camera = { zoom: 1, x: 24, y: 24 }
@@ -70,6 +84,7 @@ export function createBoard({ area, layer, lasso, guides, message, translate, on
   let gesture = null
   const touches = new Map()
   let spaceHeld = false
+  let playing = null
 
   const itemOf = (id) => items.find((item) => item.id === id)
   const noteOf = (id) => elements.get(id).querySelector('.note')
@@ -86,7 +101,7 @@ export function createBoard({ area, layer, lasso, guides, message, translate, on
 
   const rectOf = (item) => {
     const element = elements.get(item.id)
-    const w = item.type === 'link' ? CARD_WIDTH : item.w
+    const w = CARDS.includes(item.type) ? (element ? element.offsetWidth : 230) : item.w
     const h = element ? element.offsetHeight : CARD_HEIGHT
     return { id: item.id, x: item.x, y: item.y, w, h }
   }
@@ -113,13 +128,13 @@ export function createBoard({ area, layer, lasso, guides, message, translate, on
     const element = elements.get(item.id)
     element.style.transform = `translate(${item.x}px, ${item.y}px)`
     element.style.zIndex = String(item.z)
-    if (item.type !== 'link') element.style.width = `${item.w}px`
+    if (!CARDS.includes(item.type)) element.style.width = `${item.w}px`
   }
 
   const decorate = (element) => {
-    if (element.querySelector('.more')) return
+    if (element.querySelector(':scope > .more')) return
     const type = element.dataset.type
-    if (type !== 'link') {
+    if (type === 'text' || type === 'image') {
       const handle = document.createElement('span')
       handle.className = 'handle'
       element.append(handle)
@@ -149,6 +164,73 @@ export function createBoard({ area, layer, lasso, guides, message, translate, on
       else undecorate(element)
     }
     selection = next
+  }
+
+  const fileMeta = (item) => {
+    const element = elements.get(item.id)
+    return element ? element.querySelector('.file-meta') : null
+  }
+
+  const refreshFile = (item) => {
+    const element = elements.get(item.id)
+    element.dataset.kind = item.kind
+    if (item.file) delete element.dataset.pending
+    else element.dataset.pending = ''
+    element.querySelector('.file-icon path').setAttribute('d', FILE_ICONS[item.kind] || SHEET)
+    element.querySelector('.ext').textContent = extensionOf(item.name).toUpperCase().slice(0, 4)
+    element.querySelector('.file-name').textContent = item.name
+    element.querySelector('.file-meta').textContent = item.file ? formatSize(item.size, language) : translate('uploading')
+    const play = element.querySelector('.play')
+    play.hidden = !(item.file && isMedia(item.kind))
+  }
+
+  const stopPlaying = () => {
+    if (!playing) return
+    const { item, media, element } = playing
+    playing = null
+    element.classList.remove('playing')
+    element.querySelector('.play').textContent = '▸'
+    element.querySelector('.progress').style.width = '0'
+    const meta = fileMeta(item)
+    if (meta) meta.textContent = formatSize(item.size, language)
+    media.pause()
+    media.remove()
+  }
+
+  const togglePlay = async (item) => {
+    const element = elements.get(item.id)
+    if (playing && playing.item.id === item.id) {
+      if (playing.media.paused) playing.media.play()
+      else playing.media.pause()
+      element.querySelector('.play').textContent = playing.media.paused ? '▸' : '❚❚'
+      return
+    }
+    stopPlaying()
+    const media = document.createElement(item.kind === 'video' ? 'video' : 'audio')
+    media.preload = 'none'
+    media.playsInline = true
+    playing = { item, media, element }
+    media.addEventListener('timeupdate', () => {
+      const meta = fileMeta(item)
+      if (meta) meta.textContent = `${formatTime(media.currentTime)} · ${formatTime(media.duration)}`
+      element.querySelector('.progress').style.width = media.duration ? `${(media.currentTime / media.duration) * 100}%` : '0'
+    })
+    media.addEventListener('ended', stopPlaying)
+    media.addEventListener('error', stopPlaying)
+    if (item.kind === 'video') {
+      element.classList.add('playing')
+      media.addEventListener('click', () => togglePlay(item))
+    }
+    element.append(media)
+    try {
+      media.src = await onMediaLink(item)
+      if (playing && playing.media === media) {
+        await media.play()
+        element.querySelector('.play').textContent = '❚❚'
+      }
+    } catch {
+      if (playing && playing.media === media) stopPlaying()
+    }
   }
 
   const build = (item) => {
@@ -182,13 +264,43 @@ export function createBoard({ area, layer, lasso, guides, message, translate, on
       const label = document.createElement('span')
       label.textContent = linkLabel(item.url)
       element.append(svgIcon(LINK_ICON, 24), label)
+    } else if (item.type === 'file') {
+      const row = document.createElement('div')
+      row.className = 'file-row'
+      const icon = document.createElement('span')
+      icon.className = 'file-icon'
+      const ext = document.createElement('span')
+      ext.className = 'ext'
+      icon.append(svgIcon(SHEET, 32), ext)
+      const text = document.createElement('span')
+      text.className = 'file-text'
+      const name = document.createElement('span')
+      name.className = 'file-name'
+      const meta = document.createElement('span')
+      meta.className = 'file-meta'
+      text.append(name, meta)
+      const play = document.createElement('button')
+      play.type = 'button'
+      play.className = 'play'
+      play.textContent = '▸'
+      play.setAttribute('aria-label', translate('playPause'))
+      play.addEventListener('click', (event) => {
+        event.stopPropagation()
+        togglePlay(itemOf(item.id))
+      })
+      row.append(icon, text, play)
+      const progress = document.createElement('span')
+      progress.className = 'progress'
+      element.append(row, progress)
     }
     elements.set(item.id, element)
+    if (item.type === 'file') refreshFile(item)
     applyGeometry(item)
     return element
   }
 
   const renderAll = () => {
+    stopPlaying()
     elements.clear()
     layer.replaceChildren(...items.map(build))
     setSelection([...selection])
@@ -230,6 +342,7 @@ export function createBoard({ area, layer, lasso, guides, message, translate, on
 
   const removeItems = (ids) => {
     if (ids.includes(editing)) editing = null
+    if (playing && ids.includes(playing.item.id)) stopPlaying()
     for (const id of ids) {
       const element = elements.get(id)
       if (element) element.remove()
@@ -281,6 +394,64 @@ export function createBoard({ area, layer, lasso, guides, message, translate, on
     onChange()
     onImageInserted(img, file)
     return item
+  }
+
+  const addFile = (point, file) => {
+    beforeChange()
+    const item = addItem({ id: newId(), type: 'file', ...place(point), file: '', name: file.name, size: file.size, kind: kindOf(file.name) })
+    onChange()
+    onFileInserted(item, file)
+    return item
+  }
+
+  const setFileProgress = (id, fraction) => {
+    const element = elements.get(id)
+    if (element) element.querySelector('.progress').style.width = `${Math.round(fraction * 100)}%`
+  }
+
+  const setFileRecord = (id, record) => {
+    const item = itemOf(id)
+    if (!item) return
+    item.file = record.id
+    item.name = record.name
+    item.size = record.size
+    item.kind = record.kind
+    refreshFile(item)
+    setFileProgress(id, 0)
+  }
+
+  const renameFile = (id) => {
+    const item = itemOf(id)
+    const element = elements.get(id)
+    if (!item || !element || !item.file) return
+    const name = element.querySelector('.file-name')
+    const input = document.createElement('input')
+    input.className = 'rename'
+    input.value = item.name
+    let done = false
+    const finish = async (commit) => {
+      if (done) return
+      done = true
+      const next = input.value.trim()
+      input.replaceWith(name)
+      if (!commit || !next || next === item.name) return
+      try {
+        const record = await onRenameFile(item, next)
+        setFileRecord(id, record)
+        onChange()
+      } catch {
+        refreshFile(item)
+      }
+    }
+    input.addEventListener('keydown', (event) => {
+      if (event.key === 'Enter') finish(true)
+      if (event.key === 'Escape') finish(false)
+      event.stopPropagation()
+    })
+    input.addEventListener('blur', () => finish(true))
+    name.replaceWith(input)
+    input.focus()
+    input.select()
   }
 
   const duplicateItems = (ids) => {
@@ -392,8 +563,9 @@ export function createBoard({ area, layer, lasso, guides, message, translate, on
     lasso.style.width = `${box.x1 - box.x0}px`
     lasso.style.height = `${box.y1 - box.y0}px`
     lasso.hidden = false
-    const worldBox = { ...toWorld(camera, { x: box.x0, y: box.y0 }), ...(() => { const end = toWorld(camera, { x: box.x1, y: box.y1 }); return { x1: end.x, y1: end.y } })() }
-    const hit = items.filter((item) => overlaps(rectOf(item), { x0: worldBox.x, y0: worldBox.y, x1: worldBox.x1, y1: worldBox.y1 })).map((item) => item.id)
+    const from = toWorld(camera, { x: box.x0, y: box.y0 })
+    const to = toWorld(camera, { x: box.x1, y: box.y1 })
+    const hit = items.filter((item) => overlaps(rectOf(item), { x0: from.x, y0: from.y, x1: to.x, y1: to.y })).map((item) => item.id)
     setSelection([...new Set([...gesture.keep, ...hit])])
   }
 
@@ -432,7 +604,7 @@ export function createBoard({ area, layer, lasso, guides, message, translate, on
   }
 
   const itemAt = (target) => (target instanceof Element ? target.closest('.item') : null)
-  const isControl = (target) => target instanceof Element && Boolean(target.closest('.toolbar, .image-selection, .zoom, .menu, .chooser, .board-message'))
+  const isControl = (target) => target instanceof Element && Boolean(target.closest(CONTROLS))
 
   area.addEventListener('pointerdown', (event) => {
     if (isControl(event.target)) return
@@ -520,6 +692,7 @@ export function createBoard({ area, layer, lasso, guides, message, translate, on
     const element = itemAt(event.target)
     if (!element) return
     if (element.dataset.type === 'image' && !editable) onOpenImage(element.querySelector('img'))
+    if (element.dataset.type === 'file' && !editable && !isControl(event.target)) onOpenFile(itemOf(element.dataset.id))
     if (element.dataset.type === 'link' && (document.body.classList.contains('dragging') || (editable && !event.ctrlKey && !event.metaKey && event.pointerType !== 'touch' && selection.size > 1))) event.preventDefault()
   })
 
@@ -691,6 +864,11 @@ export function createBoard({ area, layer, lasso, guides, message, translate, on
     addText,
     addImage,
     addLink,
+    addFile,
+    setFileProgress,
+    setFileRecord,
+    renameFile,
+    pendingFileIds: () => [...layer.querySelectorAll('.item.file[data-pending]')].map((element) => element.dataset.id),
     duplicate: duplicateItems,
     bringToFront,
     remove: (ids) => {

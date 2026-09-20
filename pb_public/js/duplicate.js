@@ -22,19 +22,26 @@ async function copyInlineImages(api, html, boardId) {
   return body.innerHTML
 }
 
+async function copyFile(api, token, item, boardId) {
+  const link = await api.sharedFileLink(token, item.file)
+  const blob = await (await fetch(link.url)).blob()
+  const record = await api.uploadFile(boardId, blob, item.name, () => {})
+  return { ...item, file: record.id, name: record.name, size: record.size, kind: record.kind }
+}
+
 export async function duplicateShared(api, token) {
   const shared = await api.getShared(token)
   const record = await api.createBoard()
   const items = []
   for (const item of parseContent(shared.content)) {
-    if (item.type === 'text') items.push({ ...item, html: await copyInlineImages(api, item.html, record.id) })
-    else if (item.type === 'image') {
-      try {
-        items.push({ ...item, src: await copyImage(api, item.src, record.id) })
-      } catch {
-        continue
-      }
-    } else items.push(item)
+    try {
+      if (item.type === 'text') items.push({ ...item, html: await copyInlineImages(api, item.html, record.id) })
+      else if (item.type === 'image') items.push({ ...item, src: await copyImage(api, item.src, record.id) })
+      else if (item.type === 'file') items.push(await copyFile(api, token, item, record.id))
+      else items.push(item)
+    } catch {
+      continue
+    }
   }
   await api.saveBoard(record.id, JSON.stringify(items), record.revision)
   return record.id

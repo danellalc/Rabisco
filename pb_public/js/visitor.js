@@ -60,6 +60,8 @@ export function createVisitor({ api, token, board, layer, history, chooser, tran
       if (item && item.dataset.type === 'image') board.remove([item.dataset.id])
       else img.parentElement.remove()
     }
+    const pending = board.pendingFileIds()
+    if (pending.length > 0) board.remove(pending)
   }
 
   const save = async () => {

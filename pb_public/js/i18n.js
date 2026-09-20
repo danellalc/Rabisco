@@ -103,7 +103,17 @@ export const dictionaries = {
     bringToFront: 'Bring to front',
     zoomIn: 'Zoom in',
     zoomOut: 'Zoom out',
-    fit: 'Fit all'
+    fit: 'Fit all',
+    addFile: 'Add file',
+    rename: 'Rename',
+    playPause: 'Play or pause',
+    uploading: 'uploading',
+    fileUploadFailed: 'Could not upload the file',
+    fileTypeBlocked: 'That file type is not allowed',
+    fileTooBig: 'Files can have at most 500 MB',
+    storageFull: 'Storage full: {used} of {quota}',
+    quotaLine: '{used} of {quota}',
+    downloadFailed: 'Could not download the file'
   },
   'pt-BR': {
     placeholder: 'Escreva',
@@ -209,7 +219,17 @@ export const dictionaries = {
     bringToFront: 'Trazer pra frente',
     zoomIn: 'Aumentar zoom',
     zoomOut: 'Diminuir zoom',
-    fit: 'Enquadrar'
+    fit: 'Enquadrar',
+    addFile: 'Adicionar arquivo',
+    rename: 'Renomear',
+    playPause: 'Tocar ou pausar',
+    uploading: 'enviando',
+    fileUploadFailed: 'Não deu pra enviar o arquivo',
+    fileTypeBlocked: 'Esse tipo de arquivo não é aceito',
+    fileTooBig: 'Arquivos têm no máximo 500 MB',
+    storageFull: 'Espaço cheio: {used} de {quota}',
+    quotaLine: '{used} de {quota}',
+    downloadFailed: 'Não deu pra baixar o arquivo'
   }
 }
 

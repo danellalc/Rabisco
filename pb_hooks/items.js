@@ -62,6 +62,15 @@ function normalizeItem(raw, tools) {
     item.url = url
     return item
   }
+  if (item.type === 'file') {
+    const info = tools.fileInfo(String(raw.file || ''))
+    if (info === null) return null
+    item.file = String(raw.file)
+    item.name = info.name
+    item.size = info.size
+    item.kind = info.kind
+    return item
+  }
   return null
 }
 
@@ -90,17 +99,22 @@ function normalizeBoard(content, tools) {
     if (cover === '' && item.type === 'image') cover = item.src
     if (cover === '' && item.type === 'text') cover = tools.coverOf(item.html)
   }
+  if (title === '') {
+    const firstFile = ordered.find((item) => item.type === 'file')
+    if (firstFile) title = firstFile.name
+  }
   return { content: JSON.stringify(items), title, cover }
 }
 
-function boardTools() {
+function boardTools(app, record) {
   const { sanitizeHtml, safeImageSource } = require(`${__hooks}/sanitize.js`)
   const { titleOf, coverOf } = require(`${__hooks}/summary.js`)
-  return { sanitizeHtml, safeImageSource, titleOf, coverOf }
+  const { fileItemInfo } = require(`${__hooks}/files.js`)
+  return { sanitizeHtml, safeImageSource, titleOf, coverOf, fileInfo: fileItemInfo(app, record.id, record.getString('user')) }
 }
 
-function applyBoard(record, content) {
-  const board = normalizeBoard(content, boardTools())
+function applyBoard(app, record, content) {
+  const board = normalizeBoard(content, boardTools(app, record))
   record.set('content', board.content)
   record.set('title', board.title)
   record.set('cover', board.cover)

@@ -6,13 +6,17 @@ export function isImageType(type) {
   return typeof type === 'string' && type.startsWith('image/')
 }
 
+function transferFiles(transfer) {
+  const fromItems = [...transfer.items].filter((item) => item.kind === 'file').map((item) => item.getAsFile()).filter(Boolean)
+  return fromItems.length > 0 ? fromItems : [...transfer.files]
+}
+
 export function imageFiles(transfer) {
-  const fromItems = [...transfer.items]
-    .filter((item) => item.kind === 'file' && isImageType(item.type))
-    .map((item) => item.getAsFile())
-    .filter(Boolean)
-  if (fromItems.length > 0) return fromItems
-  return [...transfer.files].filter((file) => isImageType(file.type))
+  return transferFiles(transfer).filter((file) => isImageType(file.type))
+}
+
+export function otherFiles(transfer) {
+  return transferFiles(transfer).filter((file) => !isImageType(file.type))
 }
 
 function askTableOrOther(root, files, text, handlers) {
@@ -34,7 +38,12 @@ function hasTextSelection() {
 
 function insertFromTransfer(root, transfer, handlers) {
   const files = imageFiles(transfer)
+  const others = otherFiles(transfer)
   const text = transfer.getData('text/plain')
+  if (others.length > 0) {
+    handlers.addFiles(others)
+    if (files.length === 0) return
+  }
   if (looksTabular(text)) {
     askTableOrOther(root, files, text, handlers)
     return
@@ -47,7 +56,7 @@ function insertFromTransfer(root, transfer, handlers) {
     files.forEach(handlers.insertImage)
     return
   }
-  handlers.insertText(text)
+  if (others.length === 0) handlers.insertText(text)
 }
 
 export function initPaste({ host, area }, handlers) {

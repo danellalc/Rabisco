@@ -2,7 +2,25 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { MAX_ZOOM, MIN_ZOOM, clampZoom, fitCamera, panBy, toScreen, toWorld, zoomAt, zoomLabel } from '../pb_public/js/camera.js'
 import { GAP, GRID, snapMove, snapToGrid, tidy } from '../pb_public/js/snap.js'
-import { boundsOf, linkLabel, newId, nextZ, overlaps, parseContent, readingOrder, textOfItems } from '../pb_public/js/items.js'
+import { boundsOf, formatSize, formatTime, isBlockedName, isMedia, kindOf, linkLabel, newId, nextZ, overlaps, parseContent, readingOrder, textOfItems } from '../pb_public/js/items.js'
+
+test('file helpers on the client mirror the server: kinds, blocked names, sizes and times', () => {
+  assert.equal(kindOf('Relatorio.PDF'), 'pdf')
+  assert.equal(kindOf('trilha.mp3'), 'audio')
+  assert.equal(kindOf('anything'), 'generic')
+  assert.equal(isBlockedName('a.exe'), true)
+  assert.equal(isBlockedName('a.zip'), false)
+  assert.equal(isMedia('video'), true)
+  assert.equal(isMedia('pdf'), false)
+  assert.equal(formatSize(2400000, 'pt-BR'), '2,3 MB')
+  assert.equal(formatSize(2400000, 'en'), '2.3 MB')
+  assert.equal(formatSize(148 * 1024 * 1024, 'en'), '148 MB')
+  assert.equal(formatSize(1500000000, 'pt-BR'), '1,4 GB')
+  assert.equal(formatSize(2 * 1024 * 1024 * 1024, 'en'), '2 GB')
+  assert.equal(formatSize(512, 'en'), '512 B')
+  assert.equal(formatTime(84), '1:24')
+  assert.equal(formatTime(5), '0:05')
+})
 
 test('zoom stays inside the limits and keeps the point under the cursor', () => {
   assert.equal(clampZoom(0.01), MIN_ZOOM)

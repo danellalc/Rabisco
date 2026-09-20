@@ -1,6 +1,7 @@
 const REFRESH_WINDOW = 3600000
 const BOARD_FIELDS = 'id,content,revision,updated,title,cover,pinned,share_mode,share_token,share_expires'
 const SUMMARY_FIELDS = 'id,revision,updated,title,cover,pinned,share_mode,share_token,share_expires'
+const FILE_FIELDS = 'id,name,size,kind'
 
 export class ApiError extends Error {
   constructor(status, message, data) {
@@ -17,6 +18,17 @@ export function tokenExpiry(token) {
   } catch {
     return 0
   }
+}
+
+function parseResponse(status, text) {
+  let data = null
+  try {
+    data = text ? JSON.parse(text) : null
+  } catch {
+    data = null
+  }
+  if (status < 200 || status >= 300) throw new ApiError(status, (data && data.message) || `HTTP ${status}`, data && data.data)
+  return data
 }
 
 export function createApi({ getToken, getUserId, onSession = () => {} }) {
@@ -61,6 +73,25 @@ export function createApi({ getToken, getUserId, onSession = () => {} }) {
     return call(method, path, options)
   }
 
+  const uploadWithProgress = (path, form, onProgress) => new Promise((resolve, reject) => {
+    const request = new XMLHttpRequest()
+    request.open('POST', path)
+    request.setRequestHeader('Authorization', getToken())
+    request.upload.addEventListener('progress', (event) => {
+      if (event.lengthComputable) onProgress(event.loaded / event.total)
+    })
+    request.addEventListener('load', () => {
+      try {
+        resolve(parseResponse(request.status, request.responseText))
+      } catch (error) {
+        reject(error)
+      }
+    })
+    request.addEventListener('error', () => reject(new ApiError(0, 'Network error', null)))
+    request.addEventListener('abort', () => reject(new ApiError(0, 'Upload aborted', null)))
+    request.send(form)
+  })
+
   const shareBody = (mode, expires) => (expires === undefined ? { share_mode: mode } : { share_mode: mode, share_expires: expires })
 
   return {
@@ -83,7 +114,19 @@ export function createApi({ getToken, getUserId, onSession = () => {} }) {
       return fresh('POST', '/api/collections/images/records?fields=id,file', { body: form })
     },
     imageUrl: (record) => `/api/files/images/${record.id}/${record.file}`,
+    uploadFile: async (boardId, file, name, onProgress) => {
+      const form = new FormData()
+      form.append('board', boardId)
+      form.append('user', getUserId())
+      form.append('file', file, name)
+      await fresh('GET', '/api/health').catch(() => null)
+      return uploadWithProgress(`/api/collections/files/records?fields=${FILE_FIELDS}`, form, onProgress)
+    },
+    renameFile: (id, name) => fresh('PATCH', `/api/collections/files/records/${id}?fields=${FILE_FIELDS}`, { body: { name } }),
+    fileLink: (id) => fresh('POST', `/api/files/${id}/link`),
+    quota: () => fresh('GET', '/api/quota'),
     getShared: (token) => call('GET', '/api/shared', { headers: { 'X-Share-Token': token }, anonymous: true }),
-    saveShared: (token, content, revision) => call('PATCH', '/api/shared', { body: { content }, headers: { 'X-Share-Token': token, 'X-Note-Rev': revision }, anonymous: true })
+    saveShared: (token, content, revision) => call('PATCH', '/api/shared', { body: { content }, headers: { 'X-Share-Token': token, 'X-Note-Rev': revision }, anonymous: true }),
+    sharedFileLink: (token, file) => call('POST', '/api/shared/file-link', { body: { file }, headers: { 'X-Share-Token': token }, anonymous: true })
   }
 }

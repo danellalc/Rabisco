@@ -9,7 +9,8 @@ const { titleOf, coverOf } = require('../pb_hooks/summary.js')
 
 globalThis.BadRequestError = class BadRequestError extends Error {}
 
-const tools = { sanitizeHtml, safeImageSource, titleOf, coverOf }
+const known = { file0001: { name: 'report.pdf', size: 2400000, kind: 'pdf' } }
+const tools = { sanitizeHtml, safeImageSource, titleOf, coverOf, fileInfo: (id) => known[id] || null }
 const normalize = (items) => normalizeBoard(JSON.stringify(items), tools)
 
 test('text items are sanitized and clamped, junk is dropped', () => {
@@ -53,6 +54,35 @@ test('title and cover follow the reading order, top to bottom then left to right
   assert.equal(board.title, 'right')
   assert.equal(board.cover, '/api/files/images/abc/inline.webp')
   assert.deepEqual(readingOrder(parseItems(board.content)).map((item) => item.id), ['lft1', 'rgt1', 'pic1', 'low1'])
+})
+
+test('file items only survive when the file belongs to the board, and carry the stored name, size and kind', () => {
+  const board = normalize([
+    { id: 'fil1', type: 'file', x: 0, y: 0, z: 1, file: 'file0001', name: 'spoofed.exe', size: 1, kind: 'code' },
+    { id: 'fil2', type: 'file', x: 0, y: 0, z: 1, file: 'someone-elses' }
+  ])
+  assert.deepEqual(JSON.parse(board.content), [{ id: 'fil1', type: 'file', x: 0, y: 0, z: 1, file: 'file0001', name: 'report.pdf', size: 2400000, kind: 'pdf' }])
+  assert.equal(board.title, 'report.pdf')
+})
+
+test('file helpers classify names and block executables', () => {
+  const { cleanName, extensionOf, isBlocked, kindOf } = require('../pb_hooks/files.js')
+  assert.equal(kindOf('Relatorio.PDF'), 'pdf')
+  assert.equal(kindOf('site-v2.zip'), 'zip')
+  assert.equal(kindOf('teaser.mp4'), 'video')
+  assert.equal(kindOf('trilha.mp3'), 'audio')
+  assert.equal(kindOf('planilha.xlsx'), 'sheet')
+  assert.equal(kindOf('deck.pptx'), 'slides')
+  assert.equal(kindOf('notes.docx'), 'doc')
+  assert.equal(kindOf('main.go'), 'code')
+  assert.equal(kindOf('mystery'), 'generic')
+  assert.equal(extensionOf('a.b.TAR'), 'tar')
+  assert.equal(isBlocked('setup.exe'), true)
+  assert.equal(isBlocked('script.PS1'), true)
+  assert.equal(isBlocked('archive.zip'), false)
+  assert.equal(cleanName('C:\\Users\\x\\..\\evil\u0000.pdf'), 'evil.pdf')
+  assert.equal(cleanName(''), 'file')
+  assert.equal(cleanName('x'.repeat(300)).length, 200)
 })
 
 test('broken content is rejected instead of wiping the board', () => {

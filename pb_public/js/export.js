@@ -17,6 +17,7 @@ export function treeOfBoard(elements) {
     if (type === 'text') children.push(...treeOf(element.querySelector('.note')).children)
     else if (type === 'image') children.push({ tag: 'div', attrs: {}, children: [treeOf(element.querySelector('img'))] })
     else if (type === 'link') children.push({ tag: 'div', attrs: {}, children: [{ tag: 'a', attrs: { href: element.href }, children: [element.textContent.trim()] }] })
+    else if (type === 'file') children.push({ tag: 'div', attrs: {}, children: [`${element.querySelector('.file-name').textContent} (${element.querySelector('.file-meta').textContent})`] })
   }
   return { tag: 'div', attrs: {}, children }
 }

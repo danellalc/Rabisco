@@ -11,13 +11,13 @@ import { createFormatter, initChecklist } from './format.js'
 import { bindHistoryKeys, createHistory } from './history.js'
 import { applyTranslations, createTranslator, pickLanguage } from './i18n.js'
 import { compressImage, copyImage, downloadBlob, fileExtension } from './images.js'
-import { parseContent, textOfItems } from './items.js'
+import { FILE_MAX_BYTES, formatSize, isBlockedName, parseContent, textOfItems } from './items.js'
 import { createLightbox } from './lightbox.js'
 import { initLinks, isUrl, linkSelection, toHref } from './links.js'
 import { initList } from './list.js'
 import { initMenu } from './menu.js'
 import { initMove } from './move.js'
-import { imageFiles, initPaste } from './paste.js'
+import { imageFiles, initPaste, otherFiles } from './paste.js'
 import { initResize } from './resize.js'
 import { serviceWorkerUrl, textOf } from './sanitize.js'
 import { applySettings, readSettings, writeSettings } from './settings.js'
@@ -61,7 +61,8 @@ const api = createApi({
   }
 })
 const setState = (state) => { saveState.textContent = translate(state) }
-const sync = { markDirty: () => {}, rememberCamera: () => {}, imageInserted: () => {} }
+const sync = { markDirty: () => {}, rememberCamera: () => {}, imageInserted: () => {}, fileInserted: () => {}, mediaLink: () => Promise.reject(new Error('no link')), renameFile: () => Promise.reject(new Error('no rename')) }
+const formatBytes = (bytes) => formatSize(bytes, language)
 const isPhone = () => matchMedia('(max-width:719px)').matches
 const showNote = () => { document.body.dataset.view = 'note' }
 const showList = () => { document.body.dataset.view = 'list' }
@@ -99,10 +100,27 @@ const recorded = (action) => (...args) => {
   return action(...args)
 }
 
+const downloadFile = async (item) => {
+  try {
+    const url = await sync.mediaLink(item)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = item.name
+    link.click()
+  } catch {
+    showToast(translate('downloadFailed'))
+  }
+}
+
 const showItemMenu = (id, anchor) => {
   const element = layer.querySelector(`.item[data-id="${id}"]`)
+  const item = board.itemOf(id)
   const actions = []
   if (element && element.dataset.type === 'image') actions.push({ label: translate('download'), run: () => downloadImage(element.querySelector('img')) })
+  if (item && item.type === 'file' && item.file) {
+    if (!sharedPage) actions.push({ label: translate('rename'), run: () => board.renameFile(id) })
+    actions.push({ label: translate('download'), run: () => downloadFile(item) })
+  }
   actions.push(
     { label: translate('duplicate'), run: () => board.duplicate([id]) },
     { label: translate('bringToFront'), run: () => board.bringToFront([id]) },
@@ -118,6 +136,7 @@ const board = createBoard({
   guides: { x: document.getElementById('guide-x'), y: document.getElementById('guide-y') },
   message: document.getElementById('board-message'),
   translate,
+  language,
   onChange: () => sync.markDirty(),
   beforeChange,
   onCamera: (camera) => {
@@ -125,8 +144,12 @@ const board = createBoard({
     sync.rememberCamera(camera)
   },
   onOpenImage: (img) => openLightbox(img.src, () => downloadImage(img)),
+  onOpenFile: (item) => downloadFile(item),
   onItemMenu: showItemMenu,
-  onImageInserted: (img, file) => sync.imageInserted(img, file)
+  onImageInserted: (img, file) => sync.imageInserted(img, file),
+  onFileInserted: (item, file) => sync.fileInserted(item, file),
+  onMediaLink: (item) => sync.mediaLink(item),
+  onRenameFile: (item, name) => sync.renameFile(item, name)
 })
 const host = board.host
 const formatter = createFormatter(host)
@@ -177,7 +200,7 @@ const choose = (question, options) => {
   chooser.open(translate(question), options.map((option) => ({ label: translate(option.label), run: option.run })))
 }
 
-const wireEditor = ({ insertImageInText, addImageOnBoard }) => {
+const wireEditor = ({ insertImageInText, addImageOnBoard, addFilesOnBoard }) => {
   initMove({ host, area, marker: document.getElementById('drop-marker'), beforeChange, onMoved: () => imageSelection.clear() })
   initPaste({ host, area }, {
     insertImage: insertImageInText,
@@ -185,13 +208,17 @@ const wireEditor = ({ insertImageInText, addImageOnBoard }) => {
     insertTable: recorded(createInsertTable(host)),
     linkSelection: recorded((url) => linkSelection(host.active(), url)),
     choose,
+    addFiles: (files) => addFilesOnBoard(board.center(), files),
     boardPaste: (transfer, point) => {
       const origin = point ? board.worldPoint(point) : board.center()
       const files = imageFiles(transfer)
+      const others = otherFiles(transfer)
+      if (others.length > 0) addFilesOnBoard(origin, others)
       if (files.length > 0) {
         files.forEach((file, index) => addImageOnBoard({ x: origin.x + index * 24, y: origin.y + index * 24 }, file))
         return
       }
+      if (others.length > 0) return
       const text = transfer.getData('text/plain')
       if (isUrl(text)) board.addLink(origin, toHref(text))
       else if (text.trim() !== '') {
@@ -233,8 +260,9 @@ if (sharedPage) {
     }
   })
   sync.markDirty = visitor.markDirty
+  sync.mediaLink = async (item) => (await api.sharedFileLink(sharedToken, item.file)).url
   const refuse = () => showToast(translate('imagesOwnerOnly'))
-  wireEditor({ insertImageInText: refuse, addImageOnBoard: refuse })
+  wireEditor({ insertImageInText: refuse, addImageOnBoard: refuse, addFilesOnBoard: refuse })
   document.getElementById('duplicate').addEventListener('click', async () => {
     try {
       if (!store.auth) throw Object.assign(new Error('sign in first'), { status: 401 })
@@ -263,6 +291,7 @@ if (sharedPage) {
     },
     onSearchFailed: () => showToast(translate('searchFailed'))
   })
+  const quotaLine = document.getElementById('quota')
   const boards = createBoards({
     api,
     store,
@@ -272,13 +301,21 @@ if (sharedPage) {
     history,
     chooser,
     translate,
+    formatBytes,
     setState,
     onAuthLost: () => auth.signOut(),
     showToast,
-    onOpened: showNote
+    onOpened: showNote,
+    onQuota: ({ used, quota }) => {
+      quotaLine.textContent = translate('quotaLine').replace('{used}', formatBytes(used)).replace('{quota}', formatBytes(quota))
+      quotaLine.classList.toggle('full', used >= quota)
+    }
   })
   sync.markDirty = boards.markDirty
   sync.rememberCamera = boards.rememberCamera
+  sync.fileInserted = (item, file) => boards.uploadFile(item.id, file)
+  sync.mediaLink = async (item) => (await api.fileLink(item.file)).url
+  sync.renameFile = (item, name) => api.renameFile(item.file, name)
   sync.imageInserted = async (img, file) => {
     try {
       const blobUrl = img.src
@@ -292,7 +329,25 @@ if (sharedPage) {
 
   const insertImageInText = recorded(createInsertImage(host, { onInserted: sync.imageInserted, onFailed: discardImage }))
   const addImageOnBoard = (point, file) => board.addImage(point, file)
-  wireEditor({ insertImageInText, addImageOnBoard })
+  const addFilesOnBoard = (point, files) => {
+    files.forEach((file, index) => {
+      if (isBlockedName(file.name)) {
+        showToast(translate('fileTypeBlocked'))
+        return
+      }
+      if (file.size > FILE_MAX_BYTES) {
+        showToast(translate('fileTooBig'))
+        return
+      }
+      board.addFile({ x: point.x + index * 24, y: point.y + index * 72 }, file)
+    })
+  }
+  wireEditor({ insertImageInText, addImageOnBoard, addFilesOnBoard })
+  const fileInput = document.getElementById('file-input')
+  fileInput.addEventListener('change', () => {
+    addFilesOnBoard(board.center(), [...fileInput.files])
+    fileInput.value = ''
+  })
 
   const exportBoard = (extension, convert, type) => {
     board.stopEditing()
@@ -306,6 +361,7 @@ if (sharedPage) {
     settings: store.settings,
     actions: [
       { label: () => translate(boards.isPinned() ? 'unpin' : 'pin'), run: () => boards.pin().catch(() => showToast(translate('saveFailed'))) },
+      { label: () => translate('addFile'), run: () => fileInput.click() },
       { label: () => translate('downloadTxt'), run: () => exportBoard('txt', toText, 'text/plain') },
       { label: () => translate('downloadMd'), run: () => exportBoard('md', toMarkdown, 'text/markdown') },
       { label: () => translate('print'), run: () => window.print() },
@@ -390,7 +446,8 @@ if (sharedPage) {
   const addShared = async (shared) => {
     try {
       const origin = board.center()
-      shared.files.forEach((file, index) => addImageOnBoard({ x: origin.x + index * 24, y: origin.y + index * 24 }, file))
+      addFilesOnBoard(origin, shared.files.filter((file) => !file.type.startsWith('image/')))
+      shared.files.filter((file) => file.type.startsWith('image/')).forEach((file, index) => addImageOnBoard({ x: origin.x + index * 24, y: origin.y + index * 24 }, file))
       if (shared.text) {
         board.addText({ x: origin.x, y: origin.y + shared.files.length * 24 })
         recorded(insertText)(shared.text)

@@ -88,7 +88,7 @@ const noShare = { mode: 'off', token: '', expires: '' }
 const isClientError = (error) => Boolean(error && error.status >= 400 && error.status < 500)
 const failureState = () => (navigator.onLine ? 'error' : 'offline')
 
-export function createBoards({ api, store, board, layer, list, history, chooser, translate, setState, onAuthLost, showToast, onOpened }) {
+export function createBoards({ api, store, board, layer, list, history, chooser, translate, formatBytes, setState, onAuthLost, showToast, onOpened, onQuota }) {
   let timer = 0
   let saving = false
   let switching = false
@@ -97,6 +97,7 @@ export function createBoards({ api, store, board, layer, list, history, chooser,
   let chain = Promise.resolve()
   const uploads = new Set()
   const uploadRetries = new Map()
+  const pendingFiles = new Map()
   const pendingDeletes = new Map()
   const channel = typeof BroadcastChannel === 'undefined' ? null : new BroadcastChannel('trecos')
 
@@ -133,6 +134,26 @@ export function createBoards({ api, store, board, layer, list, history, chooser,
     else img.parentElement.remove()
     return false
   })
+
+  const hasPendingFiles = () => board.pendingFileIds().some((id) => {
+    if (pendingFiles.has(id)) return true
+    board.remove([id])
+    return false
+  })
+
+  const hasPendingUploads = () => {
+    const images = hasPendingImages()
+    const files = hasPendingFiles()
+    return images || files
+  }
+
+  const refreshQuota = async () => {
+    try {
+      onQuota(await api.quota())
+    } catch {
+      return
+    }
+  }
 
   const schedule = (delay = SAVE_DELAY) => {
     clearTimeout(timer)
@@ -191,7 +212,7 @@ export function createBoards({ api, store, board, layer, list, history, chooser,
     if (saving) return false
     swapUploadedImages()
     writeDraft(localStorage, active.id, { content: board.serialize(), revision: active.revision, at: Date.now() })
-    if (hasPendingImages()) return false
+    if (hasPendingUploads()) return false
     const content = board.serialize()
     if (!allowShrink && isSuspiciousShrink(active.length, content.length)) {
       chooser.open(translate('shrunk'), [
@@ -219,6 +240,8 @@ export function createBoards({ api, store, board, layer, list, history, chooser,
         setState(store.dirty ? 'saving' : 'saved')
         if (store.dirty) schedule()
       }
+      if (content.includes('"file":') || active.hadFiles) refreshQuota()
+      active.hadFiles = content.includes('"file":')
       return !store.dirty
     } catch (error) {
       store.dirty = true
@@ -258,9 +281,40 @@ export function createBoards({ api, store, board, layer, list, history, chooser,
     clearTimeout(timer)
     board.stopEditing()
     await commitDeletes()
-    await Promise.all([...uploads])
+    await Promise.all([...uploads, ...pendingFiles.values()])
     if (!store.dirty) return true
     return save()
+  }
+
+  const uploadFailure = (error) => {
+    if (error && error.status === 415) return translate('fileTypeBlocked')
+    if (error && error.status === 413) {
+      const data = error.data || {}
+      return translate('storageFull').replace('{used}', formatBytes(data.used || 0)).replace('{quota}', formatBytes(data.quota || 0))
+    }
+    return translate('fileUploadFailed')
+  }
+
+  const uploadFile = (itemId, file) => {
+    const boardId = current() ? current().id : ''
+    if (!boardId) return
+    const task = (async () => {
+      try {
+        const record = await api.uploadFile(boardId, file, file.name, (fraction) => board.setFileProgress(itemId, fraction))
+        pendingFiles.delete(itemId)
+        if (current() && current().id === boardId) {
+          board.setFileRecord(itemId, record)
+          markDirty()
+        }
+      } catch (error) {
+        pendingFiles.delete(itemId)
+        if (current() && current().id === boardId) {
+          board.remove([itemId])
+          showToast(uploadFailure(error))
+        }
+      }
+    })()
+    pendingFiles.set(itemId, task)
   }
 
   const upload = async (blobUrl, boardId = current() ? current().id : '') => {
@@ -304,7 +358,7 @@ export function createBoards({ api, store, board, layer, list, history, chooser,
     for (const blobUrl of store.pendingImages.keys()) upload(blobUrl)
   }
 
-  const isBlankBoard = () => board.isBlank() && store.pendingImages.size === 0
+  const isBlankBoard = () => board.isBlank() && store.pendingImages.size === 0 && pendingFiles.size === 0
 
   const discardIfBlank = async () => {
     const active = current()
@@ -385,6 +439,7 @@ export function createBoards({ api, store, board, layer, list, history, chooser,
     persistList()
     const last = readLast(localStorage)
     const first = list.find(last) || list.get()[0]
+    refreshQuota()
     if (first) {
       await switchTo(first.id)
       return
@@ -472,6 +527,7 @@ export function createBoards({ api, store, board, layer, list, history, chooser,
     for (const timeout of pendingDeletes.values()) clearTimeout(timeout)
     pendingDeletes.clear()
     uploadRetries.clear()
+    pendingFiles.clear()
     store.board = null
     store.dirty = false
     switching = false
@@ -508,5 +564,5 @@ export function createBoards({ api, store, board, layer, list, history, chooser,
 
   board.setEditable(false)
 
-  return { load, open, create, pin, remove, reset, markDirty, rememberCamera, upload, save, flush, getShare, setShare, title, isPinned: () => { const entry = current() && list.find(current().id); return Boolean(entry && entry.pinned) } }
+  return { load, open, create, pin, remove, reset, markDirty, rememberCamera, upload, uploadFile, refreshQuota, save, flush, getShare, setShare, title, isPinned: () => { const entry = current() && list.find(current().id); return Boolean(entry && entry.pinned) } }
 }
