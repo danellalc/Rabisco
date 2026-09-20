@@ -1,0 +1,822 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+*,*::before,*::after{box-sizing:border-box;}
+body{margin:0;}
+button{font:inherit;color:inherit;background:none;border:none;padding:0;margin:0;cursor:pointer;text-align:left;}
+input{font:inherit;color:inherit;}
+[data-theme="light"] a{color:#33524d;text-decoration:underline;text-underline-offset:3px;}
+[data-theme="dark"] a{color:#93aea6;text-decoration:underline;text-underline-offset:3px;}
+[data-theme="light"] :focus-visible{outline:2px solid #33524d;outline-offset:2px;}
+[data-theme="dark"] :focus-visible{outline:2px solid #93aea6;outline-offset:2px;}
+[data-theme="light"] input::placeholder{color:#605e57;opacity:1;}
+[data-theme="dark"] input::placeholder{color:#a3a19a;opacity:1;}
+[contenteditable]{outline:none;}
+</style>
+</helmet>
+<div data-theme="{{theme}}" onPointerDown="{{rootDown}}" style="width:100%;height:100vh;min-height:620px;background:{{t.bg}};color:{{t.fg}};font-family:system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;display:flex;overflow:hidden;position:relative;">
+
+<sc-if value="{{showSidebar}}" hint-placeholder-val="{{true}}">
+<div data-screen-label="Lateral" style="width:296px;flex-shrink:0;border-right:1px solid {{t.line}};display:flex;flex-direction:column;overflow:hidden;">
+  <div style="display:flex;align-items:center;gap:8px;padding:16px 16px 8px;">
+    <input type="search" value="{{sbq}}" onChange="{{setSbq}}" placeholder="Buscar" aria-label="Buscar quadros" style="display:block;width:100%;background:transparent;outline:none;padding:8px 4px;font-size:16px;line-height:1.5;border:none;border-bottom:1px solid {{t.line}};">
+    <button aria-label="Quadro novo" style="width:32px;height:32px;flex-shrink:0;display:inline-flex;align-items:center;justify-content:center;font-size:22px;line-height:1;">+</button>
+  </div>
+  <div style="flex:1;overflow-y:auto;padding:0 8px;">
+    <sc-for list="{{boardRows}}" as="b" hint-placeholder-count="4">
+      <button style="{{b.style}}">
+        <sc-if value="{{b.pinned}}" hint-placeholder-val="{{false}}"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;color:{{t.fg2}};"><path d="M12 21C12 21 5.5 14.8 5.5 9.8C5.5 6 8.4 3 12 3C15.6 3 18.5 6 18.5 9.8C18.5 14.8 12 21 12 21Z M13.6 9.8a1.6 1.6 0 11-3.2 0 1.6 1.6 0 013.2 0Z"></path></svg></sc-if>
+        <span style="flex:1;min-width:0;display:flex;align-items:baseline;gap:8px;"><span style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:16px;line-height:1.5;">{{b.title}}</span><sc-if value="{{b.hasTag}}" hint-placeholder-val="{{false}}"><span style="font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12px;color:{{t.fg2}};flex-shrink:0;">{{b.tag}}</span></sc-if></span>
+        <span style="text-transform:uppercase;white-space:nowrap;margin-left:8px;font-size:13px;line-height:1.5;letter-spacing:0.04em;color:{{t.fg2}};">{{b.time}}</span>
+      </button>
+    </sc-for>
+  </div>
+  <div style="border-top:1px solid {{t.line}};padding:12px 16px;flex-shrink:0;">
+    <div style="display:flex;justify-content:space-between;align-items:baseline;">
+      <span style="color:{{t.fg2}};font-size:13px;line-height:1.5;letter-spacing:0.04em;text-transform:uppercase;">ana@exemplo.com</span>
+      <button style="color:{{t.acc}};text-decoration:underline;text-underline-offset:3px;font-size:15px;line-height:1.5;">Sair</button>
+    </div>
+    <div style="font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12px;line-height:1.5;color:{{quotaColor}};margin-top:4px;">{{quotaText}}</div>
+  </div>
+</div>
+</sc-if>
+
+<sc-if value="{{notDownload}}" hint-placeholder-val="{{true}}">
+<div data-screen-label="Quadro" style="flex:1;display:flex;flex-direction:column;min-width:0;position:relative;">
+
+  <sc-if value="{{isBoard}}" hint-placeholder-val="{{true}}">
+  <div style="position:relative;display:flex;align-items:center;gap:16px;padding:10px 24px;border-bottom:1px solid {{t.line}};flex-shrink:0;z-index:30;">
+    <button onClick="{{toggleSidebar}}" aria-label="Recolher lista" style="width:32px;height:32px;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;border-radius:4px;color:{{t.fg}};">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5h16v14H4z M9 5v14"></path></svg>
+    </button>
+    <span style="flex:1;font-size:13px;line-height:1.5;letter-spacing:0.04em;text-transform:uppercase;color:{{t.fg2}};">{{saveLabel}}</span>
+    <button onPointerDown="{{stop}}" onClick="{{toggleShare}}" style="font-size:15px;line-height:1.5;color:{{t.acc}};text-decoration:underline;text-underline-offset:3px;text-decoration-thickness:1.5px;">Compartilhar</button>
+    <button onPointerDown="{{stop}}" onClick="{{toggleMenu}}" aria-label="Mais opções" style="letter-spacing:0.08em;width:32px;height:32px;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;color:{{t.fg}};">⋯</button>
+  </div>
+  </sc-if>
+  <sc-if value="{{isShared}}" hint-placeholder-val="{{false}}">
+  <div style="display:flex;align-items:center;gap:16px;padding:12px 24px;flex-shrink:0;z-index:30;">
+    <button onClick="{{backToBoard}}" style="font-family:ui-monospace,Menlo,Consolas,monospace;font-size:13px;color:{{t.fg2}};text-decoration:underline;text-underline-offset:3px;">← sair da prévia</button>
+    <span style="flex:1;text-align:right;font-size:13px;letter-spacing:0.04em;text-transform:uppercase;color:{{t.fg2}};">só ver</span>
+  </div>
+  </sc-if>
+
+  <div ref="{{canvasRef}}" style="flex:1;position:relative;overflow:hidden;cursor:default;" onPointerDown="{{canvasDown}}" onDoubleClick="{{canvasDbl}}">
+    <div style="{{layerStyle}}">
+
+      <sc-if value="{{S.t1.show}}" hint-placeholder-val="{{true}}">
+      <div data-screen-label="Bloco de texto" style="{{S.t1.ws}}" onPointerDown="{{S.t1.down}}" onDoubleClick="{{S.t1.dbl}}">
+        <div contentEditable="{{S.t1.ce}}" suppressContentEditableWarning="{{true}}" style="min-height:24px;">
+          <p style="font-size:32px;font-weight:700;line-height:1.5;margin:0 0 8px;">Lançamento do site</p>
+          <p style="font-size:16px;line-height:1.5;margin:0;">Tudo do lançamento de outubro num lugar só: a proposta, o orçamento fechado e os prints da home nova pra revisar com o time.</p>
+        </div>
+        <sc-if value="{{S.t1.sel}}" hint-placeholder-val="{{false}}"><button onPointerDown="{{stop}}" onClick="{{S.t1.menu}}" aria-label="Menu do item" style="position:absolute;top:-32px;right:0;width:28px;height:28px;display:inline-flex;align-items:center;justify-content:center;color:{{t.fg2}};letter-spacing:0.08em;">⋯</button><span onPointerDown="{{S.t1.hd}}" style="position:absolute;right:-7px;bottom:-7px;width:13px;height:13px;background:{{t.bg}};border:1.5px solid {{t.acc}};border-radius:2px;cursor:nwse-resize;display:block;"></span></sc-if>
+      </div>
+      </sc-if>
+
+      <sc-if value="{{S.t2.show}}" hint-placeholder-val="{{true}}">
+      <div style="{{S.t2.ws}}" onPointerDown="{{S.t2.down}}" onDoubleClick="{{S.t2.dbl}}">
+        <div contentEditable="{{S.t2.ce}}" suppressContentEditableWarning="{{true}}" style="min-height:24px;">
+          <p style="font-size:21px;font-weight:700;line-height:1.5;margin:0 0 8px;">Pendências</p>
+          <div style="display:flex;gap:8px;font-size:16px;line-height:1.5;"><span>☑</span><span style="color:{{t.fg2}};">Fechar o orçamento com a Lu</span></div>
+          <div style="display:flex;gap:8px;font-size:16px;line-height:1.5;"><span>☐</span><span>Revisar o texto da home</span></div>
+          <div style="display:flex;gap:8px;font-size:16px;line-height:1.5;"><span>☐</span><span>Mandar a <span style="background:{{t.hl1}};color:{{t.fg}};">proposta</span> pro cliente até sexta</span></div>
+        </div>
+        <sc-if value="{{S.t2.sel}}" hint-placeholder-val="{{false}}"><button onPointerDown="{{stop}}" onClick="{{S.t2.menu}}" aria-label="Menu do item" style="position:absolute;top:-32px;right:0;width:28px;height:28px;display:inline-flex;align-items:center;justify-content:center;color:{{t.fg2}};letter-spacing:0.08em;">⋯</button><span onPointerDown="{{S.t2.hd}}" style="position:absolute;right:-7px;bottom:-7px;width:13px;height:13px;background:{{t.bg}};border:1.5px solid {{t.acc}};border-radius:2px;cursor:nwse-resize;display:block;"></span></sc-if>
+      </div>
+      </sc-if>
+
+      <sc-if value="{{S.t3.show}}" hint-placeholder-val="{{true}}">
+      <div style="{{S.t3.ws}}" onPointerDown="{{S.t3.down}}" onDoubleClick="{{S.t3.dbl}}">
+        <div contentEditable="{{S.t3.ce}}" suppressContentEditableWarning="{{true}}" style="min-height:24px;">
+          <p style="font-size:21px;font-weight:700;line-height:1.5;margin:0 0 8px;">Do kickoff</p>
+          <p style="font-style:italic;font-size:16px;line-height:1.5;margin:0 0 4px;">“A home precisa carregar antes do café esfriar.”</p>
+          <p style="font-size:13px;line-height:1.5;letter-spacing:0.04em;text-transform:uppercase;color:{{t.fg2}};margin:0 0 12px;">— combinado no kickoff, 4 set</p>
+          <div style="background:{{t.bg2}};border-radius:4px;padding:12px;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:13px;line-height:1.5;white-space:pre;">&lt;meta name="theme-color"
+  content="#edebe7"&gt;</div>
+        </div>
+        <sc-if value="{{S.t3.sel}}" hint-placeholder-val="{{false}}"><button onPointerDown="{{stop}}" onClick="{{S.t3.menu}}" aria-label="Menu do item" style="position:absolute;top:-32px;right:0;width:28px;height:28px;display:inline-flex;align-items:center;justify-content:center;color:{{t.fg2}};letter-spacing:0.08em;">⋯</button><span onPointerDown="{{S.t3.hd}}" style="position:absolute;right:-7px;bottom:-7px;width:13px;height:13px;background:{{t.bg}};border:1.5px solid {{t.acc}};border-radius:2px;cursor:nwse-resize;display:block;"></span></sc-if>
+      </div>
+      </sc-if>
+
+      <sc-for list="{{ditems}}" as="it" hint-placeholder-count="6">
+        <div style="{{it.ws}}" onPointerDown="{{it.down}}" onDoubleClick="{{it.dbl}}">
+          <sc-if value="{{it.isImage}}" hint-placeholder-val="{{false}}">
+            <span style="font-family:ui-monospace,Menlo,Consolas,monospace;font-size:13px;color:{{t.fg2}};background:{{t.bg}};padding:2px 8px;border-radius:4px;">{{it.label}}</span>
+          </sc-if>
+          <sc-if value="{{it.isFile}}" hint-placeholder-val="{{false}}">
+            <div style="display:flex;align-items:center;gap:10px;width:100%;">
+              <span style="position:relative;flex-shrink:0;width:32px;height:32px;display:inline-block;">
+                <svg width="32" height="32" viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="{{it.iconD}}"></path></svg>
+                <span style="position:absolute;left:50%;bottom:0;transform:translateX(-50%);background:{{t.bg2}};padding:0 2px;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:9px;line-height:1.2;letter-spacing:0.05em;color:{{t.fg2}};">{{it.ext}}</span>
+              </span>
+              <span style="flex:1;min-width:0;">
+                <sc-if value="{{it.renaming}}" hint-placeholder-val="{{false}}"><input defaultValue="{{it.name}}" onBlur="{{it.rnDone}}" onKeyDown="{{it.rnKey}}" onPointerDown="{{stop}}" autoFocus="{{true}}" style="display:block;width:100%;background:transparent;border:none;border-bottom:1px solid {{t.line}};outline:none;font-size:15px;line-height:1.5;padding:0;"></sc-if>
+                <sc-if value="{{it.notRenaming}}" hint-placeholder-val="{{true}}"><span style="display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:15px;line-height:1.5;">{{it.name}}</span></sc-if>
+                <span style="display:block;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12px;line-height:1.5;color:{{t.fg2}};">{{it.sub}}</span>
+              </span>
+              <sc-if value="{{it.isMedia}}" hint-placeholder-val="{{false}}"><button onPointerDown="{{stop}}" onClick="{{it.play}}" aria-label="Tocar ou pausar" style="width:28px;height:28px;flex-shrink:0;display:inline-flex;align-items:center;justify-content:center;font-size:12px;color:{{t.fg}};">{{it.glyph}}</button></sc-if>
+            </div>
+            <sc-if value="{{it.mediaOpen}}" hint-placeholder-val="{{false}}">
+              <div onPointerDown="{{stop}}" onClick="{{it.play}}" style="position:relative;margin-top:10px;height:166px;border-radius:4px;background:repeating-linear-gradient(45deg,{{t.bg}} 0 10px,transparent 10px 22px);display:flex;align-items:center;justify-content:center;cursor:pointer;overflow:hidden;">
+                <span style="font-family:ui-monospace,Menlo,Consolas,monospace;font-size:13px;color:{{t.fg2}};background:{{t.bg2}};padding:2px 8px;border-radius:4px;">vídeo · {{it.glyph}}</span>
+                <span style="position:absolute;left:0;bottom:0;height:2px;background:{{t.acc}};width:{{it.progW}};"></span>
+              </div>
+            </sc-if>
+            <sc-if value="{{it.audioProg}}" hint-placeholder-val="{{false}}"><span style="position:absolute;left:0;bottom:0;height:2px;background:{{t.acc}};width:{{it.progW}};"></span></sc-if>
+            <sc-if value="{{it.hasUp}}" hint-placeholder-val="{{false}}"><span style="position:absolute;left:0;bottom:0;height:2px;background:{{t.acc}};width:{{it.upW}};border-radius:0 0 0 4px;"></span></sc-if>
+          </sc-if>
+          <sc-if value="{{it.isLink}}" hint-placeholder-val="{{false}}">
+            <svg width="24" height="24" viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><path d="M13.2 18.8l5.6-5.6M11.6 15.2l-2.4 2.4a3.7 3.7 0 1 0 5.2 5.2l2.4-2.4M20.4 16.8l2.4-2.4a3.7 3.7 0 1 0-5.2-5.2l-2.4 2.4"></path></svg>
+            <span style="flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:15px;line-height:1.5;text-decoration:underline;text-decoration-color:{{t.acc}};text-underline-offset:3px;">{{it.url}}</span>
+          </sc-if>
+          <sc-if value="{{it.isGhost}}" hint-placeholder-val="{{false}}">
+            <div contentEditable="{{it.ce}}" suppressContentEditableWarning="{{true}}" style="min-height:24px;"><p style="font-size:16px;line-height:1.5;margin:0;color:{{it.gColor}};">{{it.gBody}}</p></div>
+          </sc-if>
+          <sc-if value="{{it.sel}}" hint-placeholder-val="{{false}}"><button onPointerDown="{{stop}}" onClick="{{it.menu}}" aria-label="Menu do item" style="position:absolute;top:-32px;right:0;width:28px;height:28px;display:inline-flex;align-items:center;justify-content:center;color:{{t.fg2}};letter-spacing:0.08em;">⋯</button><sc-if value="{{it.resizable}}" hint-placeholder-val="{{false}}"><span onPointerDown="{{it.hd}}" style="position:absolute;right:-7px;bottom:-7px;width:13px;height:13px;background:{{t.bg}};border:1.5px solid {{t.acc}};border-radius:2px;cursor:nwse-resize;display:block;"></span></sc-if></sc-if>
+        </div>
+      </sc-for>
+
+      <sc-if value="{{hasLasso}}" hint-placeholder-val="{{false}}"><div style="{{lassoStyle}}"></div></sc-if>
+    </div>
+
+    <sc-if value="{{hasBar}}" hint-placeholder-val="{{false}}">
+    <div onPointerDown="{{stop}}" style="{{barPos}}">
+      <div style="display:inline-flex;align-items:center;gap:2px;border-radius:4px;padding:4px;background:{{t.bg2}};box-shadow:{{t.shadow}};">
+        <button onMouseDown="{{fmt.b}}" style="width:28px;height:28px;display:inline-flex;align-items:center;justify-content:center;border-radius:4px;font-size:15px;"><b>B</b></button>
+        <button onMouseDown="{{fmt.i}}" style="width:28px;height:28px;display:inline-flex;align-items:center;justify-content:center;border-radius:4px;font-size:15px;"><i>I</i></button>
+        <button onMouseDown="{{fmt.u}}" style="width:28px;height:28px;display:inline-flex;align-items:center;justify-content:center;border-radius:4px;font-size:15px;text-decoration:underline;">U</button>
+        <button onMouseDown="{{fmt.s}}" style="width:28px;height:28px;display:inline-flex;align-items:center;justify-content:center;border-radius:4px;font-size:15px;text-decoration:line-through;">S</button>
+        <span style="width:1px;align-self:stretch;margin:4px 2px;background:{{t.line}};"></span>
+        <button onMouseDown="{{fmt.h1}}" style="width:28px;height:28px;display:inline-flex;align-items:center;justify-content:center;border-radius:4px;font-size:12px;font-weight:700;">H1</button>
+        <button onMouseDown="{{fmt.h2}}" style="width:28px;height:28px;display:inline-flex;align-items:center;justify-content:center;border-radius:4px;font-size:12px;font-weight:700;">H2</button>
+        <span style="width:1px;align-self:stretch;margin:4px 2px;background:{{t.line}};"></span>
+        <button onMouseDown="{{fmt.ul}}" style="width:28px;height:28px;display:inline-flex;align-items:center;justify-content:center;border-radius:4px;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 6h.01M4.5 12h.01M4.5 18h.01M9 6h11M9 12h11M9 18h11"></path></svg></button>
+        <button onMouseDown="{{fmt.ol}}" style="width:28px;height:28px;display:inline-flex;align-items:center;justify-content:center;border-radius:4px;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M4.6 5.3L5.6 3.9V8.1M4.3 9.9H6.6L4.3 14.1H6.6M4.3 16H6.6L4.3 18H6.6L4.3 20H6.6M9 6h11M9 12h11M9 18h11"></path></svg></button>
+        <button onMouseDown="{{fmt.cl}}" style="width:28px;height:28px;display:inline-flex;align-items:center;justify-content:center;border-radius:4px;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 5.5h9v9h-9z M7 10.2l1.7 1.7L13 8.3"></path></svg></button>
+        <span style="width:1px;align-self:stretch;margin:4px 2px;background:{{t.line}};"></span>
+        <button onMouseDown="{{fmt.hl1}}" style="width:28px;height:28px;display:inline-flex;align-items:center;justify-content:center;border-radius:4px;"><span style="width:14px;height:14px;border-radius:50%;display:inline-block;background:{{t.hl1}};"></span></button>
+        <button onMouseDown="{{fmt.hl2}}" style="width:28px;height:28px;display:inline-flex;align-items:center;justify-content:center;border-radius:4px;"><span style="width:14px;height:14px;border-radius:50%;display:inline-block;background:{{t.hl2}};"></span></button>
+        <button onMouseDown="{{fmt.hl3}}" style="width:28px;height:28px;display:inline-flex;align-items:center;justify-content:center;border-radius:4px;"><span style="width:14px;height:14px;border-radius:50%;display:inline-block;background:{{t.hl3}};"></span></button>
+        <button onMouseDown="{{fmt.hl0}}" style="width:28px;height:28px;display:inline-flex;align-items:center;justify-content:center;border-radius:4px;font-size:15px;">×</button>
+        <span style="width:1px;align-self:stretch;margin:4px 2px;background:{{t.line}};"></span>
+        <button onMouseDown="{{fmt.c1}}" style="width:28px;height:28px;display:inline-flex;align-items:center;justify-content:center;border-radius:4px;"><span style="width:14px;height:14px;border-radius:50%;display:inline-block;background:{{t.c1}};"></span></button>
+        <button onMouseDown="{{fmt.c2}}" style="width:28px;height:28px;display:inline-flex;align-items:center;justify-content:center;border-radius:4px;"><span style="width:14px;height:14px;border-radius:50%;display:inline-block;background:{{t.c2}};"></span></button>
+        <button onMouseDown="{{fmt.c3}}" style="width:28px;height:28px;display:inline-flex;align-items:center;justify-content:center;border-radius:4px;"><span style="width:14px;height:14px;border-radius:50%;display:inline-block;background:{{t.c3}};"></span></button>
+        <span style="width:1px;align-self:stretch;margin:4px 2px;background:{{t.line}};"></span>
+        <button onMouseDown="{{fmt.clr}}" style="width:28px;height:28px;display:inline-flex;align-items:center;justify-content:center;border-radius:4px;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M8 4L3 18M8 4l5 14M5.2 13h6.4M4 20L20 4"></path></svg></button>
+      </div>
+    </div>
+    </sc-if>
+
+    <sc-if value="{{hasItemMenu}}" hint-placeholder-val="{{false}}">
+    <div onPointerDown="{{stop}}" style="{{itemMenuPos}}">
+      <div style="background:{{t.bg2}};box-shadow:{{t.shadow}};border-radius:8px;padding:8px;width:190px;">
+        <sc-if value="{{im.canRename}}" hint-placeholder-val="{{false}}"><button onClick="{{im.rename}}" style="display:block;width:100%;padding:8px;font-size:15px;line-height:1.5;">Renomear</button></sc-if>
+        <sc-if value="{{im.canDownload}}" hint-placeholder-val="{{false}}"><button onClick="{{im.close}}" style="display:block;width:100%;padding:8px;font-size:15px;line-height:1.5;">Baixar</button></sc-if>
+        <sc-if value="{{im.canShareFile}}" hint-placeholder-val="{{false}}"><button onClick="{{im.shareFile}}" style="display:block;width:100%;padding:8px;font-size:15px;line-height:1.5;">Compartilhar arquivo</button></sc-if>
+        <button onClick="{{im.dup}}" style="display:block;width:100%;padding:8px;font-size:15px;line-height:1.5;">Duplicar</button>
+        <button onClick="{{im.front}}" style="display:block;width:100%;padding:8px;font-size:15px;line-height:1.5;">Trazer pra frente</button>
+        <button onClick="{{im.del}}" style="display:block;width:100%;padding:8px;font-size:15px;line-height:1.5;color:{{t.c1}};">Apagar</button>
+      </div>
+    </div>
+    </sc-if>
+
+    <sc-if value="{{zoomVisible}}" hint-placeholder-val="{{true}}">
+    <div onPointerDown="{{stop}}" style="position:absolute;right:24px;bottom:16px;display:flex;align-items:center;gap:8px;color:{{t.fg2}};z-index:20;">
+      <button onClick="{{zoomOut}}" aria-label="Diminuir zoom" style="width:28px;height:28px;display:inline-flex;align-items:center;justify-content:center;font-size:16px;">−</button>
+      <span style="font-family:ui-monospace,Menlo,Consolas,monospace;font-size:13px;min-width:40px;text-align:center;">{{zoomLabel}}</span>
+      <button onClick="{{zoomIn}}" aria-label="Aumentar zoom" style="width:28px;height:28px;display:inline-flex;align-items:center;justify-content:center;font-size:16px;">+</button>
+      <button onClick="{{fitAll}}" aria-label="Enquadrar" style="width:28px;height:28px;display:inline-flex;align-items:center;justify-content:center;">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9V6a2 2 0 0 1 2-2h3M15 4h3a2 2 0 0 1 2 2v3M20 15v3a2 2 0 0 1-2 2h-3M9 20H6a2 2 0 0 1-2-2v-3"></path></svg>
+      </button>
+    </div>
+    </sc-if>
+  </div>
+
+  <sc-if value="{{isShared}}" hint-placeholder-val="{{false}}">
+  <div style="display:flex;align-items:center;justify-content:space-between;gap:16px;padding:12px 24px;border-top:1px solid {{t.line}};flex-shrink:0;">
+    <span style="font-size:13px;line-height:1.5;letter-spacing:0.04em;text-transform:uppercase;color:{{t.fg2}};">Feito com Trecos · <a href="#criar" onClick="{{noop}}">Crie o seu quadro</a></span>
+    <button onClick="{{dupShared}}" style="border:1.5px solid {{t.acc}};color:{{t.acc}};border-radius:4px;padding:6px 16px;font-size:15px;line-height:1.5;background:{{t.bg}};">Duplicar</button>
+  </div>
+  </sc-if>
+
+  <sc-if value="{{shareOpen}}" hint-placeholder-val="{{false}}">
+  <div data-screen-label="Popover de compartilhar" onPointerDown="{{stop}}" style="position:absolute;top:48px;right:24px;width:320px;background:{{t.bg2}};box-shadow:{{t.shadow}};border-radius:8px;padding:12px;z-index:40;">
+    <p style="font-size:15px;line-height:1.5;font-weight:700;margin:0 0 4px;padding:0 4px;">{{shareTitle}}</p>
+    <sc-if value="{{shareIsSel}}" hint-placeholder-val="{{false}}"><p style="font-size:13px;line-height:1.5;color:{{t.fg2}};margin:0 0 4px;padding:0 4px;">Quem abrir vê só o que está selecionado</p></sc-if>
+    <sc-if value="{{shareIsBoard}}" hint-placeholder-val="{{false}}">
+      <button onClick="{{modeOff}}" style="display:block;width:100%;padding:8px 4px;font-size:15px;line-height:1.5;color:{{mOffColor}};font-weight:{{mOffW}};">Desativado</button>
+      <button onClick="{{modeView}}" style="display:block;width:100%;padding:8px 4px;font-size:15px;line-height:1.5;color:{{mViewColor}};font-weight:{{mViewW}};">Só ver</button>
+      <button onClick="{{modeEdit}}" style="display:block;width:100%;padding:8px 4px;font-size:15px;line-height:1.5;color:{{mEditColor}};font-weight:{{mEditW}};">Pode editar</button>
+    </sc-if>
+    <sc-if value="{{shareIsNotBoard}}" hint-placeholder-val="{{false}}">
+      <button style="display:block;width:100%;padding:8px 4px;font-size:15px;line-height:1.5;color:{{t.acc}};font-weight:700;">Só ver</button>
+    </sc-if>
+    <div style="display:flex;align-items:baseline;gap:12px;padding:4px;font-size:13px;line-height:1.5;">
+      <span style="color:{{t.fg2}};letter-spacing:0.04em;text-transform:uppercase;">Expira</span>
+      <sc-for list="{{expiryOpts}}" as="x" hint-placeholder-count="4"><button onClick="{{x.pick}}" style="{{x.style}}">{{x.label}}</button></sc-for>
+    </div>
+    <sc-if value="{{shareHasLink}}" hint-placeholder-val="{{true}}">
+    <div style="display:flex;align-items:center;gap:8px;padding:4px;">
+      <span style="flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12px;line-height:1.5;color:{{t.fg2}};">{{shareUrl}}</span>
+      <button onClick="{{copyLink}}" style="flex-shrink:0;border:1.5px solid {{t.acc}};color:{{t.acc}};background:{{t.bg2}};border-radius:4px;padding:4px 8px;font-size:15px;line-height:1.5;">Copiar</button>
+    </div>
+    </sc-if>
+    <sc-if value="{{hasActiveLinks}}" hint-placeholder-val="{{false}}">
+    <div style="border-top:1px solid {{t.line}};margin:8px 0;"></div>
+    <p style="font-size:13px;line-height:1.5;letter-spacing:0.04em;text-transform:uppercase;color:{{t.fg2}};margin:0 0 4px;padding:0 4px;">Links ativos</p>
+    <sc-for list="{{linkRows}}" as="lr" hint-placeholder-count="2">
+      <div style="display:flex;align-items:baseline;gap:8px;padding:4px;">
+        <button onClick="{{lr.go}}" style="flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:15px;line-height:1.5;text-decoration:underline;text-underline-offset:3px;text-decoration-color:{{t.acc}};">{{lr.alvo}}</button>
+        <span style="font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12px;color:{{t.fg2}};flex-shrink:0;">{{lr.modo}}</span>
+        <button onClick="{{lr.copy}}" style="font-size:13px;color:{{t.acc}};text-decoration:underline;text-underline-offset:3px;flex-shrink:0;">Copiar</button>
+        <button onClick="{{lr.off}}" style="font-size:13px;color:{{t.fg2}};text-decoration:underline;text-underline-offset:3px;flex-shrink:0;">Desativar</button>
+      </div>
+    </sc-for>
+    </sc-if>
+  </div>
+  </sc-if>
+
+  <sc-if value="{{menuOpen}}" hint-placeholder-val="{{false}}">
+  <div onPointerDown="{{stop}}" style="position:absolute;top:48px;right:24px;width:190px;background:{{t.bg2}};box-shadow:{{t.shadow}};border-radius:8px;padding:8px;z-index:40;">
+    <button onClick="{{closeMenu}}" style="display:block;width:100%;padding:8px;font-size:15px;line-height:1.5;">Fixar</button>
+    <button onClick="{{closeMenu}}" style="display:block;width:100%;padding:8px;font-size:15px;line-height:1.5;">Baixar .md</button>
+    <button onClick="{{closeMenu}}" style="display:block;width:100%;padding:8px;font-size:15px;line-height:1.5;">Baixar tudo (.zip)</button>
+    <button onClick="{{closeMenu}}" style="display:block;width:100%;padding:8px;font-size:15px;line-height:1.5;">Imprimir</button>
+    <button onClick="{{toggleTheme}}" style="display:block;width:100%;padding:8px;font-size:15px;line-height:1.5;">{{themeLabel}}</button>
+    <button onClick="{{closeMenu}}" style="display:block;width:100%;padding:8px;font-size:15px;line-height:1.5;color:{{t.c1}};">Apagar</button>
+  </div>
+  </sc-if>
+
+</div>
+</sc-if>
+
+<sc-if value="{{isDownload}}" hint-placeholder-val="{{false}}">
+<div data-screen-label="Página de download" style="flex:1;display:flex;flex-direction:column;min-width:0;">
+  <div style="padding:12px 24px;">
+    <button onClick="{{backToBoard}}" style="font-family:ui-monospace,Menlo,Consolas,monospace;font-size:13px;color:{{t.fg2}};text-decoration:underline;text-underline-offset:3px;">← sair da prévia</button>
+  </div>
+  <div style="flex:1;display:flex;align-items:center;justify-content:center;padding:24px;">
+    <div style="display:flex;flex-direction:column;align-items:center;gap:16px;max-width:360px;text-align:center;">
+      <span style="position:relative;width:64px;height:64px;display:inline-block;color:{{t.fg}};">
+        <svg width="64" height="64" viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="{{dl.iconD}}"></path></svg>
+        <span style="position:absolute;left:50%;bottom:2px;transform:translateX(-50%);background:{{t.bg}};padding:0 4px;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12px;letter-spacing:0.05em;color:{{t.fg2}};">{{dl.ext}}</span>
+      </span>
+      <sc-if value="{{dl.isVideo}}" hint-placeholder-val="{{false}}">
+        <div onClick="{{dl.play}}" style="position:relative;width:328px;max-width:100%;height:184px;border-radius:4px;background:repeating-linear-gradient(45deg,{{t.bg2}} 0 10px,transparent 10px 22px);display:flex;align-items:center;justify-content:center;cursor:pointer;overflow:hidden;">
+          <span style="font-family:ui-monospace,Menlo,Consolas,monospace;font-size:13px;color:{{t.fg2}};background:{{t.bg}};padding:2px 8px;border-radius:4px;">vídeo · {{dl.glyph}}</span>
+          <span style="position:absolute;left:0;bottom:0;height:2px;background:{{t.acc}};width:{{dl.progW}};"></span>
+        </div>
+      </sc-if>
+      <sc-if value="{{dl.isAudio}}" hint-placeholder-val="{{false}}">
+        <div style="display:flex;align-items:center;gap:12px;width:328px;max-width:100%;">
+          <button onClick="{{dl.play}}" aria-label="Tocar ou pausar" style="width:32px;height:32px;flex-shrink:0;display:inline-flex;align-items:center;justify-content:center;font-size:14px;color:{{t.fg}};">{{dl.glyph}}</button>
+          <span style="flex:1;position:relative;height:2px;background:{{t.line}};"><span style="position:absolute;left:0;top:0;height:2px;background:{{t.acc}};width:{{dl.progW}};"></span></span>
+          <span style="font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12px;color:{{t.fg2}};flex-shrink:0;">{{dl.time}}</span>
+        </div>
+      </sc-if>
+      <div>
+        <p style="font-size:21px;font-weight:700;line-height:1.5;margin:0;overflow-wrap:anywhere;">{{dl.name}}</p>
+        <p style="font-family:ui-monospace,Menlo,Consolas,monospace;font-size:13px;line-height:1.5;color:{{t.fg2}};margin:0;">{{dl.size}}</p>
+      </div>
+      <p style="font-size:15px;line-height:1.5;color:{{t.fg2}};margin:0;">Arquivo enviado por outra pessoa. Baixe só se confiar em quem mandou.</p>
+      <button onClick="{{dlToast}}" style="border:1.5px solid {{t.acc}};color:{{t.acc}};border-radius:4px;padding:8px 24px;font-size:16px;line-height:1.5;background:{{t.bg}};">Baixar</button>
+    </div>
+  </div>
+  <div style="padding:12px 24px;text-align:center;">
+    <span style="font-size:13px;line-height:1.5;letter-spacing:0.04em;text-transform:uppercase;color:{{t.fg2}};">Feito com Trecos · <a href="#criar" onClick="{{noop}}">Crie o seu quadro</a></span>
+  </div>
+</div>
+</sc-if>
+
+<sc-if value="{{paletteOpen}}" hint-placeholder-val="{{false}}">
+<div data-screen-label="Busca global" onPointerDown="{{stop}}" style="position:absolute;top:72px;left:50%;transform:translateX(-50%);width:520px;max-width:90%;background:{{t.bg2}};box-shadow:{{t.shadow}};border-radius:8px;padding:12px;z-index:50;">
+  <input value="{{q}}" onChange="{{setQ}}" autoFocus="{{true}}" placeholder="Buscar em tudo — quadros, arquivos, #tags" aria-label="Buscar em tudo" style="display:block;width:100%;background:transparent;border:none;border-bottom:1px solid {{t.line}};outline:none;padding:8px 4px;font-size:16px;line-height:1.5;">
+  <div style="max-height:320px;overflow-y:auto;margin-top:8px;">
+    <sc-for list="{{pRows}}" as="r" hint-placeholder-count="5">
+      <button onClick="{{r.pick}}" style="display:flex;align-items:baseline;gap:8px;width:100%;padding:8px 4px;border-radius:4px;">
+        <span style="font-size:13px;letter-spacing:0.04em;text-transform:uppercase;color:{{t.fg2}};width:64px;flex-shrink:0;">{{r.kind}}</span>
+        <span style="flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:15px;line-height:1.5;">{{r.label}}</span>
+        <span style="font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12px;color:{{t.fg2}};flex-shrink:0;">{{r.meta}}</span>
+      </button>
+    </sc-for>
+  </div>
+</div>
+</sc-if>
+
+<sc-if value="{{hasToast}}" hint-placeholder-val="{{false}}">
+<div style="position:absolute;bottom:24px;left:50%;transform:translateX(-50%);background:{{t.fg}};color:{{t.bg}};border-radius:4px;padding:10px 16px;font-size:15px;line-height:1.5;box-shadow:{{t.shadow}};z-index:60;white-space:nowrap;">{{toastMsg}}</div>
+</sc-if>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;theme&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;light&quot;,&quot;dark&quot;],&quot;default&quot;:&quot;light&quot;,&quot;section&quot;:&quot;Tema&quot;,&quot;tsType&quot;:&quot;string&quot;},&quot;quotaCheia&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:false,&quot;section&quot;:&quot;Estados&quot;,&quot;tsType&quot;:&quot;boolean&quot;}}">
+const THEMES = {
+  light: { bg:'#edebe7', bg2:'#e3e0da', fg:'#1b1a17', fg2:'#605e57', line:'#d3d0c9', acc:'#33524d', hl1:'#d9c583', hl2:'#a8bd9c', hl3:'#d2a7a7', c1:'#8e4a40', c2:'#4a637c', c3:'#605e57', shadow:'0 2px 6px rgba(30,28,24,0.14), 0 8px 20px -8px rgba(30,28,24,0.22)' },
+  dark:  { bg:'#191816', bg2:'#242320', fg:'#eceae5', fg2:'#a3a19a', line:'#35342f', acc:'#93aea6', hl1:'#79663a', hl2:'#3d4a3b', hl3:'#4a3537', c1:'#c98e83', c2:'#9cb2c2', c3:'#a3a19a', shadow:'0 2px 6px rgba(0,0,0,0.3), 0 8px 20px -8px rgba(0,0,0,0.45)' }
+};
+const SHEET = 'M19 4H9.5A2.5 2.5 0 0 0 7 6.5v19A2.5 2.5 0 0 0 9.5 28h13a2.5 2.5 0 0 0 2.5-2.5V10.5L19 4Z M19 4.5v6h6';
+const FICONS = {
+  pdf: SHEET,
+  zip: SHEET + ' M15.5 6v1.75 M15.5 9.75v1.75 M15.5 13.5v1.75',
+  doc: SHEET + ' M11.5 15h9 M11.5 18.5h6',
+  sheet: SHEET + ' M11.5 14h9v6.5h-9Z M16 14v6.5 M11.5 17.25h9',
+  video: SHEET + ' M13.5 14l5.5 3.25-5.5 3.25Z',
+  audio: SHEET + ' M11 17.5c1.6-3 3.2-3 4.8 0s3.2 3 4.8 0',
+  generic: SHEET
+};
+const H_EST = { t1: 200, t2: 170, t3: 260, i1: 250, i2: 214, f1: 64, f2: 64, f3: 64, f4: 64, l1: 64 };
+const DUR = { f3: 84, f4: 221 };
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.canvasRef = React.createRef();
+    this.state = {
+      themeOverride: null, view: 'board', sidebarOpen: true, sbq: '', q: '',
+      zoom: 1, pan: { x: 24, y: 24 },
+      items: {
+        t1: { type: 'text', x: 80, y: 64, w: 460 },
+        t2: { type: 'text', x: 80, y: 336, w: 380 },
+        t3: { type: 'text', x: 996, y: 400, w: 400 },
+        i1: { type: 'image', x: 612, y: 64, w: 400, h: 250, label: 'print · home antes' },
+        i2: { type: 'image', x: 1060, y: 96, w: 340, h: 214, label: 'print · home depois' },
+        f1: { type: 'file', x: 612, y: 372, name: 'relatorio-orcamento.pdf', size: '2,4 MB', ext: 'PDF', fam: 'pdf' },
+        f2: { type: 'file', x: 612, y: 460, name: 'site-v2.zip', size: '148 MB', ext: 'ZIP', fam: 'zip' },
+        f3: { type: 'file', x: 996, y: 696, name: 'teaser-home.mp4', size: '32 MB', ext: 'MP4', fam: 'video' },
+        f4: { type: 'file', x: 996, y: 784, name: 'trilha-teaser.mp3', size: '6,2 MB', ext: 'MP3', fam: 'audio' },
+        l1: { type: 'link', x: 612, y: 548, url: 'figma.com/file/home-v2' }
+      },
+      zmap: { t1: 1, t2: 2, t3: 3, i1: 4, i2: 5, f1: 6, f2: 7, f3: 9, f4: 10, l1: 8 }, nextZ: 11, nextId: 1,
+      deleted: {}, sel: {}, editing: null, renaming: null,
+      lasso: null, dragging: false,
+      overlay: 'none', itemMenu: null, paletteOpen: false,
+      shareTarget: { kind: 'board' }, boardShareMode: 'view', shareExpiry: '7 dias',
+      activeLinks: [
+        { id: 'L1', kind: 'board', alvo: 'Quadro', modo: 'pode editar' },
+        { id: 'L2', kind: 'file', alvo: 'relatorio-orcamento.pdf', modo: 'só ver', fileId: 'f1' }
+      ], nextL: 3,
+      sharedIds: null, prevCam: null,
+      upload: 34, toast: null, media: { id: null, on: false, t: 0 }, mediaOpen: {}
+    };
+  }
+  componentDidMount() {
+    this._kd = (e) => this.onKey(e);
+    window.addEventListener('keydown', this._kd);
+    const el = this.canvasRef.current;
+    if (el) {
+      this._wh = (e) => this.onWheel(e);
+      el.addEventListener('wheel', this._wh, { passive: false });
+    }
+    this._up = setInterval(() => {
+      this.setState(s => {
+        if (s.upload >= 100) { clearInterval(this._up); return { upload: 101 }; }
+        return { upload: s.upload + 3 };
+      });
+    }, 120);
+    this._fitted = false;
+    const tryFit = () => {
+      if (this._fitted) return;
+      const c = this.canvasRef.current;
+      if (c && c.clientWidth > 200 && c.clientHeight > 200) { this._fitted = true; this.fitAll(); if (this._ro) this._ro.disconnect(); return; }
+      requestAnimationFrame(tryFit);
+    };
+    if (window.ResizeObserver && el) {
+      this._ro = new ResizeObserver(() => tryFit());
+      this._ro.observe(el);
+    }
+    requestAnimationFrame(tryFit);
+  }
+  componentWillUnmount() {
+    window.removeEventListener('keydown', this._kd);
+    if (this.canvasRef.current && this._wh) this.canvasRef.current.removeEventListener('wheel', this._wh);
+    clearInterval(this._up); clearTimeout(this._tt); clearInterval(this._mt);
+    this._fitted = true; if (this._ro) this._ro.disconnect();
+  }
+  theme() { return this.state.themeOverride || this.props.theme || 'light'; }
+  isView() { return this.state.view === 'shared'; }
+  showToast(msg, ms) {
+    clearTimeout(this._tt);
+    this.setState({ toast: msg });
+    this._tt = setTimeout(() => this.setState({ toast: null }), ms || 3000);
+  }
+  fmtT(t) { return Math.floor(t / 60) + ':' + String(Math.floor(t % 60)).padStart(2, '0'); }
+  togglePlay(id, dur) {
+    clearInterval(this._mt);
+    const s = this.state;
+    const it = s.items[id];
+    const open = it && it.fam === 'video' ? { ...s.mediaOpen, [id]: true } : s.mediaOpen;
+    if (s.media.id === id && s.media.on) { this.setState({ media: { ...s.media, on: false }, mediaOpen: open }); return; }
+    const t0 = s.media.id === id ? s.media.t : 0;
+    this.setState({ media: { id, on: true, t: t0 }, mediaOpen: open });
+    this._mt = setInterval(() => this.setState(st => {
+      if (!st.media.on || st.media.id !== id) { clearInterval(this._mt); return null; }
+      const t = st.media.t + 0.5;
+      if (t >= dur) { clearInterval(this._mt); return { media: { id, on: false, t: 0 } }; }
+      return { media: { ...st.media, t } };
+    }), 500);
+  }
+  onKey(e) {
+    const k = e.key;
+    if ((e.ctrlKey || e.metaKey) && (k === 'k' || k === 'K')) { e.preventDefault(); this.setState(s => ({ paletteOpen: !s.paletteOpen, q: '' })); return; }
+    if (this.state.editing) { if (k === 'Escape') this.setState({ editing: null }); return; }
+    if (k === 'Escape') { this.setState({ paletteOpen: false, overlay: 'none', itemMenu: null, sel: {}, renaming: null }); return; }
+    if (this.state.renaming) return;
+    if ((k === 'Delete' || k === 'Backspace') && this.state.view === 'board') {
+      const del = { ...this.state.deleted }; let n = 0;
+      Object.keys(this.state.sel).forEach(id => { del[id] = true; n++; });
+      if (n) this.setState({ deleted: del, sel: {}, itemMenu: null });
+    }
+  }
+  onWheel(e) {
+    e.preventDefault();
+    if (this.state.view === 'download') return;
+    if (e.ctrlKey || e.metaKey) {
+      const rect = this.canvasRef.current.getBoundingClientRect();
+      const mx = e.clientX - rect.left, my = e.clientY - rect.top;
+      this.setState(s => {
+        const z = Math.min(4, Math.max(0.1, s.zoom * (e.deltaY < 0 ? 1.1 : 0.9)));
+        const wx = (mx - s.pan.x) / s.zoom, wy = (my - s.pan.y) / s.zoom;
+        return { zoom: z, pan: { x: mx - wx * z, y: my - wy * z } };
+      });
+    } else {
+      this.setState(s => ({ pan: { x: s.pan.x - e.deltaX, y: s.pan.y - e.deltaY } }));
+    }
+  }
+  world(e) {
+    const rect = this.canvasRef.current.getBoundingClientRect();
+    return { x: (e.clientX - rect.left - this.state.pan.x) / this.state.zoom, y: (e.clientY - rect.top - this.state.pan.y) / this.state.zoom };
+  }
+  visIds() {
+    const s = this.state;
+    return Object.keys(s.items).filter(id => !s.deleted[id] && (s.view !== 'shared' || !s.sharedIds || s.sharedIds.includes(id)));
+  }
+  bounds(ids) {
+    const s = this.state; let x0 = 1e9, y0 = 1e9, x1 = -1e9, y1 = -1e9;
+    ids.forEach(id => {
+      const it = s.items[id]; const h = it.h || H_EST[id] || 100;
+      x0 = Math.min(x0, it.x); y0 = Math.min(y0, it.y); x1 = Math.max(x1, it.x + it.w0 || it.x + (it.type === 'file' || it.type === 'link' ? 230 : it.w)); y1 = Math.max(y1, it.y + h);
+    });
+    return { x0, y0, x1, y1 };
+  }
+  fitAll(ids) {
+    const el = this.canvasRef.current; if (!el) return;
+    const list = ids || this.visIds(); if (!list.length) return;
+    const b = this.bounds(list);
+    const vw = el.clientWidth, vh = el.clientHeight;
+    const bw = b.x1 - b.x0 + 96, bh = b.y1 - b.y0 + 96;
+    const z = Math.min(4, Math.max(0.1, Math.min(vw / bw, vh / bh)));
+    this.setState({ zoom: z, pan: { x: (vw - (b.x1 - b.x0) * z) / 2 - b.x0 * z, y: (vh - (b.y1 - b.y0) * z) / 2 - b.y0 * z } });
+  }
+  startDrag(e, ids) {
+    const start = this.world(e);
+    const orig = {}; ids.forEach(id => { const it = this.state.items[id]; orig[id] = { x: it.x, y: it.y }; });
+    let moved = false;
+    const mv = (ev) => {
+      const p = this.world(ev);
+      const dx = p.x - start.x, dy = p.y - start.y;
+      if (!moved && Math.abs(dx) + Math.abs(dy) > 3) { moved = true; this.setState({ dragging: true }); }
+      if (!moved) return;
+      this.setState(s => {
+        const items = { ...s.items };
+        ids.forEach(id => { items[id] = { ...items[id], x: Math.round((orig[id].x + dx) / 8) * 8, y: Math.round((orig[id].y + dy) / 8) * 8 }; });
+        return { items };
+      });
+    };
+    const up = () => { window.removeEventListener('pointermove', mv); window.removeEventListener('pointerup', up); this.setState({ dragging: false }); };
+    window.addEventListener('pointermove', mv); window.addEventListener('pointerup', up);
+  }
+  itemDown(id, e) {
+    e.stopPropagation();
+    if (this.isView()) return;
+    if (this.state.editing === id) return;
+    this.setState({ overlay: 'none', paletteOpen: false, itemMenu: null, editing: null });
+    let sel;
+    if (e.shiftKey) { sel = { ...this.state.sel, [id]: true }; }
+    else if (this.state.sel[id]) { sel = this.state.sel; }
+    else { sel = { [id]: true }; }
+    this.setState({ sel });
+    this.startDrag(e, Object.keys(sel));
+  }
+  handleDown(id, e) {
+    e.stopPropagation(); e.preventDefault();
+    const it0 = this.state.items[id];
+    const start = this.world(e); const w0 = it0.w, h0 = it0.h;
+    const mv = (ev) => {
+      const p = this.world(ev); const dw = p.x - start.x;
+      this.setState(s => {
+        const items = { ...s.items }; const it = { ...items[id] };
+        it.w = Math.max(it.type === 'image' ? 60 : 160, Math.round((w0 + dw) / 8) * 8);
+        if (it.type === 'image') it.h = Math.round(it.w * (h0 / w0));
+        items[id] = it; return { items };
+      });
+    };
+    const up = () => { window.removeEventListener('pointermove', mv); window.removeEventListener('pointerup', up); };
+    window.addEventListener('pointermove', mv); window.addEventListener('pointerup', up);
+  }
+  canvasDown(e) {
+    if (this.state.view === 'download') return;
+    this.setState({ overlay: 'none', paletteOpen: false, itemMenu: null, editing: null, renaming: null });
+    if (this.isView()) {
+      const start = { x: e.clientX, y: e.clientY }; const p0 = { ...this.state.pan };
+      const mv = (ev) => this.setState({ pan: { x: p0.x + ev.clientX - start.x, y: p0.y + ev.clientY - start.y } });
+      const up = () => { window.removeEventListener('pointermove', mv); window.removeEventListener('pointerup', up); };
+      window.addEventListener('pointermove', mv); window.addEventListener('pointerup', up);
+      return;
+    }
+    if (!e.shiftKey) this.setState({ sel: {} });
+    const start = this.world(e);
+    const mv = (ev) => {
+      const p = this.world(ev);
+      const r = { x0: Math.min(start.x, p.x), y0: Math.min(start.y, p.y), x1: Math.max(start.x, p.x), y1: Math.max(start.y, p.y) };
+      const sel = e.shiftKey ? { ...this.state.sel } : {};
+      this.visIds().forEach(id => {
+        const it = this.state.items[id];
+        const w = it.type === 'file' || it.type === 'link' ? 230 : it.w;
+        const h = it.h || H_EST[id] || 100;
+        if (it.x < r.x1 && it.x + w > r.x0 && it.y < r.y1 && it.y + h > r.y0) sel[id] = true;
+      });
+      this.setState({ lasso: r, sel });
+    };
+    const up = () => { window.removeEventListener('pointermove', mv); window.removeEventListener('pointerup', up); this.setState({ lasso: null }); };
+    window.addEventListener('pointermove', mv); window.addEventListener('pointerup', up);
+  }
+  canvasDbl(e) {
+    if (this.isView() || this.state.view === 'download') return;
+    const p = this.world(e);
+    const id = 'g' + this.state.nextId;
+    this.setState(s => ({
+      items: { ...s.items, [id]: { type: 'ghost', x: Math.round(p.x / 8) * 8, y: Math.round(p.y / 8) * 8, w: 280, body: 'Escreva' } },
+      zmap: { ...s.zmap, [id]: s.nextZ }, nextZ: s.nextZ + 1, nextId: s.nextId + 1,
+      sel: { [id]: true }, editing: id
+    }));
+  }
+  openItemMenu(id, e) {
+    e.stopPropagation();
+    this.setState({ itemMenu: this.state.itemMenu === id ? null : id, overlay: 'none' });
+  }
+  screenPos(id) {
+    const s = this.state; const it = s.items[id];
+    const w = it.type === 'file' || it.type === 'link' ? 230 : it.w;
+    return { sx: it.x * s.zoom + s.pan.x, sy: it.y * s.zoom + s.pan.y, sw: w * s.zoom };
+  }
+  wrapStyle(id, t) {
+    const s = this.state; const it = s.items[id];
+    const selected = !!s.sel[id] && !this.isView();
+    const editing = s.editing === id;
+    const z = s.zmap[id] || 1;
+    let st = 'position:absolute;left:' + it.x + 'px;top:' + it.y + 'px;z-index:' + z + ';border-radius:4px;';
+    if (it.type === 'text' || it.type === 'ghost') st += 'width:' + it.w + 'px;padding:8px 12px;';
+    if (it.type === 'image') st += 'width:' + it.w + 'px;height:' + it.h + 'px;display:flex;align-items:center;justify-content:center;background:repeating-linear-gradient(45deg,' + t.bg2 + ' 0 10px,transparent 10px 22px);';
+    if (it.type === 'file') { const open = it.fam === 'video' && !!s.mediaOpen[id]; st += 'width:' + (open ? 320 : 230) + 'px;' + (open ? '' : 'height:64px;') + 'display:flex;flex-direction:column;justify-content:center;padding:12px;background:' + t.bg2 + ';overflow:hidden;'; }
+    if (it.type === 'link') st += 'width:230px;height:64px;display:flex;align-items:center;gap:10px;padding:12px;background:' + t.bg2 + ';cursor:pointer;';
+    if (editing) st += 'box-shadow:0 0 0 1px ' + t.line + ';cursor:text;';
+    else if (selected) st += 'box-shadow:0 0 0 2px ' + t.acc + ';';
+    if (!editing && !this.isView() && it.type !== 'link') st += 'cursor:grab;';
+    if (this.isView()) st += 'cursor:default;';
+    if (selected && s.dragging) st += 'opacity:0.8;';
+    return st;
+  }
+  fmtCmd(cmd, val) { return (e) => { e.preventDefault(); document.execCommand(cmd, false, val || null); }; }
+  goShared(kind, ids) {
+    this.setState(s => ({ prevCam: { zoom: s.zoom, pan: s.pan }, view: 'shared', sharedIds: ids || null, overlay: 'none', itemMenu: null, sel: {}, editing: null }));
+    setTimeout(() => this.fitAll(ids || undefined), 60);
+  }
+  renderVals() {
+    const s = this.state; const theme = this.theme(); const t = THEMES[theme];
+    const view = this.isView();
+    const selIds = Object.keys(s.sel).filter(id => !s.deleted[id]);
+    const stop = (e) => e.stopPropagation();
+    const noop = (e) => e.preventDefault();
+    const boards = [
+      { title: 'Ideias soltas', time: 'há 2 h', pinned: true, tag: '' },
+      { title: 'Lançamento do site', time: 'agora', active: true, tag: '#site' },
+      { title: 'Mudança do apê', time: 'ontem', tag: '#casa' },
+      { title: 'Recibos 2026', time: '12 set', tag: '' }
+    ];
+    const boardRows = boards.filter(b => b.title.toLowerCase().includes(s.sbq.toLowerCase())).map(b => ({
+      title: b.title, time: b.time, pinned: !!b.pinned, hasTag: !!b.tag, tag: b.tag,
+      style: 'display:flex;align-items:center;gap:8px;padding:10px 8px;border-radius:4px;min-height:40px;width:100%;' + (b.active ? 'background:' + t.bg2 + ';' : '')
+    }));
+    const famOf = (id) => s.items[id] && s.items[id].fam || 'generic';
+    const buildStatic = (id) => {
+      const gone = !!s.deleted[id] || (view && s.sharedIds && !s.sharedIds.includes(id));
+      return {
+        show: !gone, ws: gone ? '' : this.wrapStyle(id, t),
+        sel: !!s.sel[id] && !view && s.editing !== id,
+        ce: s.editing === id,
+        down: (e) => this.itemDown(id, e),
+        dbl: (e) => { e.stopPropagation(); if (!view) this.setState({ editing: id, sel: { [id]: true }, itemMenu: null }); },
+        menu: (e) => this.openItemMenu(id, e),
+        hd: (e) => this.handleDown(id, e)
+      };
+    };
+    const S = { t1: buildStatic('t1'), t2: buildStatic('t2'), t3: buildStatic('t3') };
+    const ditems = Object.keys(s.items)
+      .filter(id => s.items[id].type !== 'text')
+      .filter(id => !s.deleted[id] && (!view || !s.sharedIds || s.sharedIds.includes(id)))
+      .sort((a, b) => (s.zmap[a] || 0) - (s.zmap[b] || 0))
+      .map(id => {
+        const it = s.items[id];
+        const uploading = id === 'f2' && s.upload <= 100;
+        const isMedia = it.fam === 'video' || it.fam === 'audio';
+        const dur = DUR[id] || 60;
+        const cur = s.media.id === id;
+        const playing = cur && s.media.on;
+        return {
+          ws: this.wrapStyle(id, t) + (uploading ? 'opacity:0.85;' : ''),
+          down: (e) => this.itemDown(id, e),
+          dbl: (e) => { e.stopPropagation(); if (!view && it.type === 'ghost') this.setState({ editing: id, sel: { [id]: true } }); },
+          isImage: it.type === 'image', label: it.label || '',
+          isFile: it.type === 'file', iconD: FICONS[it.fam] || SHEET, ext: it.ext || '', name: it.name || '',
+          sub: uploading ? 'enviando' : (cur && s.media.t > 0 ? this.fmtT(s.media.t) + ' · ' + this.fmtT(dur) : (it.size || '')),
+          isMedia, glyph: playing ? '❚❚' : '▸', play: (e) => { e.stopPropagation(); this.togglePlay(id, dur); },
+          mediaOpen: it.fam === 'video' && !!s.mediaOpen[id], progW: Math.min(100, (cur ? s.media.t : 0) / dur * 100) + '%',
+          audioProg: it.fam === 'audio' && cur && s.media.t > 0,
+          renaming: s.renaming === id, notRenaming: s.renaming !== id,
+          rnDone: (e) => { const v = e.target.value.trim(); this.setState(st => ({ renaming: null, items: { ...st.items, [id]: { ...st.items[id], name: v || st.items[id].name } } })); },
+          rnKey: (e) => { if (e.key === 'Enter') e.target.blur(); e.stopPropagation(); },
+          hasUp: uploading, upW: Math.min(100, s.upload) + '%',
+          isLink: it.type === 'link', url: it.url || '',
+          isGhost: it.type === 'ghost', gBody: it.body || 'Escreva', gColor: it.body === 'Escreva' ? t.fg2 : t.fg, ce: s.editing === id,
+          sel: !!s.sel[id] && !view && s.editing !== id,
+          resizable: it.type === 'image' || it.type === 'ghost',
+          menu: (e) => this.openItemMenu(id, e),
+          hd: (e) => this.handleDown(id, e)
+        };
+      });
+    let lassoStyle = '';
+    if (s.lasso) {
+      const r = s.lasso;
+      lassoStyle = 'position:absolute;left:' + r.x0 + 'px;top:' + r.y0 + 'px;width:' + (r.x1 - r.x0) + 'px;height:' + (r.y1 - r.y0) + 'px;border:1px solid ' + t.acc + ';background:' + t.acc + '1a;z-index:999;';
+    }
+    let barPos = '', hasBar = false;
+    if (s.editing && s.items[s.editing] && !view) {
+      const p = this.screenPos(s.editing);
+      hasBar = true;
+      barPos = 'position:absolute;left:' + Math.max(8, p.sx) + 'px;top:' + Math.max(8, p.sy - 48) + 'px;z-index:35;';
+    }
+    let itemMenuPos = '', im = { canRename: false, canDownload: false, canShareFile: false }, hasItemMenu = false;
+    if (s.itemMenu && s.items[s.itemMenu] && !s.deleted[s.itemMenu]) {
+      const id = s.itemMenu; const it = s.items[id]; const p = this.screenPos(id);
+      hasItemMenu = true;
+      itemMenuPos = 'position:absolute;left:' + Math.min(Math.max(8, p.sx + p.sw - 190), (this.canvasRef.current ? this.canvasRef.current.clientWidth - 200 : 900)) + 'px;top:' + Math.max(8, p.sy - 8) + 'px;z-index:45;';
+      im = {
+        canRename: it.type === 'file',
+        canDownload: it.type === 'file' || it.type === 'image',
+        canShareFile: it.type === 'file',
+        rename: () => this.setState({ renaming: id, itemMenu: null }),
+        close: () => this.setState({ itemMenu: null }),
+        shareFile: () => this.setState({ itemMenu: null, overlay: 'share', shareTarget: { kind: 'file', id } }),
+        dup: () => this.setState(st => {
+          const nid = 'g' + st.nextId; const src = st.items[id];
+          const copy = { ...src, x: src.x + 24, y: src.y + 24 };
+          if (src.type === 'text') { return { itemMenu: null }; }
+          return { items: { ...st.items, [nid]: copy }, zmap: { ...st.zmap, [nid]: st.nextZ }, nextZ: st.nextZ + 1, nextId: st.nextId + 1, itemMenu: null, sel: { [nid]: true } };
+        }),
+        front: () => this.setState(st => ({ zmap: { ...st.zmap, [id]: st.nextZ }, nextZ: st.nextZ + 1, itemMenu: null })),
+        del: () => this.setState(st => ({ deleted: { ...st.deleted, [id]: true }, itemMenu: null, sel: {} }))
+      };
+    }
+    const tgt = s.shareTarget;
+    const shareIsBoard = tgt.kind === 'board';
+    const shareIsSel = tgt.kind === 'sel';
+    const shareTitle = shareIsBoard ? 'Este quadro' : shareIsSel ? 'Seleção (' + (tgt.ids ? tgt.ids.length : 0) + (tgt.ids && tgt.ids.length === 1 ? ' item)' : ' itens)') : (tgt.id && s.items[tgt.id] ? s.items[tgt.id].name : 'Arquivo');
+    const mode = s.boardShareMode;
+    const expiryOpts = ['1 h', '1 dia', '7 dias', 'nunca'].map(label => ({
+      label,
+      pick: () => this.setState({ shareExpiry: label }),
+      style: label === s.shareExpiry
+        ? 'font-size:13px;line-height:1.5;color:' + t.acc + ';text-decoration:underline;text-underline-offset:3px;'
+        : 'font-size:13px;line-height:1.5;color:' + t.fg2 + ';'
+    }));
+    const linkRows = s.activeLinks.map(l => ({
+      alvo: l.alvo, modo: l.modo,
+      go: () => {
+        if (l.kind === 'board') this.goShared('board');
+        else if (l.kind === 'sel') this.goShared('sel', l.ids);
+        else this.setState(st => ({ prevCam: { zoom: st.zoom, pan: st.pan }, view: 'download', overlay: 'none', dlId: l.fileId }));
+      },
+      copy: () => this.showToast('Link copiado'),
+      off: () => { this.setState(st => ({ activeLinks: st.activeLinks.filter(x => x.id !== l.id) })); this.showToast('Link desativado'); }
+    }));
+    const copyLink = () => {
+      this.showToast('Link copiado');
+      this.setState(st => {
+        const links = st.activeLinks.slice();
+        if (tgt.kind === 'sel' && !links.some(x => x.kind === 'sel')) links.push({ id: 'L' + st.nextL, kind: 'sel', alvo: 'Seleção · ' + tgt.ids.length + (tgt.ids.length === 1 ? ' item' : ' itens'), modo: 'só ver', ids: tgt.ids });
+        else if (tgt.kind === 'file' && !links.some(x => x.fileId === tgt.id)) links.push({ id: 'L' + st.nextL, kind: 'file', alvo: s.items[tgt.id].name, modo: 'só ver', fileId: tgt.id });
+        else if (tgt.kind === 'board' && !links.some(x => x.kind === 'board')) links.push({ id: 'L' + st.nextL, kind: 'board', alvo: 'Quadro', modo: mode === 'edit' ? 'pode editar' : 'só ver' });
+        else return null;
+        return { activeLinks: links, nextL: st.nextL + 1 };
+      });
+    };
+    const dlItem = s.items[s.dlId || 'f1'] || s.items.f1;
+    const allFiles = [
+      { label: 'relatorio-orcamento.pdf', meta: '2,4 MB', board: 'Lançamento do site', id: 'f1' },
+      { label: 'site-v2.zip', meta: '148 MB', board: 'Lançamento do site', id: 'f2' },
+      { label: 'contrato-assinado.pdf', meta: '1,1 MB', board: 'Recibos 2026' },
+      { label: 'notas-fiscais.zip', meta: '18 MB', board: 'Recibos 2026' },
+      { label: 'teaser-home.mp4', meta: '32 MB', board: 'Lançamento do site', id: 'f3' },
+      { label: 'trilha-teaser.mp3', meta: '6,2 MB', board: 'Lançamento do site', id: 'f4' }
+    ];
+    const ql = s.q.toLowerCase();
+    const pRows = []
+      .concat(boards.filter(b => !ql || b.title.toLowerCase().includes(ql) || (b.tag && b.tag.includes(ql))).map(b => ({ kind: 'quadro', label: b.title, meta: b.tag || b.time })))
+      .concat(allFiles.filter(f => !ql || f.label.toLowerCase().includes(ql)).map(f => ({ kind: 'arquivo', label: f.label, meta: f.board, id: f.id })))
+      .slice(0, 8)
+      .map(r => ({
+        ...r,
+        pick: () => {
+          this.setState({ paletteOpen: false, q: '' });
+          if (r.kind === 'arquivo' && r.id) {
+            this.setState({ sel: { [r.id]: true } });
+            setTimeout(() => this.fitAll([r.id]), 30);
+          }
+        }
+      }));
+    return {
+      theme, t, stop, noop,
+      canvasRef: this.canvasRef,
+      rootDown: () => this.setState({ overlay: 'none', paletteOpen: false, itemMenu: null }),
+      showSidebar: s.view === 'board' && s.sidebarOpen,
+      sbq: s.sbq, setSbq: (e) => this.setState({ sbq: e.target.value }),
+      boardRows,
+      quotaColor: this.props.quotaCheia ? t.c1 : t.fg2,
+      quotaText: this.props.quotaCheia ? '2 GB de 2 GB' : '1,4 GB de 2 GB',
+      notDownload: s.view !== 'download', isBoard: s.view === 'board', isShared: view, isDownload: s.view === 'download',
+      toggleSidebar: () => this.setState(st => ({ sidebarOpen: !st.sidebarOpen })),
+      saveLabel: 'salvo',
+      toggleShare: () => this.setState(st => ({
+        overlay: st.overlay === 'share' ? 'none' : 'share', itemMenu: null,
+        shareTarget: selIds.length ? { kind: 'sel', ids: selIds } : { kind: 'board' }
+      })),
+      toggleMenu: () => this.setState(st => ({ overlay: st.overlay === 'menu' ? 'none' : 'menu', itemMenu: null })),
+      backToBoard: () => {
+        const cam = s.prevCam;
+        this.setState({ view: 'board', sharedIds: null, dlId: null });
+        if (cam) setTimeout(() => this.setState({ zoom: cam.zoom, pan: cam.pan }), 20);
+      },
+      canvasDown: (e) => this.canvasDown(e), canvasDbl: (e) => this.canvasDbl(e),
+      layerStyle: 'position:absolute;left:0;top:0;transform:translate(' + s.pan.x + 'px,' + s.pan.y + 'px) scale(' + s.zoom + ');transform-origin:0 0;',
+      S, ditems,
+      hasLasso: !!s.lasso, lassoStyle,
+      hasBar, barPos,
+      fmt: {
+        b: this.fmtCmd('bold'), i: this.fmtCmd('italic'), u: this.fmtCmd('underline'), s: this.fmtCmd('strikeThrough'),
+        h1: this.fmtCmd('formatBlock', 'H1'), h2: this.fmtCmd('formatBlock', 'H2'),
+        ul: this.fmtCmd('insertUnorderedList'), ol: this.fmtCmd('insertOrderedList'), cl: this.fmtCmd('insertHTML', '☐ '),
+        hl1: this.fmtCmd('hiliteColor', t.hl1), hl2: this.fmtCmd('hiliteColor', t.hl2), hl3: this.fmtCmd('hiliteColor', t.hl3), hl0: this.fmtCmd('hiliteColor', 'transparent'),
+        c1: this.fmtCmd('foreColor', t.c1), c2: this.fmtCmd('foreColor', t.c2), c3: this.fmtCmd('foreColor', t.c3),
+        clr: this.fmtCmd('removeFormat')
+      },
+      hasItemMenu, itemMenuPos, im,
+      zoomVisible: s.view !== 'download',
+      zoomOut: () => this.setState(st => ({ zoom: Math.max(0.1, st.zoom / 1.25) })),
+      zoomIn: () => this.setState(st => ({ zoom: Math.min(4, st.zoom * 1.25) })),
+      zoomLabel: Math.round(s.zoom * 100) + '%',
+      fitAll: () => this.fitAll(),
+      dupShared: () => this.showToast(s.sharedIds ? 'Seleção duplicada na sua conta' : 'Quadro duplicado na sua conta'),
+      shareOpen: s.overlay === 'share' && s.view === 'board',
+      shareTitle, shareIsSel, shareIsBoard, shareIsNotBoard: !shareIsBoard,
+      modeOff: () => { this.setState({ boardShareMode: 'off' }); this.showToast('Link desativado'); },
+      modeView: () => this.setState({ boardShareMode: 'view' }),
+      modeEdit: () => this.setState({ boardShareMode: 'edit' }),
+      mOffColor: mode === 'off' ? t.acc : t.fg, mOffW: mode === 'off' ? 700 : 400,
+      mViewColor: mode === 'view' ? t.acc : t.fg, mViewW: mode === 'view' ? 700 : 400,
+      mEditColor: mode === 'edit' ? t.acc : t.fg, mEditW: mode === 'edit' ? 700 : 400,
+      expiryOpts,
+      shareHasLink: !shareIsBoard || mode !== 'off',
+      shareUrl: 'trecos.digital/s/#' + (shareIsSel ? 'v3m8sel' : tgt.kind === 'file' ? 'a9x2arq' : 'q7k4qua') + '2nf91zw',
+      copyLink,
+      hasActiveLinks: s.activeLinks.length > 0, linkRows,
+      menuOpen: s.overlay === 'menu' && s.view === 'board',
+      closeMenu: () => this.setState({ overlay: 'none' }),
+      toggleTheme: () => this.setState({ themeOverride: theme === 'light' ? 'dark' : 'light', overlay: 'none' }),
+      themeLabel: theme === 'light' ? 'Tema escuro' : 'Tema claro',
+      dl: (() => {
+        const did = s.dlId || 'f1'; const dur = DUR[did] || 60; const cur = s.media.id === did;
+        return { iconD: FICONS[dlItem.fam] || SHEET, ext: dlItem.ext || '', name: dlItem.name || '', size: dlItem.size || '',
+          isVideo: dlItem.fam === 'video', isAudio: dlItem.fam === 'audio', glyph: cur && s.media.on ? '❚❚' : '▸',
+          play: () => this.togglePlay(did, dur), progW: Math.min(100, (cur ? s.media.t : 0) / dur * 100) + '%',
+          time: this.fmtT(cur ? s.media.t : 0) + ' · ' + this.fmtT(dur) };
+      })(),
+      dlToast: () => this.showToast('Download começou'),
+      paletteOpen: s.paletteOpen,
+      q: s.q, setQ: (e) => this.setState({ q: e.target.value }),
+      pRows,
+      hasToast: !!s.toast, toastMsg: s.toast || ''
+    };
+  }
+}
+</script>
+</body>
+</html>
