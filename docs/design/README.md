@@ -4,7 +4,8 @@ Cópia local do que o time de design entregou em 19/09/2026 (design system, toke
 
 ## Pastas
 
-- `BRIEFING-DESIGN.md`: o briefing que foi enviado ao time.
+- `BRIEFING-DESIGN.md`: o briefing da versão 1 (Rabisco), enviado ao time em 19/09/2026.
+- `BRIEFING-TRECOS.md`: o briefing da versão 2 (Trecos, quadro infinito com arquivos), incremento sobre o primeiro.
 - `design-system/README.md`: o brand book. Conceito, voz, cor, tipografia, espaçamento, layout, iconografia.
 - `design-system/tokens.json`: os 12 tokens de cor em claro e escuro, 5 tamanhos de fonte, 5 espaçamentos, 2 raios, 1 sombra e os 3 números de layout. É daqui que sai o `:root` do `style.css`.
 - `design-system/components/<Nome>/README.md` e `preview.html`: guia de uso e exemplo de cada componente. Os previews usam `var(--token)` e as classes `.meta .ui .body .h1 .h2`.

@@ -2,6 +2,8 @@
 
 A very light notes app. A blank page where you write, paste screenshots, resize them, format the basics and share by link. Nothing else.
 
+Version 2, named Trecos, turns the page into an infinite board that also holds files: see `trecos-prompt.md` for the spec and `docs/design/BRIEFING-TRECOS.md` for the design brief. The code below is version 1, complete and deployable.
+
 Vanilla HTML, CSS and JavaScript served by PocketBase. No frameworks and nothing loaded by the browser besides our own files. The only development dependency is esbuild, used to bundle and minify for deployment.
 
 ## Status
@@ -64,4 +66,4 @@ Then set SMTP in the dashboard, Settings, Mail settings. The container runs as a
 - `tests/`: unit tests for pure functions, run with Node's built in test runner.
 - `tools/`: dev server, mail sink, build and size report.
 - `docs/design/`: design system, tokens, icons and screens.
-- `rabisco-prompt.md`: product and technical spec.
+- `rabisco-prompt.md`: product and technical spec of version 1. `trecos-prompt.md`: version 2.
