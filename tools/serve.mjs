@@ -13,6 +13,7 @@ const contentTypes = {
   '.js': 'text/javascript; charset=utf-8',
   '.json': 'application/json',
   '.svg': 'image/svg+xml',
+  '.png': 'image/png',
   '.webmanifest': 'application/manifest+json'
 }
 

@@ -1,7 +1,9 @@
 import { createApi } from './api.js'
 import { initAuth, readAuth, writeAuth } from './auth.js'
 import { createChooser, createToast } from './dom.js'
+import { duplicateShared } from './duplicate.js'
 import { clearIfBlank, createInsertImage, insertText, placeCaretAtEnd, removeImageBlock } from './editor.js'
+import { fileName, toMarkdown, toText, treeOf } from './export.js'
 import { createFormatter, initChecklist } from './format.js'
 import { bindHistoryKeys, createHistory } from './history.js'
 import { applyTranslations, createTranslator, pickLanguage } from './i18n.js'
@@ -14,8 +16,9 @@ import { initMove } from './move.js'
 import { createNotes, writeLast } from './notes.js'
 import { initPaste } from './paste.js'
 import { initResize } from './resize.js'
-import { textOf } from './sanitize.js'
+import { serviceWorkerUrl, textOf } from './sanitize.js'
 import { applySettings, readSettings, writeSettings } from './settings.js'
+import { SHARE_HASH, clearShareTarget, readShareTarget } from './share-target.js'
 import { initShare, tokenFromHash } from './share.js'
 import { initShortcuts } from './shortcuts.js'
 import { store } from './store.js'
@@ -150,10 +153,8 @@ const wireEditor = (insertImage) => {
 }
 
 const duplicate = async (token) => {
-  const shared = await api.getShared(token)
-  const record = await api.createNote(shared.content)
-  writeLast(localStorage, record.id)
-  return record
+  const id = await duplicateShared(api, token)
+  writeLast(localStorage, id)
 }
 
 area.addEventListener('click', (event) => {
@@ -197,13 +198,10 @@ if (sharedToken) {
         location.href = '/'
         return
       }
-      showToast(translate('saveFailed'))
+      showToast(translate(error && error.status === 404 ? 'linkGone' : 'saveFailed'))
     }
   })
-  visitor.load().catch(() => {
-    note.textContent = translate('linkGone')
-    document.getElementById('shared-foot').hidden = false
-  })
+  visitor.load()
 } else {
   const list = initList({
     rows: document.getElementById('rows'),
@@ -246,7 +244,12 @@ if (sharedToken) {
     },
     onFailed: discardImage
   })
-  wireEditor(recorded(insertImage))
+  const insertRecorded = recorded(insertImage)
+  wireEditor(insertRecorded)
+  const exportNote = (extension, convert, type) => {
+    const content = convert(treeOf(note), location.origin)
+    downloadBlob(new Blob([content], { type }), fileName(notes.title() || textOf(note.innerHTML).slice(0, 60), extension))
+  }
   initMenu({
     button: document.getElementById('menu'),
     menu: document.getElementById('menu-panel'),
@@ -254,6 +257,9 @@ if (sharedToken) {
     settings: store.settings,
     actions: [
       { label: () => translate(notes.isPinned() ? 'unpin' : 'pin'), run: () => notes.pin().catch(() => showToast(translate('saveFailed'))) },
+      { label: () => translate('downloadTxt'), run: () => exportNote('txt', toText, 'text/plain') },
+      { label: () => translate('downloadMd'), run: () => exportNote('md', toMarkdown, 'text/markdown') },
+      { label: () => translate('print'), run: () => window.print() },
       { label: () => translate('delete'), danger: true, run: () => notes.remove().catch(() => showToast(translate('saveFailed'))) }
     ],
     onChange: saveSettings
@@ -313,20 +319,41 @@ if (sharedToken) {
     },
     onSignedOut: () => {
       notes.reset()
+      clearShareTarget()
       document.getElementById('me').textContent = ''
       saveState.textContent = ''
     }
   })
 
+  const duplicatePending = async () => {
+    const pending = sessionStorage.getItem(duplicateKey)
+    if (!pending) return
+    sessionStorage.removeItem(duplicateKey)
+    try {
+      await duplicate(pending)
+      showToast(translate('duplicated'))
+    } catch (error) {
+      if (error && error.status === 401) throw error
+      showToast(translate(error && error.status === 404 ? 'linkGone' : 'saveFailed'))
+    }
+  }
+
+  const receiveShared = async () => {
+    if (location.hash !== SHARE_HASH) return
+    window.history.replaceState(null, '', '/')
+    const shared = await readShareTarget()
+    if (!shared) return
+    await notes.create()
+    if (shared.text) recorded(insertText)(shared.text)
+    shared.files.forEach(insertRecorded)
+    showToast(translate('sharedIn'))
+  }
+
   async function loadNotes() {
     try {
-      const pending = sessionStorage.getItem(duplicateKey)
-      if (pending) {
-        sessionStorage.removeItem(duplicateKey)
-        await duplicate(pending)
-        showToast(translate('duplicated'))
-      }
+      await duplicatePending()
       await notes.load()
+      await receiveShared()
     } catch (error) {
       if (error && error.status === 401) {
         auth.signOut()
@@ -339,3 +366,5 @@ if (sharedToken) {
 
   auth.restore()
 }
+
+if ('serviceWorker' in navigator) navigator.serviceWorker.register(serviceWorkerUrl())

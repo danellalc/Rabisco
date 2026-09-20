@@ -6,9 +6,19 @@ const DROP_WITH_CONTENT = new Set(['SCRIPT', 'STYLE', 'IFRAME', 'OBJECT', 'EMBED
 const ALLOWED = new Set(ALLOWED_TAGS.map((tag) => tag.toUpperCase()))
 const MAX_DIMENSION = 10000
 
-const policy = typeof trustedTypes === 'undefined'
-  ? { createHTML: (html) => html }
-  : trustedTypes.createPolicy('sanitizer-input', { createHTML: (html) => html })
+const SERVICE_WORKER = '/sw.js'
+const trusted = {
+  createHTML: (html) => html,
+  createScriptURL: (url) => {
+    if (url !== SERVICE_WORKER) throw new TypeError('Only the service worker can be registered')
+    return url
+  }
+}
+const policy = typeof trustedTypes === 'undefined' ? trusted : trustedTypes.createPolicy('sanitizer-input', trusted)
+
+export function serviceWorkerUrl() {
+  return policy.createScriptURL(SERVICE_WORKER)
+}
 
 function cleanUrl(raw) {
   return raw.replace(/[\u0000- \u007f-\u009f\s]/g, '')

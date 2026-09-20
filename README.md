@@ -6,16 +6,16 @@ Vanilla HTML, CSS and JavaScript served by PocketBase. No frameworks and nothing
 
 ## Status
 
-Stages 1 to 3 of 7 are done: editor, formatting and backend (sign in by email code, save and load, image upload, local draft, conflict detection).
+Stages 1 to 6 of 7 are done: editor, formatting, backend (sign in by email code, save and load, image upload, local draft, conflict detection), note list, sharing by link, export, print and the installable app with the Android share target.
 
 ## Roadmap
 
 1. Local editor: done.
 2. Formatting: done.
 3. Backend: done.
-4. Note list: create, search, pin, delete with undo.
-5. Sharing: view or edit link, optional expiry, revoke and rotate, Open Graph preview, clean reading mode, duplicate into your account.
-6. Extras: print stylesheet, export to text and markdown, installable app, share target on Android.
+4. Note list: done.
+5. Sharing: done. View or edit link, optional expiry, revoke and rotate, clean reading mode, duplicate into your account.
+6. Extras: done. Print stylesheet, export to text and markdown, installable app that opens from the cache, share target on Android.
 7. Drawing: a vector sketch board loaded on demand (pen with pressure, highlighter, line, arrow, rectangle, ellipse, text, select and move, undo, zoom) that becomes an image in the note and can be reopened for editing; the same board annotates and crops a pasted screenshot. Then version history, find in note, markdown paste, captions and image alignment.
 
 ## Run locally
@@ -41,7 +41,9 @@ npm run build
 npm run size
 ```
 
-`npm run build` bundles and minifies `pb_public/` into `build/`, which is what production serves. `npm run size` prints raw and gzip bytes per built file and fails when a budget is exceeded. To try the built files locally: `SERVE_DIR=build npm run serve`.
+`npm run build` bundles and minifies `pb_public/` into `build/`, which is what production serves, and stamps the service worker with a content hash so every deploy gets a fresh cache. `npm run size` prints raw and gzip bytes per built file and fails when a budget is exceeded.
+
+The service worker is registered in development too, but it only serves from its cache in a build. To try offline opening, installing and the share target, serve the build on its own port: `SERVE_DIR=build PORT=8092 npm run serve`.
 
 ## Deploy
 
@@ -56,7 +58,7 @@ Then set SMTP in the dashboard, Settings, Mail settings. The container runs as a
 
 ## Layout
 
-- `pb_public/`: the app source. `index.html`, `style.css` and ES modules under `js/`.
+- `pb_public/`: the app source. `index.html`, `style.css`, ES modules under `js/`, the service worker `sw.js`, `manifest.json` and the icon (`icon.svg` is the master, the PNG sizes are exported from it).
 - `pb_hooks/`: server hooks. Security headers, user creation on the first sign in code, ownership, HTML sanitizing, share tokens, conflict detection.
 - `pb_migrations/`: collections, rules and settings, applied on first start.
 - `tests/`: unit tests for pure functions, run with Node's built in test runner.

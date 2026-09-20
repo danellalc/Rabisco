@@ -1,10 +1,12 @@
 import { build, transform } from 'esbuild'
+import { createHash } from 'node:crypto'
 import { cp, mkdir, readdir, readFile, rm, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const source = fileURLToPath(new URL('../pb_public/', import.meta.url))
 const target = fileURLToPath(new URL('../build/', import.meta.url))
+const shell = ['/', '/style.css', '/manifest.json', '/icon.svg', '/js/main.js']
 
 await rm(target, { recursive: true, force: true })
 await mkdir(join(target, 'js'), { recursive: true })
@@ -31,12 +33,14 @@ for (const entry of await readdir(source, { withFileTypes: true })) {
   }
 }
 
-const serviceWorker = join(source, 'sw.js')
-try {
-  const { code } = await transform(await readFile(serviceWorker, 'utf8'), { loader: 'js', minify: true, target: 'es2020' })
-  await writeFile(join(target, 'sw.js'), code)
-} catch (error) {
-  if (error.code !== 'ENOENT') throw error
-}
+const hash = createHash('sha256')
+for (const path of shell) hash.update(await readFile(join(target, path === '/' ? 'index.html' : path)))
+const version = hash.digest('hex').slice(0, 8)
 
-console.log(`built ${target}`)
+const worker = (await readFile(join(source, 'sw.js'), 'utf8'))
+  .replace(/const VERSION = '[^']*'/, `const VERSION = '${version}'`)
+  .replace(/const ASSETS = \[[^\]]*\]/, `const ASSETS = ${JSON.stringify(shell)}`)
+const { code } = await transform(worker, { loader: 'js', minify: true, target: 'es2020' })
+await writeFile(join(target, 'sw.js'), code)
+
+console.log(`built ${target} version ${version}`)
