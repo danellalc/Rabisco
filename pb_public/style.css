@@ -29,7 +29,8 @@ input{font:inherit}
 .login{display:none;flex:1;flex-direction:column;justify-content:center;width:100%;max-width:420px;margin:0 auto;padding:var(--s5) var(--s4)}
 body[data-view=login] .login{display:flex}
 body[data-view=login] .note-header,body[data-view=login] .note-area,body[data-view=loading] .note-area{display:none}
-.login-form{display:flex;flex-direction:column;gap:var(--s2)}
+.login-form{flex-direction:column;gap:var(--s2)}
+.login-form:not([hidden]){display:flex}
 .login-title{margin:0 0 var(--s4);font-size:32px;font-weight:700}
 .login-note{margin:0 0 var(--s4);color:var(--fg2)}
 .login-error{margin:0;color:var(--c1);font-size:15px}
