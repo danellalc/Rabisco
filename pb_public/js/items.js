@@ -57,9 +57,9 @@ export function newId() {
 export function parseContent(content) {
   try {
     const parsed = JSON.parse(String(content || '[]'))
-    return Array.isArray(parsed) ? parsed.filter((item) => item && typeof item === 'object' && typeof item.id === 'string') : []
+    return Array.isArray(parsed) ? parsed.filter((item) => item && typeof item === 'object' && typeof item.id === 'string') : null
   } catch {
-    return []
+    return null
   }
 }
 

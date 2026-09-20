@@ -127,8 +127,7 @@ function readAttributes(input, start) {
   return { attributes, end: index < length ? index + 1 : length }
 }
 
-function skipDroppedContent(input, tag, from) {
-  const lower = input.toLowerCase()
+function skipDroppedContent(input, lower, tag, from) {
   let search = from
   while (search < input.length) {
     const closing = lower.indexOf('</' + tag, search)
@@ -144,6 +143,7 @@ function skipDroppedContent(input, tag, from) {
 
 function sanitizeHtml(input) {
   const source = String(input || '')
+  const lower = source.toLowerCase()
   const length = source.length
   const output = []
   const open = []
@@ -185,7 +185,7 @@ function sanitizeHtml(input) {
       continue
     }
     if (has(DROP_WITH_CONTENT, tag)) {
-      index = skipDroppedContent(source, tag, index)
+      index = skipDroppedContent(source, lower, tag, index)
       continue
     }
     if (!has(ALLOWED_TAGS, tag)) continue

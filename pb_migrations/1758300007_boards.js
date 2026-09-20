@@ -18,7 +18,13 @@ migrate((app) => {
   for (let index = 0; index < records.length; index++) {
     const record = records[index]
     const html = record.getString('content')
-    if (html.charAt(0) === '[') continue
+    let parsed = null
+    try {
+      parsed = JSON.parse(html)
+    } catch (error) {
+      parsed = null
+    }
+    if (Array.isArray(parsed)) continue
     const items = html === '' ? [] : [{ id: $security.randomString(8), type: 'text', x: 0, y: 0, w: 640, z: 1, html }]
     record.set('content', JSON.stringify(items))
     app.save(record)

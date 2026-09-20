@@ -1,4 +1,5 @@
 const MAX_ITEMS = 2000
+const MAX_CONTENT_LENGTH = 2000000
 const MAX_COORDINATE = 1000000
 const MAX_WIDTH = 4000
 const MAX_URL_LENGTH = 2000
@@ -79,11 +80,12 @@ function readingOrder(items) {
 }
 
 function normalizeBoard(content, tools) {
+  if (String(content || '').length > MAX_CONTENT_LENGTH) throw new BadRequestError('The board is too big.')
   const parsed = parseItems(content)
   if (parsed === null) throw new BadRequestError('The board content is not valid.')
   if (parsed.length > MAX_ITEMS) throw new BadRequestError('Too many items on the board.')
   const items = []
-  const seen = {}
+  const seen = Object.create(null)
   for (let index = 0; index < parsed.length; index++) {
     const item = normalizeItem(parsed[index], tools)
     if (item === null || seen[item.id]) continue

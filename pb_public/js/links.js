@@ -91,9 +91,8 @@ export function initLinks({ host, beforeChange }) {
   host.layer.addEventListener('click', (event) => {
     const anchor = event.target.closest('.note a')
     if (!anchor) return
-    const root = host.rootOf(anchor)
     const touch = matchMedia('(hover: none)').matches
-    if (root === host.active() && !event.ctrlKey && !event.metaKey && !touch) return
+    if (host.editable() && !event.ctrlKey && !event.metaKey && !touch) return
     event.preventDefault()
     window.open(anchor.href, '_blank', 'noopener')
   })

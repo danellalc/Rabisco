@@ -85,9 +85,15 @@ test('file helpers classify names and block executables', () => {
   assert.equal(cleanName('x'.repeat(300)).length, 200)
 })
 
+test('ids that collide with object prototype names still count as items', () => {
+  const board = normalize([{ id: 'constructor', type: 'text', x: 0, y: 0, z: 1, w: 300, html: 'kept' }, { id: '__proto__', type: 'text', x: 0, y: 0, z: 1, w: 300, html: 'also' }])
+  assert.deepEqual(JSON.parse(board.content).map((item) => item.id), ['constructor', '__proto__'])
+})
+
 test('broken content is rejected instead of wiping the board', () => {
   assert.throws(() => normalizeBoard('{not json', tools), globalThis.BadRequestError)
   assert.throws(() => normalizeBoard('{"a":1}', tools), globalThis.BadRequestError)
+  assert.throws(() => normalizeBoard('[' + 'x'.repeat(2000001) + ']', tools), globalThis.BadRequestError)
   assert.deepEqual(parseItems(''), [])
   assert.deepEqual(parseItems('[]'), [])
 })

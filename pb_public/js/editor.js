@@ -21,7 +21,7 @@ export function placeCaret(node, offset = 0) {
 }
 
 export function placeCaretAtEnd(root) {
-  root.focus()
+  root.focus({ preventScroll: true })
   placeCaret(root, root.childNodes.length)
 }
 
@@ -104,7 +104,7 @@ export function snapshotCaret(root) {
 }
 
 export function restoreCaret(root, range) {
-  root.focus()
+  root.focus({ preventScroll: true })
   const selection = document.getSelection()
   selection.removeAllRanges()
   selection.addRange(range)

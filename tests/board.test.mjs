@@ -76,7 +76,9 @@ test('tidy lays a selection out on a grid in reading order', () => {
 test('item helpers: ids, parsing, order, bounds, overlap, search text, link labels', () => {
   assert.match(newId(), /^[a-z0-9]{8}$/)
   assert.notEqual(newId(), newId())
-  assert.deepEqual(parseContent('junk'), [])
+  assert.equal(parseContent('junk'), null)
+  assert.equal(parseContent('{"a":1}'), null)
+  assert.deepEqual(parseContent(''), [])
   assert.deepEqual(parseContent('[{"id":"a1b2","type":"text","x":0,"y":0},3,{"nope":1}]'), [{ id: 'a1b2', type: 'text', x: 0, y: 0 }])
   const items = [{ id: 'low1', x: 0, y: 100, z: 1 }, { id: 'right', x: 300, y: 0, z: 5 }, { id: 'left', x: 0, y: 0, z: 2 }]
   assert.deepEqual(readingOrder(items).map((item) => item.id), ['left', 'right', 'low1'])

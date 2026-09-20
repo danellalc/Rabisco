@@ -75,7 +75,7 @@ export function initPaste({ host, area }, handlers) {
     const root = host.active()
     const hit = document.elementFromPoint(event.clientX, event.clientY)
     if (root && hit && root.contains(hit)) {
-      root.focus()
+      root.focus({ preventScroll: true })
       placeCaretAtPoint(event.clientX, event.clientY)
       insertFromTransfer(root, event.dataTransfer, handlers)
       return
