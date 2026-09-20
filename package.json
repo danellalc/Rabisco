@@ -1,0 +1,14 @@
+{
+  "name": "rabisco",
+  "private": true,
+  "scripts": {
+    "test": "node --test \"tests/**/*.test.mjs\"",
+    "build": "node tools/build.mjs",
+    "size": "node tools/size.mjs",
+    "serve": "node tools/serve.mjs",
+    "mail": "node tools/mail-sink.mjs"
+  },
+  "devDependencies": {
+    "esbuild": "^0.28.0"
+  }
+}

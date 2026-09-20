@@ -1,9 +1,9 @@
 import { readdir, readFile, stat } from 'node:fs/promises'
-import { join, relative } from 'node:path'
+import { join, relative, resolve } from 'node:path'
 import { gzipSync } from 'node:zlib'
 import { fileURLToPath } from 'node:url'
 
-const root = fileURLToPath(new URL('../pb_public/', import.meta.url))
+const root = resolve(fileURLToPath(new URL('../', import.meta.url)), process.argv[2] || 'build')
 const budgets = { css: 12 * 1024, js: 60 * 1024, raw: 80 * 1024, gzip: 24 * 1024 }
 const counted = new Set(['.html', '.css', '.js'])
 
@@ -34,6 +34,7 @@ const totals = {
   gzip: sum(() => true, 'gzip')
 }
 
+console.log(`measuring ${root}`)
 const width = Math.max(...rows.map((row) => row.file.length), 12)
 console.log(`${'file'.padEnd(width)}  ${'raw'.padStart(7)}  ${'gzip'.padStart(7)}`)
 for (const row of rows) console.log(`${row.file.padEnd(width)}  ${String(row.raw).padStart(7)}  ${String(row.gzip).padStart(7)}`)
