@@ -26,8 +26,8 @@ export function errorKey(error) {
   return 'sendFailed'
 }
 
-export function magicLinkFrom(search) {
-  const params = new URLSearchParams(search)
+export function magicLinkFrom(hash) {
+  const params = new URLSearchParams(String(hash || '').replace(/^#/, ''))
   const code = params.get('otp')
   const id = params.get('id')
   return code && id ? { code, id } : null
@@ -123,7 +123,7 @@ export function initAuth({ api, store, elements, translate, onSignedIn, onSigned
   }
 
   const restore = async () => {
-    const link = magicLinkFrom(location.search)
+    const link = magicLinkFrom(location.hash)
     if (link) {
       history.replaceState(null, '', location.pathname)
       try {

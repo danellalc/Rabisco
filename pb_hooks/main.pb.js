@@ -11,8 +11,12 @@ routerUse((e) => {
 })
 
 onRecordRequestOTPRequest((e) => {
-  if (!e.record) {
-    const record = new Record(e.app.findCollectionByNameOrId('users'))
+  const collection = e.app.findCollectionByNameOrId('users')
+  if (e.record) {
+    const decoy = new Record(collection)
+    decoy.setPassword($security.randomString(40))
+  } else {
+    const record = new Record(collection)
     record.setEmail(e.requestInfo().body.email)
     record.setPassword($security.randomString(40))
     e.app.save(record)

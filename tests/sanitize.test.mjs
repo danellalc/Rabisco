@@ -87,7 +87,8 @@ test('image width outside 5 to 100 percent and bad dimensions are dropped', () =
 })
 
 test('images without a valid source are removed on the server', () => {
-  assert.equal(sanitizeHtml('<div><img src="blob:http://x/1"></div>'), '<div><img></div>'.replace('<img>', '<img>'))
+  assert.equal(sanitizeHtml('<div><img src="blob:http://x/1"></div>'), '<div></div>')
+  assert.equal(sanitizeHtml('<img src=x onerror=alert(1)>text'), 'text')
 })
 
 test('client and server allowlists are identical', () => {

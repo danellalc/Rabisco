@@ -52,8 +52,15 @@ test('api errors map to user facing messages', () => {
   assert.equal(errorKey(new TypeError('network')), 'sendFailed')
 })
 
-test('magic link parameters are read from the query string', () => {
-  assert.deepEqual(magicLinkFrom('?otp=123456&id=abc'), { code: '123456', id: 'abc' })
-  assert.equal(magicLinkFrom('?otp=123456'), null)
+test('magic link parameters are read from the fragment', () => {
+  assert.deepEqual(magicLinkFrom('#otp=123456&id=abc'), { code: '123456', id: 'abc' })
+  assert.equal(magicLinkFrom('#otp=123456'), null)
   assert.equal(magicLinkFrom(''), null)
+})
+
+test('token expiry is read from the jwt payload', async () => {
+  const { tokenExpiry } = await import('../pb_public/js/api.js')
+  const payload = Buffer.from(JSON.stringify({ exp: 1800000000 })).toString('base64url')
+  assert.equal(tokenExpiry(`x.${payload}.y`), 1800000000000)
+  assert.equal(tokenExpiry('junk'), 0)
 })

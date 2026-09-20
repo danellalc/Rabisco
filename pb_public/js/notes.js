@@ -55,15 +55,23 @@ function writeLast(storage, id) {
 const isClientError = (error) => Boolean(error && error.status >= 400 && error.status < 500)
 const failureState = () => (navigator.onLine ? 'error' : 'offline')
 
-export function createNotes({ api, store, note, list, history, chooser, translate, setState, onAuthLost, showToast, onOpened }) {
+export function createNotes({ api, store, note, list, history, chooser, translate, setState, onAuthLost, showToast, onOpened, focusEditor }) {
   let timer = 0
   let saving = false
+  let switching = false
   let allowShrink = false
   let retryDelay = 0
+  let chain = Promise.resolve()
   const uploads = new Set()
   const uploadRetries = new Map()
   const pendingDeletes = new Map()
   const channel = typeof BroadcastChannel === 'undefined' ? null : new BroadcastChannel('rabisco')
+
+  const serial = (task) => {
+    const run = chain.then(task, task)
+    chain = run.catch(() => {})
+    return run
+  }
 
   const current = () => store.note
 
@@ -97,7 +105,7 @@ export function createNotes({ api, store, note, list, history, chooser, translat
   }
 
   const markDirty = () => {
-    if (!current()) return
+    if (!current() || switching) return
     store.dirty = true
     setState('saving')
     schedule()
@@ -107,10 +115,14 @@ export function createNotes({ api, store, note, list, history, chooser, translat
 
   const persistList = () => writeList(localStorage, list.get())
 
+  const stillListed = (id) => !pendingDeletes.has(id) && Boolean(list.find(id))
+
   const applyServer = (record) => {
+    clearTimeout(timer)
     store.note = { id: record.id, revision: record.updated, length: record.content.length }
     show(record.content)
     note.contentEditable = 'true'
+    switching = false
     store.dirty = false
     list.upsert(summary(record))
     persistList()
@@ -135,18 +147,20 @@ export function createNotes({ api, store, note, list, history, chooser, translat
 
   const save = async () => {
     const active = current()
-    if (!active || !store.dirty || saving) return
+    if (!active) return true
+    if (!store.dirty) return !saving
+    if (saving) return false
     swapUploadedImages()
-    if (hasPendingImages()) return
+    writeDraft(localStorage, active.id, { html: serialize(note), revision: active.revision, at: Date.now() })
+    if (hasPendingImages()) return false
     const html = serialize(note)
     if (!allowShrink && isSuspiciousShrink(active.length, html.length)) {
       chooser.open(translate('shrunk'), [
         { label: translate('keep'), run: () => { allowShrink = true; save() } },
         { label: translate('undo'), run: () => { history.undo(); store.dirty = true; schedule() } }
       ], { focus: false, onDismiss: () => setState('error') })
-      return
+      return false
     }
-    writeDraft(localStorage, active.id, { html, revision: active.revision, at: Date.now() })
     saving = true
     store.dirty = false
     try {
@@ -156,11 +170,16 @@ export function createNotes({ api, store, note, list, history, chooser, translat
       allowShrink = false
       retryDelay = 0
       writeDraft(localStorage, active.id, null)
-      list.upsert(summary(result))
-      persistList()
+      if (stillListed(active.id)) {
+        list.upsert(summary(result))
+        persistList()
+      }
       if (channel) channel.postMessage({ id: active.id, revision: active.revision })
-      setState(store.dirty ? 'saving' : 'saved')
-      if (store.dirty) schedule()
+      if (current() === active) {
+        setState(store.dirty ? 'saving' : 'saved')
+        if (store.dirty) schedule()
+      }
+      return !store.dirty
     } catch (error) {
       store.dirty = true
       if (error && error.status === 409) {
@@ -177,24 +196,38 @@ export function createNotes({ api, store, note, list, history, chooser, translat
         retryDelay = nextRetryDelay(retryDelay)
         schedule(retryDelay)
       }
+      return false
     } finally {
       saving = false
     }
   }
 
-  const flush = async () => {
-    clearTimeout(timer)
-    await Promise.all([...uploads])
-    if (store.dirty) await save()
+  const commitDeletes = async () => {
+    for (const [id, timeout] of [...pendingDeletes]) {
+      clearTimeout(timeout)
+      pendingDeletes.delete(id)
+      try {
+        await api.deleteNote(id)
+      } catch {
+        showToast(translate('saveFailed'))
+      }
+    }
   }
 
-  const upload = async (blobUrl) => {
-    const active = current()
+  const flush = async () => {
+    clearTimeout(timer)
+    await commitDeletes()
+    await Promise.all([...uploads])
+    if (!store.dirty) return true
+    return save()
+  }
+
+  const upload = async (blobUrl, noteId = current() ? current().id : '') => {
     const blob = store.pendingImages.get(blobUrl)
-    if (!active || !blob) return
+    if (!noteId || !blob) return
     const task = (async () => {
       try {
-        const record = await api.uploadImage(active.id, blob, `image.${blob.type.split('/')[1]}`)
+        const record = await api.uploadImage(noteId, blob, `image.${blob.type.split('/')[1]}`)
         const url = api.imageUrl(record)
         await new Promise((resolve, reject) => {
           const probe = new Image()
@@ -205,18 +238,20 @@ export function createNotes({ api, store, note, list, history, chooser, translat
         store.uploaded.set(blobUrl, url)
         store.pendingImages.delete(blobUrl)
         uploadRetries.delete(blobUrl)
-        swapUploadedImages()
-        markDirty()
+        if (current() && current().id === noteId) {
+          swapUploadedImages()
+          markDirty()
+        }
       } catch (error) {
         if (isClientError(error)) {
           store.pendingImages.delete(blobUrl)
           showToast(translate('imageUnreadable'))
-          markDirty()
+          if (current() && current().id === noteId) markDirty()
         } else {
           setState(failureState())
           const delay = nextRetryDelay(uploadRetries.get(blobUrl) || 0)
           uploadRetries.set(blobUrl, delay)
-          setTimeout(() => upload(blobUrl), delay)
+          setTimeout(() => upload(blobUrl, noteId), delay)
         }
       }
     })()
@@ -260,45 +295,63 @@ export function createNotes({ api, store, note, list, history, chooser, translat
     ], { focus: false, onDismiss: () => setState('error') })
   }
 
-  const open = async (id) => {
+  const switchTo = async (id) => {
     if (current() && current().id === id) {
       onOpened()
+      focusEditor()
       return
     }
-    await flush()
+    if (!(await flush())) return
+    switching = true
+    note.contentEditable = 'false'
+    let record
+    try {
+      record = await api.getNote(id)
+    } catch (error) {
+      switching = false
+      if (current()) note.contentEditable = 'true'
+      throw error
+    }
     await discardIfBlank()
-    const record = await api.getNote(id)
     applyServer(record)
     list.setActive(id)
     writeLast(localStorage, id)
     onOpened()
     restoreDraft(id, record)
+    focusEditor()
   }
 
-  const create = async () => {
+  const open = (id) => serial(() => switchTo(id))
+
+  const create = () => serial(async () => {
     if (current() && isBlankNote()) {
       onOpened()
-      note.focus()
+      focusEditor()
       return
     }
-    await flush()
+    if (!(await flush())) return
     const record = await api.createNote()
     list.upsert(summary(record))
     persistList()
-    await open(record.id)
-    note.focus()
-  }
+    await switchTo(record.id)
+  })
 
-  const load = async () => {
+  const load = () => serial(async () => {
     list.set(readList(localStorage))
     const result = await api.listNotes()
     list.set(result.items)
     persistList()
     const last = readLast(localStorage)
     const first = list.find(last) || list.get()[0]
-    if (first) await open(first.id)
-    else await create()
-  }
+    if (first) {
+      await switchTo(first.id)
+      return
+    }
+    const record = await api.createNote()
+    list.upsert(summary(record))
+    persistList()
+    await switchTo(record.id)
+  })
 
   const pin = async () => {
     const active = current()
@@ -310,19 +363,26 @@ export function createNotes({ api, store, note, list, history, chooser, translat
     persistList()
   }
 
-  const remove = async () => {
+  const remove = () => serial(async () => {
     const active = current()
     if (!active) return
     const id = active.id
     clearTimeout(timer)
     store.dirty = false
+    await commitDeletes()
     const entry = list.find(id)
     list.remove(id)
     persistList()
+    writeDraft(localStorage, id, null)
     store.note = null
     const next = list.get()[0]
-    if (next) await open(next.id)
-    else await create()
+    if (next) await switchTo(next.id)
+    else {
+      const record = await api.createNote()
+      list.upsert(summary(record))
+      persistList()
+      await switchTo(record.id)
+    }
     const timeout = setTimeout(async () => {
       pendingDeletes.delete(id)
       try {
@@ -334,23 +394,27 @@ export function createNotes({ api, store, note, list, history, chooser, translat
     pendingDeletes.set(id, timeout)
     showToast(translate('deleted'), {
       label: translate('undo'),
-      run: async () => {
+      run: () => {
         clearTimeout(pendingDeletes.get(id))
         pendingDeletes.delete(id)
         if (entry) list.upsert(entry)
         persistList()
-        await open(id)
+        open(id).catch(() => showToast(translate('loadFailed')))
       }
     })
-  }
+  })
 
   const reset = () => {
     clearTimeout(timer)
+    for (const timeout of pendingDeletes.values()) clearTimeout(timeout)
+    pendingDeletes.clear()
+    uploadRetries.clear()
     store.note = null
     store.dirty = false
+    switching = false
     store.pendingImages.clear()
     releaseUploaded()
-    list.set([])
+    list.reset()
     note.replaceChildren()
     note.contentEditable = 'false'
   }
@@ -358,7 +422,7 @@ export function createNotes({ api, store, note, list, history, chooser, translat
   if (channel) {
     channel.addEventListener('message', async (event) => {
       const active = current()
-      if (!active || saving || store.dirty || event.data.id !== active.id || event.data.revision === active.revision) return
+      if (!active || saving || switching || store.dirty || event.data.id !== active.id || event.data.revision === active.revision) return
       applyServer(await api.getNote(active.id))
     })
   }

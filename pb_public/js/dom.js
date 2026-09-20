@@ -1,20 +1,40 @@
 export function createToast(element) {
   let hideTimer = 0
-  return (message, action) => {
+  let holding = false
+  const queue = []
+
+  const hide = () => {
+    element.hidden = true
+    holding = false
+    const next = queue.shift()
+    if (next) show(next.message, next.action)
+  }
+
+  const show = (message, action) => {
     element.replaceChildren(document.createTextNode(message))
     if (action) {
       const button = document.createElement('button')
       button.type = 'button'
       button.textContent = action.label
       button.addEventListener('click', () => {
-        element.hidden = true
+        clearTimeout(hideTimer)
+        hide()
         action.run()
       })
       element.append(button)
     }
+    holding = Boolean(action)
     element.hidden = false
     clearTimeout(hideTimer)
-    hideTimer = setTimeout(() => { element.hidden = true }, action ? 5000 : 3000)
+    hideTimer = setTimeout(hide, action ? 5000 : 3000)
+  }
+
+  return (message, action) => {
+    if (holding && !action) {
+      queue.push({ message, action })
+      return
+    }
+    show(message, action)
   }
 }
 
@@ -72,5 +92,5 @@ export function createChooser(element) {
     document.addEventListener('keydown', cancelOnEscape)
   }
 
-  return { open, settle }
+  return { open, settle, isOpen: () => !element.hidden }
 }

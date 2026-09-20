@@ -87,6 +87,7 @@ function keptAttributes(tag, attributes) {
     push('rel', 'noopener noreferrer')
     push('target', '_blank')
   }
+  if (tag === 'img' && !seen.src) return null
   return kept.join('')
 }
 
@@ -188,7 +189,9 @@ function sanitizeHtml(input) {
       continue
     }
     if (!has(ALLOWED_TAGS, tag)) continue
-    output.push('<' + tag + keptAttributes(tag, read.attributes) + '>')
+    const attributes = keptAttributes(tag, read.attributes)
+    if (attributes === null) continue
+    output.push('<' + tag + attributes + '>')
     if (!has(VOID_TAGS, tag)) open.push(tag)
   }
   while (open.length > 0) output.push('</' + open.pop() + '>')

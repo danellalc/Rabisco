@@ -53,7 +53,7 @@ export function writeList(storage, items) {
   }
 }
 
-export function initList({ rows, search, translate, language, onOpen, onSearchContents }) {
+export function initList({ rows, search, translate, language, onOpen, onSearchContents, onSearchFailed = () => {} }) {
   let items = []
   let activeId = ''
   let contents = null
@@ -97,13 +97,18 @@ export function initList({ rows, search, translate, language, onOpen, onSearchCo
 
   const render = () => {
     const query = search.value
+    const focused = document.activeElement && document.activeElement.closest('.row') ? document.activeElement.dataset.id : ''
     const visible = items.filter((item) => matches(item, contents ? contents.get(item.id) || '' : '', query))
     rows.replaceChildren(...visible.map(row))
     if (visible.length === 0) {
       const empty = document.createElement('p')
       empty.className = 'empty'
-      empty.textContent = translate('noResults')
+      empty.textContent = translate(items.length === 0 && !query.trim() ? 'noNotes' : 'noResults')
       rows.append(empty)
+    }
+    if (focused) {
+      const again = rows.querySelector(`.row[data-id="${focused}"]`)
+      if (again) again.focus()
     }
   }
 
@@ -116,6 +121,7 @@ export function initList({ rows, search, translate, language, onOpen, onSearchCo
       render()
     } catch {
       contents = null
+      onSearchFailed()
     } finally {
       loadingContents = false
     }
@@ -130,6 +136,13 @@ export function initList({ rows, search, translate, language, onOpen, onSearchCo
     set(next) {
       items = sortNotes(next)
       contents = null
+      render()
+    },
+    reset() {
+      items = []
+      contents = null
+      activeId = ''
+      search.value = ''
       render()
     },
     get: () => items,

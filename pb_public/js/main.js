@@ -1,5 +1,5 @@
 import { createApi } from './api.js'
-import { initAuth } from './auth.js'
+import { initAuth, writeAuth } from './auth.js'
 import { createChooser, createToast } from './dom.js'
 import { clearIfBlank, createInsertImage, insertText, placeCaretAtEnd, removeImageBlock } from './editor.js'
 import { createFormatter, initChecklist } from './format.js'
@@ -42,8 +42,14 @@ const openLightbox = createLightbox(document.getElementById('lightbox'))
 const formatter = createFormatter(note)
 const api = createApi({
   getToken: () => (store.auth ? store.auth.token : ''),
-  getUserId: () => (store.auth ? store.auth.userId : '')
+  getUserId: () => (store.auth ? store.auth.userId : ''),
+  onSession: (session) => {
+    if (!store.auth) return
+    store.auth = { ...store.auth, token: session.token }
+    writeAuth(localStorage, store.auth)
+  }
 })
+const signedIn = () => Boolean(store.auth) && ['note', 'list'].includes(document.body.dataset.view)
 const isPhone = () => matchMedia('(max-width:719px)').matches
 const showNote = () => { document.body.dataset.view = 'note' }
 const showList = () => { document.body.dataset.view = 'list' }
@@ -93,7 +99,8 @@ const list = initList({
   onSearchContents: async () => {
     const result = await api.listContents()
     return new Map(result.items.map((item) => [item.id, textOf(item.content)]))
-  }
+  },
+  onSearchFailed: () => showToast(translate('searchFailed'))
 })
 const notes = createNotes({
   api,
@@ -106,7 +113,8 @@ const notes = createNotes({
   setState: (state) => { saveState.textContent = translate(state) },
   onAuthLost: () => auth.signOut(),
   showToast,
-  onOpened: showNote
+  onOpened: showNote,
+  focusEditor: () => placeCaretAtEnd(note)
 })
 const beforeChange = () => {
   history.capture()
@@ -183,11 +191,15 @@ initMenu({
   onChange: saveSettings
 })
 
-document.getElementById('new').addEventListener('click', () => notes.create().catch(() => showToast(translate('saveFailed'))))
+const createNote = () => {
+  if (!signedIn()) return
+  notes.create().catch(() => showToast(translate('saveFailed')))
+}
+document.getElementById('new').addEventListener('click', createNote)
 document.addEventListener('keydown', (event) => {
   if (!(event.ctrlKey || event.metaKey) || !event.altKey || event.key.toLowerCase() !== 'n') return
   event.preventDefault()
-  notes.create().catch(() => showToast(translate('saveFailed')))
+  createNote()
 })
 document.getElementById('back').addEventListener('click', () => {
   if (isPhone()) {
@@ -228,7 +240,11 @@ const auth = initAuth({
     showNote()
     loadNotes()
   },
-  onSignedOut: () => notes.reset()
+  onSignedOut: () => {
+    notes.reset()
+    document.getElementById('me').textContent = ''
+    saveState.textContent = ''
+  }
 })
 
 async function loadNotes() {
