@@ -36,7 +36,31 @@ export const dictionaries = {
     c2: 'Blue text',
     c3: 'Gray text',
     cDefault: 'Default color',
-    clear: 'Clear formatting'
+    clear: 'Clear formatting',
+    emailPlaceholder: 'you@example.com',
+    getCode: 'Get a code',
+    sending: 'Sending…',
+    codeSent: 'We sent a code to {email}. It expires in 10 minutes.',
+    codePlaceholder: '6-digit code',
+    signIn: 'Sign in',
+    resend: 'Resend code',
+    changeEmail: 'Change email',
+    emailInvalid: 'Invalid email',
+    codeInvalid: 'Invalid or expired code',
+    tooMany: 'Too many attempts. Wait a minute',
+    sendFailed: 'Could not send the code',
+    saving: 'saving…',
+    saved: 'saved',
+    offline: 'offline · not saved',
+    error: 'not saved',
+    saveFailed: 'Could not save',
+    loadFailed: 'Could not load the note',
+    conflict: 'Edited somewhere else',
+    reload: 'Reload',
+    keepMine: 'Keep mine',
+    shrunk: 'The note got much smaller',
+    keep: 'Keep',
+    undo: 'Undo'
   },
   'pt-BR': {
     placeholder: 'Escreva',
@@ -75,7 +99,31 @@ export const dictionaries = {
     c2: 'Texto azul',
     c3: 'Texto cinza',
     cDefault: 'Cor padrão',
-    clear: 'Limpar formatação'
+    clear: 'Limpar formatação',
+    emailPlaceholder: 'seu@email.com',
+    getCode: 'Receber código',
+    sending: 'Enviando…',
+    codeSent: 'Enviamos um código para {email}. Ele vale por 10 minutos.',
+    codePlaceholder: 'Código de 6 dígitos',
+    signIn: 'Entrar',
+    resend: 'Reenviar código',
+    changeEmail: 'Trocar e-mail',
+    emailInvalid: 'E-mail inválido',
+    codeInvalid: 'Código inválido ou expirado',
+    tooMany: 'Muitas tentativas. Espere um minuto',
+    sendFailed: 'Não deu pra enviar o código',
+    saving: 'salvando…',
+    saved: 'salvo',
+    offline: 'sem conexão · não salvo',
+    error: 'não salvo',
+    saveFailed: 'Não deu pra salvar',
+    loadFailed: 'Não deu pra carregar a nota',
+    conflict: 'Editada em outro lugar',
+    reload: 'Recarregar',
+    keepMine: 'Manter a minha',
+    shrunk: 'A nota ficou muito menor',
+    keep: 'Manter',
+    undo: 'Desfazer'
   }
 }
 
@@ -98,5 +146,8 @@ export function applyTranslations(root, translate) {
   })
   root.querySelectorAll('[data-i18n-placeholder]').forEach((element) => {
     element.dataset.placeholder = translate(element.dataset.i18nPlaceholder)
+  })
+  root.querySelectorAll('[data-i18n-input]').forEach((element) => {
+    element.placeholder = translate(element.dataset.i18nInput)
   })
 }

@@ -1,4 +1,5 @@
 import { contentWidth, placeCaretAfter, removeImageBlock, shiftImageBlock } from './editor.js'
+import { clearImageWidth, setImageWidth } from './widths.js'
 
 export const MIN_WIDTH = 60
 
@@ -41,7 +42,7 @@ export function initResize({ note, area, selection, handle, beforeChange, onOpen
 
   const resetWidth = () => {
     beforeChange()
-    selected.style.removeProperty('width')
+    clearImageWidth(selected)
     reposition()
   }
 
@@ -126,7 +127,7 @@ export function initResize({ note, area, selection, handle, beforeChange, onOpen
   handle.addEventListener('pointermove', (event) => {
     if (!drag) return
     const width = clampWidth(drag.startWidth + event.clientX - drag.startX, MIN_WIDTH, drag.max)
-    selected.style.width = `${toPercent(width, drag.max)}%`
+    setImageWidth(selected, toPercent(width, drag.max))
     reposition()
   })
 

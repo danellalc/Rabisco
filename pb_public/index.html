@@ -9,6 +9,23 @@
 <script type="module" src="js/main.js"></script>
 </head>
 <body>
+<section class="login" id="login">
+<form class="login-form" id="email-form">
+<p class="login-title">Rabisco</p>
+<input class="field" id="email" type="email" required autocomplete="email" placeholder="you@example.com" data-i18n-input="emailPlaceholder">
+<p class="login-error" id="email-error" hidden></p>
+<button class="primary" type="submit" data-i18n="getCode">Get a code</button>
+</form>
+<form class="login-form" id="code-form" hidden>
+<p class="login-title">Rabisco</p>
+<p class="login-note" id="code-note"></p>
+<input class="field" id="code" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="6" required placeholder="6-digit code" data-i18n-input="codePlaceholder">
+<p class="login-error" id="code-error" hidden></p>
+<button class="primary" type="submit" data-i18n="signIn">Sign in</button>
+<button class="text-link" type="button" id="resend" data-i18n="resend">Resend code</button>
+<button class="text-link" type="button" id="change-email" data-i18n="changeEmail">Change email</button>
+</form>
+</section>
 <header class="note-header">
 <button class="icon-button" id="back" type="button" aria-label="Back" data-i18n-label="back">
 <svg width="20" height="20" viewBox="0 0 24 24"><path d="M20 12H4M11 19l-7-7 7-7"/></svg>

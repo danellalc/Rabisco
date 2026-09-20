@@ -1,3 +1,5 @@
+import { createApi } from './api.js'
+import { initAuth } from './auth.js'
 import { createChooser, createToast } from './dom.js'
 import { clearIfBlank, createInsertImage, insertText, placeCaretAtEnd, removeImageBlock } from './editor.js'
 import { createFormatter, initChecklist } from './format.js'
@@ -8,6 +10,7 @@ import { createLightbox } from './lightbox.js'
 import { initLinks, linkSelection } from './links.js'
 import { initMenu } from './menu.js'
 import { initMove } from './move.js'
+import { createNotes } from './notes.js'
 import { initPaste } from './paste.js'
 import { initResize } from './resize.js'
 import { applySettings, readSettings, writeSettings } from './settings.js'
@@ -19,6 +22,7 @@ import { initToolbar } from './toolbar.js'
 store.settings = readSettings(localStorage)
 applySettings(document.documentElement, store.settings)
 if (/Android/.test(navigator.userAgent)) document.querySelector('meta[name=viewport]').content += ', interactive-widget=resizes-content'
+document.body.dataset.view = 'loading'
 
 const language = pickLanguage(navigator.languages)
 const translate = createTranslator(language)
@@ -29,10 +33,15 @@ const note = document.getElementById('note')
 const area = document.getElementById('note-area')
 const selection = document.getElementById('image-selection')
 const handle = document.getElementById('resize-handle')
+const saveState = document.getElementById('save-state')
 const showToast = createToast(document.getElementById('toast'))
 const chooser = createChooser(document.getElementById('paste-choice'))
 const openLightbox = createLightbox(document.getElementById('lightbox'))
 const formatter = createFormatter(note)
+const api = createApi({
+  getToken: () => (store.auth ? store.auth.token : ''),
+  getUserId: () => (store.auth ? store.auth.userId : '')
+})
 
 const imageBlob = async (img) => store.pendingImages.get(img.src) || (await fetch(img.src)).blob()
 
@@ -59,13 +68,27 @@ const imageSelection = initResize({
   area,
   selection,
   handle,
-  beforeChange: () => history.capture(),
+  beforeChange: () => beforeChange(),
   onOpen: (img) => openLightbox(img.src, () => downloadImage(img)),
   onCopy: copySelectedImage,
   onDownload: downloadImage
 })
-const history = createHistory(note, { onRestore: () => imageSelection.clear() })
-const beforeChange = () => history.capture()
+const history = createHistory(note, { onRestore: () => { imageSelection.clear(); notes.markDirty() } })
+const notes = createNotes({
+  api,
+  store,
+  note,
+  history,
+  chooser,
+  translate,
+  setState: (state) => { saveState.textContent = translate(state) },
+  onAuthLost: () => auth.signOut(),
+  showToast
+})
+const beforeChange = () => {
+  history.capture()
+  notes.markDirty()
+}
 const recorded = (action) => (...args) => {
   beforeChange()
   return action(...args)
@@ -80,7 +103,10 @@ initShortcuts({
 })
 initLinks({ note, beforeChange })
 bindHistoryKeys(note, history)
-note.addEventListener('input', () => clearIfBlank(note))
+note.addEventListener('input', () => {
+  clearIfBlank(note)
+  notes.markDirty()
+})
 
 const discardImage = (img) => {
   if (!img.isConnected) return
@@ -92,7 +118,9 @@ const discardImage = (img) => {
 const insertImage = createInsertImage(note, {
   onInserted: async (img, file) => {
     try {
-      store.pendingImages.set(img.src, await compressImage(file))
+      const blobUrl = img.src
+      store.pendingImages.set(blobUrl, await compressImage(file))
+      notes.upload(blobUrl)
     } catch {
       discardImage(img)
     }
@@ -136,7 +164,34 @@ area.addEventListener('click', (event) => {
   placeCaretAtEnd(note)
 })
 
+const auth = initAuth({
+  api,
+  store,
+  translate,
+  elements: {
+    emailForm: document.getElementById('email-form'),
+    codeForm: document.getElementById('code-form'),
+    emailInput: document.getElementById('email'),
+    codeInput: document.getElementById('code'),
+    emailError: document.getElementById('email-error'),
+    codeError: document.getElementById('code-error'),
+    codeNote: document.getElementById('code-note'),
+    resend: document.getElementById('resend'),
+    changeEmail: document.getElementById('change-email')
+  },
+  onSignedIn: async () => {
+    document.body.dataset.view = 'note'
+    try {
+      await notes.load()
+      note.focus()
+    } catch (error) {
+      if (error && error.status === 401) auth.signOut()
+      else showToast(translate('loadFailed'))
+    }
+  }
+})
+
 document.execCommand('styleWithCSS', false, 'false')
 document.execCommand('defaultParagraphSeparator', false, 'div')
 document.execCommand('enableObjectResizing', false, 'false')
-note.focus()
+auth.restore()

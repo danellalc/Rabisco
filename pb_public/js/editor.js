@@ -1,3 +1,5 @@
+import { setImageWidth } from './widths.js'
+
 const INLINE_TAGS = new Set(['B', 'I', 'U', 'S', 'A', 'SPAN', 'MARK', 'BR'])
 
 export function contentWidth(element) {
@@ -197,7 +199,7 @@ export function createInsertImage(root, { onInserted, onFailed }) {
     img.addEventListener('load', () => {
       img.width = img.naturalWidth
       img.height = img.naturalHeight
-      if (img.naturalWidth > contentWidth(root)) img.style.width = '100%'
+      if (img.naturalWidth > contentWidth(root)) setImageWidth(img, 100)
     }, { once: true })
     img.addEventListener('error', () => onFailed(img), { once: true })
     img.src = URL.createObjectURL(file)

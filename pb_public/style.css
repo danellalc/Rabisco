@@ -25,6 +25,20 @@ body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.5 system-ui,-appl
 button{font:inherit;color:inherit;background:none;border:0;padding:0;cursor:pointer}
 svg{fill:none;stroke:currentColor;stroke-width:1.75;stroke-linecap:round;stroke-linejoin:round}
 :focus-visible{outline:2px solid var(--acc);outline-offset:2px}
+input{font:inherit}
+.login{display:none;flex:1;flex-direction:column;justify-content:center;width:100%;max-width:420px;margin:0 auto;padding:var(--s5) var(--s4)}
+body[data-view=login] .login{display:flex}
+body[data-view=login] .note-header,body[data-view=login] .note-area,body[data-view=loading] .note-area{display:none}
+.login-form{display:flex;flex-direction:column;gap:var(--s2)}
+.login-title{margin:0 0 var(--s4);font-size:32px;font-weight:700}
+.login-note{margin:0 0 var(--s4);color:var(--fg2)}
+.login-error{margin:0;color:var(--c1);font-size:15px}
+.field{width:100%;padding:var(--s2) 0;border:0;border-bottom:1px solid var(--line);background:none;color:var(--fg);outline:0}
+.field:focus{border-bottom-color:var(--acc)}
+.primary{align-self:flex-start;min-height:44px;margin-top:var(--s4);padding:var(--s2) var(--s4);border:1.5px solid var(--acc);border-radius:4px;color:var(--acc);font-size:15px}
+.primary:disabled{border-color:var(--line);color:var(--fg2);cursor:default}
+.text-link{align-self:flex-start;min-height:32px;color:var(--acc);text-decoration:underline;font-size:15px}
+.text-link:disabled{color:var(--fg2);text-decoration:none;cursor:default}
 .note-header{position:relative;display:flex;align-items:center;gap:var(--s4);padding:var(--s3) var(--s4);border-bottom:1px solid var(--line);flex-shrink:0}
 .icon-button{width:44px;height:44px;display:inline-flex;align-items:center;justify-content:center;margin-left:-12px}
 .more{margin:0 -10px 0 0;letter-spacing:.08em}

@@ -65,6 +65,11 @@ export function createHistory(root, { limit = 100, onRestore = () => {} } = {}) 
 
   return {
     capture,
+    reset() {
+      past.length = 0
+      future.length = 0
+      typing = { type: '', at: 0 }
+    },
     captureTyping(inputType) {
       const now = Date.now()
       if (isNewGroup(typing, inputType, now)) capture()

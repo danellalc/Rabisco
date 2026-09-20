@@ -2,5 +2,9 @@ import { defaults } from './settings.js'
 
 export const store = {
   pendingImages: new Map(),
-  settings: { ...defaults }
+  uploaded: new Map(),
+  settings: { ...defaults },
+  auth: null,
+  note: null,
+  dirty: false
 }
