@@ -126,6 +126,8 @@ export function createApi({ getToken, getUserId, onSession = () => {} }) {
     },
     renameFile: (id, name) => fresh('PATCH', `/api/collections/files/records/${id}?fields=${FILE_FIELDS}`, { body: { name } }),
     fileLink: (id) => fresh('POST', `/api/files/${id}/link`),
+    downloadFile: async (id) => (await fetch((await fresh('POST', `/api/files/${id}/link`)).url)).blob(),
+    downloadShared: async (token, file) => (await fetch((await call('POST', '/api/shared/file-link', { body: { file }, headers: { 'X-Share-Token': token }, anonymous: true })).url)).blob(),
     quota: () => fresh('GET', '/api/quota'),
     getShared: (token) => call('GET', '/api/shared', { headers: { 'X-Share-Token': token }, anonymous: true }),
     saveShared: (token, content, revision) => call('PATCH', '/api/shared', { body: { content }, headers: { 'X-Share-Token': token, 'X-Note-Rev': revision }, anonymous: true }),

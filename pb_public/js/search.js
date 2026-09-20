@@ -65,9 +65,7 @@ export function initSearch({ palette, input, rows, translate, language, loadInde
     input.value = ''
     input.focus()
     document.addEventListener('pointerdown', closeIfOutside, true)
-    if (!loading) {
-      loading = loadIndex().then((built) => { index = built }).catch(() => { loading = null })
-    }
+    if (!loading) loading = loadIndex().then((built) => { index = built }).catch(() => {}).finally(() => { loading = null })
     await loading
     render()
   }
@@ -90,5 +88,5 @@ export function initSearch({ palette, input, rows, translate, language, loadInde
     else close()
   })
 
-  return { open, close, invalidate: () => { index = null; loading = null } }
+  return { open, close }
 }

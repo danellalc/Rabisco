@@ -1,3 +1,14 @@
+export function svgIcon(path, size) {
+  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg')
+  svg.setAttribute('viewBox', '0 0 32 32')
+  svg.setAttribute('width', String(size))
+  svg.setAttribute('height', String(size))
+  const shape = document.createElementNS('http://www.w3.org/2000/svg', 'path')
+  shape.setAttribute('d', path)
+  svg.append(shape)
+  return svg
+}
+
 export function createToast(element) {
   let hideTimer = 0
   let holding = false

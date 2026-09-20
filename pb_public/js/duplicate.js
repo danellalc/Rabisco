@@ -23,8 +23,7 @@ async function copyInlineImages(api, html, boardId) {
 }
 
 async function copyFile(api, token, item, boardId) {
-  const link = await api.sharedFileLink(token, item.file)
-  const blob = await (await fetch(link.url)).blob()
+  const blob = await api.downloadShared(token, item.file)
   const record = await api.uploadFile(boardId, blob, item.name, () => {})
   return { ...item, file: record.id, name: record.name, size: record.size, kind: record.kind }
 }

@@ -1,5 +1,4 @@
 import { parseDate, readList, writeList } from './list.js'
-import { expiryDate } from './share.js'
 
 const SAVE_DELAY = 1000
 const UNDO_DELAY = 5000
@@ -237,8 +236,9 @@ export function createBoards({ api, store, board, layer, list, history, chooser,
         setState(store.dirty ? 'saving' : 'saved')
         if (store.dirty) schedule()
       }
-      if (content.includes('"file":') || active.hadFiles) refreshQuota()
-      active.hadFiles = content.includes('"file":')
+      const holdsStorage = content.includes('"file":') || content.includes('/api/files/images/')
+      if (holdsStorage || active.holdsStorage) refreshQuota()
+      active.holdsStorage = holdsStorage
       return !store.dirty
     } catch (error) {
       store.dirty = true
@@ -292,13 +292,13 @@ export function createBoards({ api, store, board, layer, list, history, chooser,
     return translate('fileUploadFailed')
   }
 
-  const uploadFile = (itemId, file, source = null) => {
+  const uploadFile = (itemId, name, fileOrSourceId) => {
     const boardId = current() ? current().id : ''
     if (!boardId) return
     const task = (async () => {
       try {
-        const blob = source ? await (await fetch((await api.fileLink(source)).url)).blob() : file
-        const record = await api.uploadFile(boardId, blob, file.name, (fraction) => board.setFileProgress(itemId, fraction))
+        const blob = typeof fileOrSourceId === 'string' ? await api.downloadFile(fileOrSourceId) : fileOrSourceId
+        const record = await api.uploadFile(boardId, blob, name, (fraction) => board.setFileProgress(itemId, fraction))
         pendingFiles.delete(itemId)
         if (current() && current().id === boardId) {
           board.setFileRecord(itemId, record)
@@ -338,7 +338,7 @@ export function createBoards({ api, store, board, layer, list, history, chooser,
       } catch (error) {
         if (isClientError(error)) {
           store.pendingImages.delete(blobUrl)
-          showToast(translate('imageUnreadable'))
+          showToast(error.status === 413 ? uploadFailure(error) : translate('imageUnreadable'))
           if (current() && current().id === boardId) markDirty()
         } else {
           setState(failureState())
@@ -466,10 +466,10 @@ export function createBoards({ api, store, board, layer, list, history, chooser,
     if (channel && active) channel.postMessage({ id: active.id, shares: active.shares })
   }
 
-  const createShare = async (items, mode, choice) => {
+  const createShare = async (items, mode, expires) => {
     const active = current()
     if (!active) return
-    const share = await api.createShare(active.id, items, mode, choice === undefined ? '' : expiryDate(choice))
+    const share = await api.createShare(active.id, items, mode, expires)
     active.shares = [...active.shares, share]
     publishShares()
   }

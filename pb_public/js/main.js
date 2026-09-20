@@ -1,12 +1,13 @@
 import { createApi } from './api.js'
 import { initAuth, readAuth, writeAuth } from './auth.js'
-import { createBoard } from './board.js'
+import { createBoard, parseClipboard } from './board.js'
 import { createBoards, writeLast } from './boards.js'
 import { ZOOM_STEP, zoomLabel } from './camera.js'
 import { createChooser, createPopover, createToast } from './dom.js'
 import { duplicateShared } from './duplicate.js'
 import { clearIfBlank, createInsertImage, insertText, removeImageBlock } from './editor.js'
 import { fileName, toMarkdown, toText, treeOfBoard } from './export.js'
+import { FILE_ICON_PATHS } from './file-card.js'
 import { createFormatter, initChecklist } from './format.js'
 import { bindHistoryKeys, createHistory } from './history.js'
 import { applyTranslations, createTranslator, pickLanguage } from './i18n.js'
@@ -23,7 +24,6 @@ import { serviceWorkerUrl, textOf } from './sanitize.js'
 import { applySettings, readSettings, writeSettings } from './settings.js'
 import { SHARE_HASH, clearShareTarget, readShareTarget } from './share-target.js'
 import { initShare, tokenFromHash } from './share.js'
-import { FILE_ICON_PATHS, parseClipboard } from './board.js'
 import { initSearch, buildIndex } from './search.js'
 import { buildZip, uniqueName } from './zip.js'
 import { initShortcuts } from './shortcuts.js'
@@ -329,8 +329,8 @@ if (sharedPage) {
   })
   sync.markDirty = boards.markDirty
   sync.rememberCamera = boards.rememberCamera
-  sync.fileInserted = (item, file) => boards.uploadFile(item.id, file)
-  sync.fileCopy = (item, source) => boards.uploadFile(item.id, { name: item.name }, source)
+  sync.fileInserted = (item, file) => boards.uploadFile(item.id, file.name, file)
+  sync.fileCopy = (item, source) => boards.uploadFile(item.id, item.name, source)
   sync.boardId = boards.currentId
   sync.mediaLink = async (item) => (await api.fileLink(item.file)).url
   sync.renameFile = (item, name) => api.renameFile(item.file, name)
@@ -380,7 +380,7 @@ if (sharedPage) {
       const entries = [{ name: uniqueName('board.md', taken), data: new TextEncoder().encode(toMarkdown(treeOfBoard(board.elementsInReadingOrder()), location.origin)) }]
       for (const item of parseContent(board.serialize()) || []) {
         if (item.type === 'file' && item.file) {
-          const blob = await (await fetch((await api.fileLink(item.file)).url)).blob()
+          const blob = await api.downloadFile(item.file)
           entries.push({ name: uniqueName(item.name, taken), data: new Uint8Array(await blob.arrayBuffer()) })
         }
       }
@@ -421,7 +421,7 @@ if (sharedPage) {
   })
   sync.shareItems = (ids) => share.open(ids)
 
-  const search = initSearch({
+  initSearch({
     palette: document.getElementById('palette'),
     input: document.getElementById('palette-input'),
     rows: document.getElementById('palette-rows'),
@@ -440,7 +440,6 @@ if (sharedPage) {
       }
     }
   })
-  document.getElementById('search').addEventListener('focus', () => search.invalidate())
 
   const createBoardNow = () => {
     if (!signedIn()) return

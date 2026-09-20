@@ -17,6 +17,7 @@ const ASSETS = [
   '/js/duplicate.js',
   '/js/editor.js',
   '/js/export.js',
+  '/js/file-card.js',
   '/js/format.js',
   '/js/history.js',
   '/js/i18n.js',
