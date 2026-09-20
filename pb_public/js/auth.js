@@ -33,7 +33,7 @@ export function magicLinkFrom(search) {
   return code && id ? { code, id } : null
 }
 
-export function initAuth({ api, store, elements, translate, onSignedIn }) {
+export function initAuth({ api, store, elements, translate, onSignedIn, onSignedOut }) {
   const { emailForm, codeForm, emailInput, codeInput, emailError, codeError, codeNote, resend, changeEmail } = elements
   let otpId = ''
   let email = ''
@@ -54,7 +54,7 @@ export function initAuth({ api, store, elements, translate, onSignedIn }) {
   }
 
   const finish = (session) => {
-    store.auth = { token: session.token, userId: session.record.id }
+    store.auth = { token: session.token, userId: session.record.id, email: session.record.email || '' }
     writeAuth(localStorage, store.auth)
     onSignedIn()
   }
@@ -111,6 +111,10 @@ export function initAuth({ api, store, elements, translate, onSignedIn }) {
   const signOut = () => {
     store.auth = null
     writeAuth(localStorage, null)
+    for (const key of Object.keys(localStorage)) {
+      if (key.startsWith('rabisco.') && key !== 'rabisco.settings') localStorage.removeItem(key)
+    }
+    onSignedOut()
     show('email')
   }
 

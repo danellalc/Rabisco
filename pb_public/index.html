@@ -26,9 +26,23 @@
 <button class="text-link" type="button" id="change-email" data-i18n="changeEmail">Change email</button>
 </form>
 </section>
+<div class="app" id="app">
+<aside class="list" id="list">
+<div class="list-top">
+<input class="search" id="search" type="search" placeholder="Search" aria-label="Search" data-i18n-input="search" data-i18n-label="search">
+<button class="new" id="new" type="button" aria-label="New note" data-i18n-label="newNote">+</button>
+</div>
+<div class="rows" id="rows"></div>
+<div class="list-foot">
+<span class="meta" id="me"></span>
+<button class="text-link" id="sign-out" type="button" data-i18n="signOut">Sign out</button>
+</div>
+</aside>
+<div class="pane">
 <header class="note-header">
 <button class="icon-button" id="back" type="button" aria-label="Back" data-i18n-label="back">
-<svg width="20" height="20" viewBox="0 0 24 24"><path d="M20 12H4M11 19l-7-7 7-7"/></svg>
+<svg class="icon-back" width="20" height="20" viewBox="0 0 24 24"><path d="M20 12H4M11 19l-7-7 7-7"/></svg>
+<svg class="icon-sidebar" width="20" height="20" viewBox="0 0 24 24"><path d="M4 5h16v14H4z M9 5v14"/></svg>
 </button>
 <span class="save-state" id="save-state"></span>
 <button class="text-button" id="share" type="button" data-i18n="share">Share</button>
@@ -67,6 +81,8 @@
 <button type="button" data-cmd="clear" aria-label="Clear formatting" data-i18n-label="clear"><svg width="16" height="16" viewBox="0 0 24 24"><path d="M8 4L3 18M8 4l5 14M5.2 13h6.4M4 20L20 4"/></svg></button>
 </div>
 </main>
+</div>
+</div>
 <div class="toast" id="toast" hidden></div>
 <div class="chooser" id="paste-choice" hidden></div>
 <dialog class="lightbox" id="lightbox">

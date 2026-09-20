@@ -8,11 +8,13 @@ import { applyTranslations, createTranslator, pickLanguage } from './i18n.js'
 import { compressImage, copyImage, downloadBlob, fileExtension } from './images.js'
 import { createLightbox } from './lightbox.js'
 import { initLinks, linkSelection } from './links.js'
+import { initList } from './list.js'
 import { initMenu } from './menu.js'
 import { initMove } from './move.js'
 import { createNotes } from './notes.js'
 import { initPaste } from './paste.js'
 import { initResize } from './resize.js'
+import { textOf } from './sanitize.js'
 import { applySettings, readSettings, writeSettings } from './settings.js'
 import { initShortcuts } from './shortcuts.js'
 import { store } from './store.js'
@@ -42,6 +44,13 @@ const api = createApi({
   getToken: () => (store.auth ? store.auth.token : ''),
   getUserId: () => (store.auth ? store.auth.userId : '')
 })
+const isPhone = () => matchMedia('(max-width:719px)').matches
+const showNote = () => { document.body.dataset.view = 'note' }
+const showList = () => { document.body.dataset.view = 'list' }
+const saveSettings = () => {
+  applySettings(document.documentElement, store.settings)
+  writeSettings(localStorage, store.settings)
+}
 
 const imageBlob = async (img) => store.pendingImages.get(img.src) || (await fetch(img.src)).blob()
 
@@ -74,16 +83,29 @@ const imageSelection = initResize({
   onDownload: downloadImage
 })
 const history = createHistory(note, { onRestore: () => { imageSelection.clear(); notes.markDirty() } })
+const list = initList({
+  rows: document.getElementById('rows'),
+  search: document.getElementById('search'),
+  translate,
+  language,
+  onOpen: (id) => notes.open(id).catch(() => showToast(translate('loadFailed'))),
+  onSearchContents: async () => {
+    const result = await api.listContents()
+    return new Map(result.items.map((item) => [item.id, textOf(item.content)]))
+  }
+})
 const notes = createNotes({
   api,
   store,
   note,
+  list,
   history,
   chooser,
   translate,
   setState: (state) => { saveState.textContent = translate(state) },
   onAuthLost: () => auth.signOut(),
-  showToast
+  showToast,
+  onOpened: showNote
 })
 const beforeChange = () => {
   history.capture()
@@ -153,10 +175,31 @@ initMenu({
   menu: document.getElementById('menu-panel'),
   translate,
   settings: store.settings,
-  onChange: (settings) => {
-    applySettings(document.documentElement, settings)
-    writeSettings(localStorage, settings)
+  actions: [
+    { label: () => translate(notes.isPinned() ? 'unpin' : 'pin'), run: () => notes.pin().catch(() => showToast(translate('saveFailed'))) },
+    { label: () => translate('delete'), danger: true, run: () => notes.remove().catch(() => showToast(translate('saveFailed'))) }
+  ],
+  onChange: saveSettings
+})
+
+document.getElementById('new').addEventListener('click', () => notes.create().catch(() => showToast(translate('saveFailed'))))
+document.addEventListener('keydown', (event) => {
+  if (!(event.ctrlKey || event.metaKey) || !event.altKey || event.key.toLowerCase() !== 'n') return
+  event.preventDefault()
+  notes.create().catch(() => showToast(translate('saveFailed')))
+})
+document.getElementById('back').addEventListener('click', () => {
+  if (isPhone()) {
+    notes.flush()
+    showList()
+    return
   }
+  store.settings.sidebar = store.settings.sidebar === 'open' ? 'closed' : 'open'
+  saveSettings()
+})
+document.getElementById('sign-out').addEventListener('click', async () => {
+  await notes.flush()
+  auth.signOut()
 })
 
 area.addEventListener('click', (event) => {
@@ -180,7 +223,8 @@ const auth = initAuth({
     changeEmail: document.getElementById('change-email')
   },
   onSignedIn: async () => {
-    document.body.dataset.view = 'note'
+    document.getElementById('me').textContent = store.auth.email
+    showNote()
     try {
       await notes.load()
       note.focus()
@@ -188,7 +232,8 @@ const auth = initAuth({
       if (error && error.status === 401) auth.signOut()
       else showToast(translate('loadFailed'))
     }
-  }
+  },
+  onSignedOut: () => notes.reset()
 })
 
 document.execCommand('styleWithCSS', false, 'false')

@@ -1,10 +1,20 @@
 export function createToast(element) {
   let hideTimer = 0
-  return (message) => {
-    element.textContent = message
+  return (message, action) => {
+    element.replaceChildren(document.createTextNode(message))
+    if (action) {
+      const button = document.createElement('button')
+      button.type = 'button'
+      button.textContent = action.label
+      button.addEventListener('click', () => {
+        element.hidden = true
+        action.run()
+      })
+      element.append(button)
+    }
     element.hidden = false
     clearTimeout(hideTimer)
-    hideTimer = setTimeout(() => { element.hidden = true }, 3000)
+    hideTimer = setTimeout(() => { element.hidden = true }, action ? 5000 : 3000)
   }
 }
 

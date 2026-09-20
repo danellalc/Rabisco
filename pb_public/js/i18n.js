@@ -60,7 +60,21 @@ export const dictionaries = {
     keepMine: 'Keep mine',
     shrunk: 'The note got much smaller',
     keep: 'Keep',
-    undo: 'Undo'
+    undo: 'Undo',
+    search: 'Search',
+    newNote: 'New note',
+    signOut: 'Sign out',
+    pin: 'Pin',
+    unpin: 'Unpin',
+    delete: 'Delete',
+    deleted: 'Note deleted',
+    noResults: 'No notes found',
+    imageNote: 'Image',
+    untitled: 'New note',
+    now: 'now',
+    minutesAgo: '{n} min ago',
+    hoursAgo: '{n} h ago',
+    yesterday: 'yesterday'
   },
   'pt-BR': {
     placeholder: 'Escreva',
@@ -123,7 +137,21 @@ export const dictionaries = {
     keepMine: 'Manter a minha',
     shrunk: 'A nota ficou muito menor',
     keep: 'Manter',
-    undo: 'Desfazer'
+    undo: 'Desfazer',
+    search: 'Buscar',
+    newNote: 'Nova nota',
+    signOut: 'Sair',
+    pin: 'Fixar',
+    unpin: 'Desafixar',
+    delete: 'Apagar',
+    deleted: 'Nota apagada',
+    noResults: 'Nenhuma nota encontrada',
+    imageNote: 'Imagem',
+    untitled: 'Nova nota',
+    now: 'agora',
+    minutesAgo: 'há {n} min',
+    hoursAgo: 'há {n} h',
+    yesterday: 'ontem'
   }
 }
 

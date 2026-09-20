@@ -14,13 +14,13 @@ test('unknown values fall back to the defaults', () => {
 })
 
 test('known values are kept', () => {
-  assert.deepEqual(sanitizeSettings({ theme: 'dark', width: 'wide' }), { theme: 'dark', width: 'wide' })
+  assert.deepEqual(sanitizeSettings({ theme: 'dark', width: 'wide', sidebar: 'closed' }), { theme: 'dark', width: 'wide', sidebar: 'closed' })
 })
 
 test('settings survive a round trip through storage', () => {
   const storage = memoryStorage()
-  writeSettings(storage, { theme: 'light', width: 'wide' })
-  assert.deepEqual(readSettings(storage), { theme: 'light', width: 'wide' })
+  writeSettings(storage, { theme: 'light', width: 'wide', sidebar: 'open' })
+  assert.deepEqual(readSettings(storage), { theme: 'light', width: 'wide', sidebar: 'open' })
 })
 
 test('broken or missing storage yields the defaults', () => {

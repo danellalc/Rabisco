@@ -87,6 +87,10 @@ export function sanitize(html, { allowLocalImages = false } = {}) {
   return parsed.body
 }
 
+export function textOf(html) {
+  return new DOMParser().parseFromString(policy.createHTML(String(html || '')), 'text/html').body.textContent
+}
+
 export function render(target, html, options) {
   const body = sanitize(html, options)
   target.replaceChildren(...body.childNodes)

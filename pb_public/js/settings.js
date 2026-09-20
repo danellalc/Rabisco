@@ -1,7 +1,7 @@
 const storageKey = 'rabisco.settings'
 
-export const defaults = { theme: 'system', width: 'wide' }
-export const choices = { theme: ['system', 'light', 'dark'], width: ['normal', 'wide'] }
+export const defaults = { theme: 'system', width: 'wide', sidebar: 'open' }
+export const choices = { theme: ['system', 'light', 'dark'], width: ['normal', 'wide'], sidebar: ['open', 'closed'] }
 
 export function sanitizeSettings(raw) {
   const result = { ...defaults }
@@ -32,4 +32,5 @@ export function applySettings(root, settings) {
   if (settings.theme === 'system') delete root.dataset.theme
   else root.dataset.theme = settings.theme
   root.dataset.width = settings.width
+  root.dataset.sidebar = settings.sidebar
 }

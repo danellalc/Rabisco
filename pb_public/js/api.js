@@ -26,10 +26,13 @@ export function createApi({ getToken, getUserId }) {
     requestCode: (email) => call('POST', '/api/collections/users/request-otp', { body: { email } }),
     signIn: (otpId, code) => call('POST', '/api/collections/users/auth-with-otp', { body: { otpId, password: code } }),
     refresh: () => call('POST', '/api/collections/users/auth-refresh'),
-    latestNote: () => call('GET', '/api/collections/notes/records?sort=-updated&perPage=1&skipTotal=1&fields=id,content,updated'),
-    getNote: (id) => call('GET', `/api/collections/notes/records/${id}?fields=id,content,updated`),
-    createNote: () => call('POST', '/api/collections/notes/records?fields=id,content,updated', { body: { content: '', user: getUserId() } }),
-    saveNote: (id, content, revision) => call('PATCH', `/api/collections/notes/records/${id}?fields=id,updated`, { body: { content }, headers: { 'X-Note-Rev': revision } }),
+    listNotes: () => call('GET', '/api/collections/notes/records?sort=-pinned,-updated&perPage=200&skipTotal=1&fields=id,title,cover,pinned,updated'),
+    listContents: () => call('GET', '/api/collections/notes/records?perPage=200&skipTotal=1&fields=id,content'),
+    getNote: (id) => call('GET', `/api/collections/notes/records/${id}?fields=id,content,updated,title,cover,pinned`),
+    createNote: () => call('POST', '/api/collections/notes/records?fields=id,content,updated,title,cover,pinned', { body: { content: '', user: getUserId() } }),
+    saveNote: (id, content, revision) => call('PATCH', `/api/collections/notes/records/${id}?fields=id,updated,title,cover,pinned`, { body: { content }, headers: { 'X-Note-Rev': revision } }),
+    pinNote: (id, pinned) => call('PATCH', `/api/collections/notes/records/${id}?fields=id,updated,title,cover,pinned`, { body: { pinned } }),
+    deleteNote: (id) => call('DELETE', `/api/collections/notes/records/${id}`),
     uploadImage: (noteId, blob, name) => {
       const form = new FormData()
       form.append('note', noteId)

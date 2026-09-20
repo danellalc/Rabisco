@@ -16,7 +16,7 @@ Stages 1 to 3 of 7 are done: editor, formatting and backend (sign in by email co
 4. Note list: create, search, pin, delete with undo.
 5. Sharing: view or edit link, optional expiry, revoke and rotate, Open Graph preview, clean reading mode, duplicate into your account.
 6. Extras: print stylesheet, export to text and markdown, installable app, share target on Android.
-7. After the MVP: crop and annotate a pasted screenshot, version history, find in note, markdown paste, captions and image alignment.
+7. Drawing: a vector sketch board loaded on demand (pen with pressure, highlighter, line, arrow, rectangle, ellipse, text, select and move, undo, zoom) that becomes an image in the note and can be reopened for editing; the same board annotates and crops a pasted screenshot. Then version history, find in note, markdown paste, captions and image alignment.
 
 ## Run locally
 

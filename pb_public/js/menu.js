@@ -1,8 +1,9 @@
 import { choices } from './settings.js'
 
+const MENU_SETTINGS = ['theme', 'width']
 const labelKey = (key, value) => key + value[0].toUpperCase() + value.slice(1)
 
-export function initMenu({ button, menu, translate, settings, onChange }) {
+export function initMenu({ button, menu, translate, settings, actions, onChange }) {
   const close = () => {
     menu.hidden = true
     document.removeEventListener('pointerdown', closeIfOutside)
@@ -17,7 +18,18 @@ export function initMenu({ button, menu, translate, settings, onChange }) {
 
   const render = () => {
     menu.replaceChildren()
-    for (const key of Object.keys(choices)) {
+    for (const action of actions) {
+      const item = document.createElement('button')
+      item.type = 'button'
+      item.className = action.danger ? 'menu-item danger' : 'menu-item'
+      item.textContent = action.label()
+      item.addEventListener('click', () => {
+        close()
+        action.run()
+      })
+      menu.append(item)
+    }
+    for (const key of MENU_SETTINGS) {
       const row = document.createElement('div')
       row.className = 'menu-row'
       const label = document.createElement('span')
