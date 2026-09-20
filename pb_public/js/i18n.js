@@ -76,7 +76,24 @@ export const dictionaries = {
     now: 'now',
     minutesAgo: '{n} min ago',
     hoursAgo: '{n} h ago',
-    yesterday: 'yesterday'
+    yesterday: 'yesterday',
+    shareOff: 'Off',
+    shareView: 'View only',
+    shareEdit: 'Can edit',
+    expires: 'Expires',
+    expiry_never: 'never',
+    expiry_1h: '1 hour',
+    expiry_1d: '1 day',
+    expiry_7d: '7 days',
+    copy: 'Copy',
+    linkCopied: 'Link copied',
+    linkDisabled: 'Link disabled',
+    linkGone: 'This link is no longer active',
+    madeWith: 'Made with Rabisco',
+    createYours: 'Create your note',
+    duplicate: 'Duplicate',
+    duplicated: 'Copied to your notes',
+    imagesOwnerOnly: 'Only the owner can add images'
   },
   'pt-BR': {
     placeholder: 'Escreva',
@@ -155,7 +172,24 @@ export const dictionaries = {
     now: 'agora',
     minutesAgo: 'há {n} min',
     hoursAgo: 'há {n} h',
-    yesterday: 'ontem'
+    yesterday: 'ontem',
+    shareOff: 'Desativado',
+    shareView: 'Só ver',
+    shareEdit: 'Pode editar',
+    expires: 'Expira',
+    expiry_never: 'nunca',
+    expiry_1h: '1 hora',
+    expiry_1d: '1 dia',
+    expiry_7d: '7 dias',
+    copy: 'Copiar',
+    linkCopied: 'Link copiado',
+    linkDisabled: 'Link desativado',
+    linkGone: 'Esse link não está mais ativo',
+    madeWith: 'Feito com Rabisco',
+    createYours: 'Crie a sua nota',
+    duplicate: 'Duplicar',
+    duplicated: 'Copiada para as suas notas',
+    imagesOwnerOnly: 'Imagens só o dono da nota'
   }
 }
 

@@ -1,5 +1,6 @@
 import { render, serialize } from './sanitize.js'
 import { readList, writeList } from './list.js'
+import { expiryDate } from './share.js'
 
 const SAVE_DELAY = 1000
 const UNDO_DELAY = 5000
@@ -44,13 +45,23 @@ function readLast(storage) {
   }
 }
 
-function writeLast(storage, id) {
+export function writeLast(storage, id) {
   try {
     storage.setItem(lastKey, id)
   } catch {
     return
   }
 }
+
+export function expiryChoice(expires, now = Date.now()) {
+  if (!expires) return 'never'
+  const remaining = new Date(String(expires).replace(' ', 'T')).getTime() - now
+  if (remaining <= 3600000) return '1h'
+  if (remaining <= 86400000) return '1d'
+  return '7d'
+}
+
+const shareOf = (record) => ({ mode: record.share_mode || 'off', token: record.share_token || '', expires: record.share_expires || '' })
 
 const isClientError = (error) => Boolean(error && error.status >= 400 && error.status < 500)
 const failureState = () => (navigator.onLine ? 'error' : 'offline')
@@ -119,7 +130,7 @@ export function createNotes({ api, store, note, list, history, chooser, translat
 
   const applyServer = (record) => {
     clearTimeout(timer)
-    store.note = { id: record.id, revision: record.updated, length: record.content.length }
+    store.note = { id: record.id, revision: record.updated, length: record.content.length, share: shareOf(record) }
     show(record.content)
     note.contentEditable = 'true'
     switching = false
@@ -363,6 +374,22 @@ export function createNotes({ api, store, note, list, history, chooser, translat
     persistList()
   }
 
+  const getShare = () => {
+    const active = current()
+    const share = active ? active.share : { mode: 'off', token: '', expires: '' }
+    return { mode: share.mode, token: share.token, expiry: expiryChoice(share.expires) }
+  }
+
+  const setShare = async (mode, choice) => {
+    const active = current()
+    if (!active) return
+    const record = await api.shareNote(active.id, mode, mode === 'off' ? '' : expiryDate(choice))
+    active.revision = record.updated
+    active.share = shareOf(record)
+    list.upsert(summary(record))
+    persistList()
+  }
+
   const remove = () => serial(async () => {
     const active = current()
     if (!active) return
@@ -440,5 +467,5 @@ export function createNotes({ api, store, note, list, history, chooser, translat
 
   note.contentEditable = 'false'
 
-  return { load, open, create, pin, remove, reset, markDirty, upload, save, flush, isPinned: () => { const entry = current() && list.find(current().id); return Boolean(entry && entry.pinned) } }
+  return { load, open, create, pin, remove, reset, markDirty, upload, save, flush, getShare, setShare, isPinned: () => { const entry = current() && list.find(current().id); return Boolean(entry && entry.pinned) } }
 }

@@ -42,6 +42,41 @@ onRecordCreateRequest((e) => {
   e.next()
 }, 'notes')
 
+routerAdd('GET', '/api/shared', (e) => {
+  const { findShared } = require(`${__hooks}/share.js`)
+  const record = findShared(e)
+  return e.json(200, {
+    content: record.getString('content'),
+    updated: record.getString('updated'),
+    mode: record.getString('share_mode'),
+    title: record.getString('title')
+  })
+})
+
+routerAdd('PATCH', '/api/shared', (e) => {
+  const { findShared } = require(`${__hooks}/share.js`)
+  const { sanitizeHtml } = require(`${__hooks}/sanitize.js`)
+  const { titleOf, coverOf } = require(`${__hooks}/summary.js`)
+  const record = findShared(e)
+  if (record.getString('share_mode') !== 'edit') throw new ForbiddenError('This link is view only.')
+  const info = e.requestInfo()
+  const expected = String(info.headers.x_note_rev || '')
+  if (expected !== '' && expected !== record.getString('updated')) {
+    throw new ApiError(409, 'The note changed elsewhere.', { updated: record.getString('updated') })
+  }
+  const content = sanitizeHtml(String(info.body.content || ''))
+  record.set('content', content)
+  record.set('title', titleOf(content))
+  record.set('cover', coverOf(content))
+  e.app.save(record)
+  return e.json(200, { updated: record.getString('updated') })
+})
+
+cronAdd('expire-shares', '*/15 * * * *', () => {
+  const { expireShares } = require(`${__hooks}/share.js`)
+  expireShares($app)
+})
+
 onRecordUpdateRequest((e) => {
   const { sanitizeHtml } = require(`${__hooks}/sanitize.js`)
   const original = e.record.original()
@@ -55,10 +90,14 @@ onRecordUpdateRequest((e) => {
   e.record.set('title', titleOf(content))
   e.record.set('cover', coverOf(content))
   const mode = e.record.getString('share_mode')
-  if (mode === original.getString('share_mode')) {
-    e.record.set('share_token', original.getString('share_token'))
+  const previousToken = original.getString('share_token')
+  if (mode === 'off') {
+    e.record.set('share_token', '')
+    e.record.set('share_expires', '')
+  } else if (original.getString('share_mode') === 'off' || previousToken === '') {
+    e.record.set('share_token', $security.randomString(22))
   } else {
-    e.record.set('share_token', mode === 'off' ? '' : $security.randomString(22))
+    e.record.set('share_token', previousToken)
   }
   e.next()
 }, 'notes')

@@ -5,8 +5,11 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="color-scheme" content="light dark">
 <title>Rabisco</title>
-<link rel="stylesheet" href="style.css">
-<script type="module" src="js/main.js"></script>
+<meta property="og:title" content="Rabisco">
+<meta property="og:description" content="Uma nota compartilhada com você · A note shared with you">
+<meta property="og:type" content="website">
+<link rel="stylesheet" href="/style.css">
+<script type="module" src="/js/main.js"></script>
 </head>
 <body>
 <section class="login" id="login">
@@ -45,8 +48,9 @@
 <svg class="icon-sidebar" width="20" height="20" viewBox="0 0 24 24"><path d="M4 5h16v14H4z M9 5v14"/></svg>
 </button>
 <span class="save-state" id="save-state"></span>
-<button class="text-button" id="share" type="button" data-i18n="share">Share</button>
+<button class="text-button" id="share" type="button" data-i18n="share" aria-controls="share-panel">Share</button>
 <button class="icon-button more" id="menu" type="button" aria-label="More" data-i18n-label="more" aria-controls="menu-panel">⋯</button>
+<div class="menu" id="share-panel" hidden></div>
 <div class="menu" id="menu-panel" hidden></div>
 </header>
 <main class="note-area" id="note-area">
@@ -81,6 +85,11 @@
 <button type="button" data-cmd="clear" aria-label="Clear formatting" data-i18n-label="clear"><svg width="16" height="16" viewBox="0 0 24 24"><path d="M8 4L3 18M8 4l5 14M5.2 13h6.4M4 20L20 4"/></svg></button>
 </div>
 </main>
+<footer class="shared-foot" id="shared-foot" hidden>
+<span data-i18n="madeWith">Made with Rabisco</span>
+<a href="/" data-i18n="createYours">Create your note</a>
+<button class="text-link" id="duplicate" type="button" data-i18n="duplicate">Duplicate</button>
+</footer>
 </div>
 </div>
 <div class="toast" id="toast" hidden></div>

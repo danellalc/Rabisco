@@ -48,6 +48,16 @@ body[data-view=note] .app,body[data-view=list] .app{display:flex}
 .list-foot .meta{overflow:hidden;text-overflow:ellipsis}
 .menu-item{display:block;width:100%;padding:var(--s2);text-align:left;border-radius:4px}
 .menu-item.danger{color:var(--c1)}
+.link-row{display:flex;align-items:center;gap:var(--s2);padding:var(--s1) var(--s2)}
+.link-field{flex:1;min-width:0;padding:var(--s1) 0;border:0;border-bottom:1px solid var(--line);background:none;color:var(--fg2);font-size:13px;outline:0}
+.copy{flex-shrink:0;padding:2px var(--s2);border:1.5px solid var(--acc);border-radius:4px;color:var(--acc);font-size:15px}
+body[data-view=shared] .app{display:flex}
+body[data-view=shared] .list,body[data-view=shared] #back,body[data-view=shared] #share,body[data-view=shared] #menu,body[data-mode=view] .note-header,body[data-mode=loading] .note-header{display:none}
+.shared-foot{align-items:baseline;gap:var(--s2);padding:var(--s3) var(--s4);border-top:1px solid var(--line);color:var(--fg2);font-size:13px;letter-spacing:.04em;text-transform:uppercase;flex-shrink:0}
+.shared-foot:not([hidden]){display:flex}
+.shared-foot a{color:var(--acc)}
+.shared-foot .text-link{align-self:auto;min-height:0;font-size:13px;letter-spacing:.04em;text-transform:uppercase}
+.note[contenteditable=false]{cursor:default}
 @media (max-width:719px){
 body[data-view=note] .list{display:none}
 body[data-view=list] .pane{display:none}

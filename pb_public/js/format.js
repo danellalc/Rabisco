@@ -196,7 +196,7 @@ export function createFormatter(root) {
 export function initChecklist(root, beforeChange) {
   root.addEventListener('click', (event) => {
     const item = event.target
-    if (!(item instanceof Element) || item.tagName !== 'LI' || event.offsetX > 24) return
+    if (!root.isContentEditable || !(item instanceof Element) || item.tagName !== 'LI' || event.offsetX > 24) return
     if (!item.parentElement.classList.contains('ck')) return
     beforeChange()
     item.classList.toggle('on')

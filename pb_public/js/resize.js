@@ -36,6 +36,7 @@ export function initResize({ note, area, selection, handle, beforeChange, afterC
     selected = img
     selection.hidden = false
     reposition()
+    if (!note.isContentEditable) return
     note.focus({ preventScroll: true })
     expectedCaret = placeCaretAfter(note, img.parentElement)
   }
@@ -68,7 +69,7 @@ export function initResize({ note, area, selection, handle, beforeChange, afterC
   })
 
   document.addEventListener('selectionchange', () => {
-    if (selected && !caretStillExpected()) clear()
+    if (selected && expectedCaret && !caretStillExpected()) clear()
   })
 
   note.addEventListener('focusout', clear)
@@ -117,7 +118,7 @@ export function initResize({ note, area, selection, handle, beforeChange, afterC
   })
 
   handle.addEventListener('pointerdown', (event) => {
-    if (!selected) return
+    if (!selected || !note.isContentEditable) return
     event.preventDefault()
     handle.setPointerCapture(event.pointerId)
     beforeChange()

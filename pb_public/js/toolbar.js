@@ -27,7 +27,7 @@ export function initToolbar({ note, area, bar, apply, active, beforeChange }) {
 
   const update = () => {
     const selection = document.getSelection()
-    const visible = selection.rangeCount > 0 && !selection.isCollapsed
+    const visible = note.isContentEditable && selection.rangeCount > 0 && !selection.isCollapsed
       && note.contains(selection.anchorNode) && note.contains(selection.focusNode)
     if (!visible) {
       bar.hidden = true

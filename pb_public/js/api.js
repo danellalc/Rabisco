@@ -1,4 +1,6 @@
 const REFRESH_WINDOW = 3600000
+const NOTE_FIELDS = 'id,content,updated,title,cover,pinned,share_mode,share_token,share_expires'
+const SUMMARY_FIELDS = 'id,updated,title,cover,pinned,share_mode,share_token,share_expires'
 
 export class ApiError extends Error {
   constructor(status, message, data) {
@@ -65,10 +67,11 @@ export function createApi({ getToken, getUserId, onSession = () => {} }) {
     refresh,
     listNotes: () => fresh('GET', '/api/collections/notes/records?sort=-pinned,-updated&perPage=200&skipTotal=1&fields=id,title,cover,pinned,updated'),
     listContents: () => fresh('GET', '/api/collections/notes/records?perPage=200&skipTotal=1&fields=id,content'),
-    getNote: (id) => fresh('GET', `/api/collections/notes/records/${id}?fields=id,content,updated,title,cover,pinned`),
-    createNote: () => fresh('POST', '/api/collections/notes/records?fields=id,content,updated,title,cover,pinned', { body: { content: '', user: getUserId() } }),
-    saveNote: (id, content, revision) => fresh('PATCH', `/api/collections/notes/records/${id}?fields=id,updated,title,cover,pinned`, { body: { content }, headers: { 'X-Note-Rev': revision } }),
-    pinNote: (id, pinned) => fresh('PATCH', `/api/collections/notes/records/${id}?fields=id,updated,title,cover,pinned`, { body: { pinned } }),
+    getNote: (id) => fresh('GET', `/api/collections/notes/records/${id}?fields=${NOTE_FIELDS}`),
+    createNote: (content = '') => fresh('POST', `/api/collections/notes/records?fields=${NOTE_FIELDS}`, { body: { content, user: getUserId() } }),
+    saveNote: (id, content, revision) => fresh('PATCH', `/api/collections/notes/records/${id}?fields=${SUMMARY_FIELDS}`, { body: { content }, headers: { 'X-Note-Rev': revision } }),
+    pinNote: (id, pinned) => fresh('PATCH', `/api/collections/notes/records/${id}?fields=${SUMMARY_FIELDS}`, { body: { pinned } }),
+    shareNote: (id, mode, expires) => fresh('PATCH', `/api/collections/notes/records/${id}?fields=${SUMMARY_FIELDS}`, { body: { share_mode: mode, share_expires: expires } }),
     deleteNote: (id) => fresh('DELETE', `/api/collections/notes/records/${id}`),
     uploadImage: (noteId, blob, name) => {
       const form = new FormData()
@@ -77,6 +80,8 @@ export function createApi({ getToken, getUserId, onSession = () => {} }) {
       form.append('file', blob, name)
       return fresh('POST', '/api/collections/images/records?fields=id,file', { body: form })
     },
-    imageUrl: (record) => `/api/files/images/${record.id}/${record.file}`
+    imageUrl: (record) => `/api/files/images/${record.id}/${record.file}`,
+    getShared: (token) => call('GET', '/api/shared', { headers: { 'X-Share-Token': token } }),
+    saveShared: (token, content, revision) => call('PATCH', '/api/shared', { body: { content }, headers: { 'X-Share-Token': token, 'X-Note-Rev': revision } })
   }
 }

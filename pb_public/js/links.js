@@ -59,7 +59,7 @@ function linkWordBeforeCaret(word) {
   return true
 }
 
-export function initLinks({ note, beforeChange }) {
+export function initLinks({ note, beforeChange, openOnClick = () => false }) {
   note.addEventListener('beforeinput', (event) => {
     const isSpace = event.inputType === 'insertText' && event.data === ' '
     if (!isSpace && event.inputType !== 'insertParagraph') return
@@ -90,7 +90,7 @@ export function initLinks({ note, beforeChange }) {
     const anchor = event.target.closest('a')
     if (!anchor) return
     const touch = matchMedia('(hover: none)').matches
-    if (!event.ctrlKey && !event.metaKey && !touch) return
+    if (!event.ctrlKey && !event.metaKey && !touch && !openOnClick()) return
     event.preventDefault()
     window.open(anchor.href, '_blank', 'noopener')
   })

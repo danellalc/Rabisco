@@ -87,7 +87,7 @@ export function initMove({ note, area, marker, beforeChange, onMoved }) {
   }
 
   note.addEventListener('pointerdown', (event) => {
-    if (event.button !== 0 || !(event.target instanceof Element)) return
+    if (event.button !== 0 || !note.isContentEditable || !(event.target instanceof Element)) return
     const img = event.target.closest('img')
     if (!img) return
     event.preventDefault()
