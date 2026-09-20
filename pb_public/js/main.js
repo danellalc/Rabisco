@@ -18,6 +18,7 @@ import { initToolbar } from './toolbar.js'
 
 store.settings = readSettings(localStorage)
 applySettings(document.documentElement, store.settings)
+if (/Android/.test(navigator.userAgent)) document.querySelector('meta[name=viewport]').content += ', interactive-widget=resizes-content'
 
 const language = pickLanguage(navigator.languages)
 const translate = createTranslator(language)

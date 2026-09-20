@@ -71,9 +71,8 @@ function overlapsText(range, element) {
 function unwrapTouching(root, selector) {
   const range = selectionRange(root)
   if (!range) return
-  for (const element of root.querySelectorAll(selector)) {
-    if (range.intersectsNode(element) && overlapsText(range, element)) unwrap(element)
-  }
+  const targets = [...root.querySelectorAll(selector)].filter((element) => range.intersectsNode(element) && overlapsText(range, element))
+  targets.forEach(unwrap)
 }
 
 function elementAtCaret(root) {
@@ -156,10 +155,7 @@ export function createFormatter(root) {
     hlNone: () => keepingSelection(root, () => unwrapTouching(root, 'mark')),
     cDefault: () => keepingSelection(root, () => unwrapTouching(root, COLOR_SELECTOR)),
     clear: () => {
-      keepingSelection(root, () => {
-        unwrapTouching(root, 'mark')
-        unwrapTouching(root, COLOR_SELECTOR)
-      })
+      keepingSelection(root, () => unwrapTouching(root, `mark,${COLOR_SELECTOR}`))
       document.execCommand('removeFormat')
       if (['H1', 'H2'].includes(currentBlockTag(root))) document.execCommand('formatBlock', false, '<div>')
     }

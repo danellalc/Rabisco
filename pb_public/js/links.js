@@ -73,8 +73,17 @@ export function initLinks({ note, beforeChange }) {
     event.preventDefault()
     beforeChange()
     if (!linkWordBeforeCaret(word)) return
-    if (isSpace) document.execCommand('insertText', false, ' ')
-    else document.execCommand('insertParagraph')
+    if (!isSpace) {
+      document.execCommand('insertParagraph')
+      return
+    }
+    const space = document.createTextNode(' ')
+    selection.getRangeAt(0).insertNode(space)
+    const afterSpace = document.createRange()
+    afterSpace.setStart(space, 1)
+    afterSpace.collapse(true)
+    selection.removeAllRanges()
+    selection.addRange(afterSpace)
   })
 
   note.addEventListener('click', (event) => {
