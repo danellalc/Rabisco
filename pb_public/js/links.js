@@ -59,12 +59,14 @@ function linkWordBeforeCaret(word) {
   return true
 }
 
-export function initLinks({ note, beforeChange, openOnClick = () => false }) {
-  note.addEventListener('beforeinput', (event) => {
+export function initLinks({ host, beforeChange }) {
+  host.layer.addEventListener('beforeinput', (event) => {
+    const root = host.active()
+    if (!root || !root.contains(event.target)) return
     const isSpace = event.inputType === 'insertText' && event.data === ' '
     if (!isSpace && event.inputType !== 'insertParagraph') return
     const selection = document.getSelection()
-    if (selection.rangeCount === 0 || !selection.isCollapsed || !note.contains(selection.anchorNode)) return
+    if (selection.rangeCount === 0 || !selection.isCollapsed || !root.contains(selection.anchorNode)) return
     const caret = selection.getRangeAt(0)
     const node = caret.startContainer
     if (node.nodeType !== Node.TEXT_NODE || node.parentElement.closest('a')) return
@@ -86,11 +88,12 @@ export function initLinks({ note, beforeChange, openOnClick = () => false }) {
     selection.addRange(afterSpace)
   })
 
-  note.addEventListener('click', (event) => {
-    const anchor = event.target.closest('a')
+  host.layer.addEventListener('click', (event) => {
+    const anchor = event.target.closest('.note a')
     if (!anchor) return
+    const root = host.rootOf(anchor)
     const touch = matchMedia('(hover: none)').matches
-    if (!event.ctrlKey && !event.metaKey && !touch && !openOnClick()) return
+    if (root === host.active() && !event.ctrlKey && !event.metaKey && !touch) return
     event.preventDefault()
     window.open(anchor.href, '_blank', 'noopener')
   })

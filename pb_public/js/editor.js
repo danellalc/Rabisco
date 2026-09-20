@@ -190,8 +190,10 @@ export function shiftImageBlock(root, img, direction) {
   block.scrollIntoView({ block: 'nearest' })
 }
 
-export function createInsertImage(root, { onInserted, onFailed }) {
+export function createInsertImage(host, { onInserted, onFailed }) {
   return (file) => {
+    const root = host.active()
+    if (!root) return
     const img = document.createElement('img')
     img.alt = ''
     img.draggable = false

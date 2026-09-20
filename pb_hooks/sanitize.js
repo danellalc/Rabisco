@@ -198,4 +198,4 @@ function sanitizeHtml(input) {
   return output.join('')
 }
 
-module.exports = { sanitizeHtml, ALLOWED_TAGS, CLASS_TOKENS }
+module.exports = { sanitizeHtml, safeHref, safeImageSource, ALLOWED_TAGS, CLASS_TOKENS }

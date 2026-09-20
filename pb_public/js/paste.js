@@ -50,18 +50,27 @@ function insertFromTransfer(root, transfer, handlers) {
   handlers.insertText(text)
 }
 
-export function initPaste(root, handlers) {
-  root.addEventListener('paste', (event) => {
+export function initPaste({ host, area }, handlers) {
+  document.addEventListener('paste', (event) => {
+    if (event.target instanceof Element && event.target.matches('input')) return
+    const root = host.active()
     event.preventDefault()
-    insertFromTransfer(root, event.clipboardData, handlers)
+    if (root && root.contains(document.activeElement)) insertFromTransfer(root, event.clipboardData, handlers)
+    else handlers.boardPaste(event.clipboardData, null)
   })
 
-  root.addEventListener('dragover', (event) => event.preventDefault())
+  area.addEventListener('dragover', (event) => event.preventDefault())
 
-  root.addEventListener('drop', (event) => {
+  area.addEventListener('drop', (event) => {
     event.preventDefault()
-    root.focus()
-    placeCaretAtPoint(event.clientX, event.clientY)
-    insertFromTransfer(root, event.dataTransfer, handlers)
+    const root = host.active()
+    const hit = document.elementFromPoint(event.clientX, event.clientY)
+    if (root && hit && root.contains(hit)) {
+      root.focus()
+      placeCaretAtPoint(event.clientX, event.clientY)
+      insertFromTransfer(root, event.dataTransfer, handlers)
+      return
+    }
+    handlers.boardPaste(event.dataTransfer, { x: event.clientX, y: event.clientY })
   })
 }

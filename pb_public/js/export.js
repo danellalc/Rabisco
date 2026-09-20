@@ -10,6 +10,17 @@ export function treeOf(node) {
   return { tag: node.tagName.toLowerCase(), attrs, children: [...node.childNodes].map(treeOf) }
 }
 
+export function treeOfBoard(elements) {
+  const children = []
+  for (const element of elements) {
+    const type = element.dataset.type
+    if (type === 'text') children.push(...treeOf(element.querySelector('.note')).children)
+    else if (type === 'image') children.push({ tag: 'div', attrs: {}, children: [treeOf(element.querySelector('img'))] })
+    else if (type === 'link') children.push({ tag: 'div', attrs: {}, children: [{ tag: 'a', attrs: { href: element.href }, children: [element.textContent.trim()] }] })
+  }
+  return { tag: 'div', attrs: {}, children }
+}
+
 export function fileName(title, extension) {
   const clean = Array.from(String(title || '').replace(/[\\/:*?"<>|\u0000-\u001f]/g, '')).slice(0, FILE_NAME_LIMIT).join('').trim()
   return `${clean || 'rabisco'}.${extension}`

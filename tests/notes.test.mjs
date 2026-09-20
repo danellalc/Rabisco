@@ -1,18 +1,20 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { expiryChoice, isShareExpired, isSuspiciousShrink, nextRetryDelay, readDraft, writeDraft } from '../pb_public/js/notes.js'
+import { expiryChoice, isShareExpired, isSuspiciousShrink, nextRetryDelay, readCamera, readDraft, writeCamera, writeDraft } from '../pb_public/js/boards.js'
 import { errorKey, magicLinkFrom, readAuth, writeAuth } from '../pb_public/js/auth.js'
+import { migrateStorage } from '../pb_public/js/store.js'
 
 const memoryStorage = () => {
   const data = new Map()
-  return {
+  const storage = {
     getItem: (key) => data.get(key) ?? null,
-    setItem: (key, value) => data.set(key, value),
-    removeItem: (key) => data.delete(key)
+    setItem: (key, value) => { data.set(key, value); storage[key] = value },
+    removeItem: (key) => { data.delete(key); delete storage[key] }
   }
+  return storage
 }
 
-test('a big note that suddenly shrinks is suspicious, small notes are not', () => {
+test('a big board that suddenly shrinks is suspicious, small boards are not', () => {
   assert.equal(isSuspiciousShrink(5000, 1000), true)
   assert.equal(isSuspiciousShrink(5000, 4000), false)
   assert.equal(isSuspiciousShrink(500, 10), false)
@@ -36,14 +38,32 @@ test('share expiry is read from the stored date', () => {
   assert.equal(expiryChoice('2026-09-26 12:00:00.000Z', now), '7d')
 })
 
-test('drafts round trip and reject junk', () => {
+test('drafts and cameras round trip and reject junk', () => {
   const storage = memoryStorage()
-  writeDraft(storage, 'n1', { html: '<div>x</div>', revision: 'r1', at: 1 })
-  assert.deepEqual(readDraft(storage, 'n1'), { html: '<div>x</div>', revision: 'r1', at: 1 })
-  writeDraft(storage, 'n1', null)
-  assert.equal(readDraft(storage, 'n1'), null)
-  storage.setItem('rabisco.draft:n2', '{bad')
-  assert.equal(readDraft(storage, 'n2'), null)
+  writeDraft(storage, 'b1', { content: '[]', revision: 'r1', at: 1 })
+  assert.deepEqual(readDraft(storage, 'b1'), { content: '[]', revision: 'r1', at: 1 })
+  writeDraft(storage, 'b1', null)
+  assert.equal(readDraft(storage, 'b1'), null)
+  storage.setItem('trecos.draft:b2', '{bad')
+  assert.equal(readDraft(storage, 'b2'), null)
+  writeCamera(storage, 'b1', { zoom: 0.5, x: 10, y: -20 })
+  assert.deepEqual(readCamera(storage, 'b1'), { zoom: 0.5, x: 10, y: -20 })
+  storage.setItem('trecos.camera:b3', '{"zoom":"big"}')
+  assert.equal(readCamera(storage, 'b3'), null)
+})
+
+test('old storage keys move to the new prefix and old drafts are dropped', () => {
+  const storage = memoryStorage()
+  storage.setItem('rabisco.auth', '{"token":"t","userId":"u"}')
+  storage.setItem('rabisco.settings', '{"theme":"dark"}')
+  storage.setItem('rabisco.draft:n1', '{"html":"x"}')
+  storage.setItem('trecos.settings', '{"theme":"light"}')
+  migrateStorage(storage)
+  assert.equal(storage.getItem('trecos.auth'), '{"token":"t","userId":"u"}')
+  assert.equal(storage.getItem('trecos.settings'), '{"theme":"light"}')
+  assert.equal(storage.getItem('rabisco.auth'), null)
+  assert.equal(storage.getItem('rabisco.draft:n1'), null)
+  assert.equal(storage.getItem('trecos.draft:n1'), null)
 })
 
 test('auth round trip and validation', () => {
@@ -52,7 +72,7 @@ test('auth round trip and validation', () => {
   assert.deepEqual(readAuth(storage), { token: 't', userId: 'u' })
   writeAuth(storage, null)
   assert.equal(readAuth(storage), null)
-  storage.setItem('rabisco.auth', '{"token":1}')
+  storage.setItem('trecos.auth', '{"token":1}')
   assert.equal(readAuth(storage), null)
 })
 

@@ -48,12 +48,14 @@ function emptyBlock(block) {
   return wrapped
 }
 
-export function initShortcuts({ note, apply, beforeChange, insertDate }) {
-  note.addEventListener('beforeinput', (event) => {
+export function initShortcuts({ host, apply, beforeChange, insertDate }) {
+  host.layer.addEventListener('beforeinput', (event) => {
+    const root = host.active()
+    if (!root || !root.contains(event.target)) return
     const isSpace = event.inputType === 'insertText' && event.data === ' '
     const isEnter = event.inputType === 'insertParagraph'
     if (!isSpace && !isEnter) return
-    const found = rangeFromBlockStart(note)
+    const found = rangeFromBlockStart(root)
     if (!found) return
     const text = found.range.toString()
     if (isSpace) {
@@ -71,12 +73,13 @@ export function initShortcuts({ note, apply, beforeChange, insertDate }) {
       beforeChange()
       found.range.deleteContents()
       emptyBlock(found.block)
-      insertBlock(note, document.createElement('hr'))
+      insertBlock(root, document.createElement('hr'))
     }
   })
 
   document.addEventListener('keydown', (event) => {
-    if (!note.contains(document.activeElement)) return
+    const root = host.active()
+    if (!root || !root.contains(document.activeElement)) return
     const command = keyShortcut(event)
     if (!command) return
     event.preventDefault()

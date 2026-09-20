@@ -17,7 +17,7 @@ function findShared(e) {
   if (token.length < MIN_TOKEN_LENGTH) throw new NotFoundError('Link not active.')
   let record
   try {
-    record = e.app.findFirstRecordByData('notes', 'share_token', token)
+    record = e.app.findFirstRecordByData('boards', 'share_token', token)
   } catch (error) {
     throw new NotFoundError('Link not active.')
   }
@@ -28,7 +28,7 @@ function findShared(e) {
 }
 
 function expireShares(app) {
-  const records = app.findRecordsByFilter('notes', "share_mode != 'off' && share_expires != '' && share_expires < @now", '', 200, 0)
+  const records = app.findRecordsByFilter('boards', "share_mode != 'off' && share_expires != '' && share_expires < @now", '', 200, 0)
   for (let index = 0; index < records.length; index++) {
     records[index].set('share_mode', 'off')
     records[index].set('share_token', '')

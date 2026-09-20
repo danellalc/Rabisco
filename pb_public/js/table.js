@@ -14,8 +14,10 @@ export function parseTable(text) {
     .map((line) => line.split('\t'))
 }
 
-export function createInsertTable(root) {
+export function createInsertTable(host) {
   return (text) => {
+    const root = host.active()
+    if (!root) return
     const table = document.createElement('table')
     const body = document.createElement('tbody')
     for (const cells of parseTable(text)) {

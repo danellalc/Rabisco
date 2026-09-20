@@ -1,6 +1,6 @@
 import { choices } from './settings.js'
 
-const MENU_SETTINGS = ['theme', 'width']
+const MENU_SETTINGS = ['theme']
 const labelKey = (key, value) => key + value[0].toUpperCase() + value.slice(1)
 
 export function initMenu({ button, menu, translate, settings, actions, onChange }) {

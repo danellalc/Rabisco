@@ -1,9 +1,8 @@
-import { render, serialize } from './sanitize.js'
-import { nextRetryDelay } from './notes.js'
+import { nextRetryDelay } from './boards.js'
 
 const SAVE_DELAY = 1000
 
-export function createVisitor({ api, token, note, history, chooser, translate, setState, showToast, onReady }) {
+export function createVisitor({ api, token, board, layer, history, chooser, translate, setState, showToast, onReady }) {
   let mode = 'view'
   let revision = ''
   let dirty = false
@@ -11,22 +10,22 @@ export function createVisitor({ api, token, note, history, chooser, translate, s
   let timer = 0
   let retryDelay = 0
 
-  const editable = () => mode === 'edit' && note.isContentEditable
+  const editable = () => mode === 'edit'
 
   const lock = () => {
     mode = 'view'
     dirty = false
     clearTimeout(timer)
-    note.contentEditable = 'false'
+    board.setEditable(false)
     onReady('view')
   }
 
   const apply = (shared) => {
     mode = shared.mode
     revision = shared.revision
-    render(note, shared.content)
+    board.load(shared.content)
     history.reset()
-    note.contentEditable = mode === 'edit' ? 'true' : 'false'
+    board.setEditable(mode === 'edit')
     dirty = false
     if (mode === 'edit') setState('saved')
   }
@@ -55,14 +54,22 @@ export function createVisitor({ api, token, note, history, chooser, translate, s
     ], { focus: false, onDismiss: () => setState('error') })
   }
 
+  const dropPendingImages = () => {
+    for (const img of layer.querySelectorAll('img[src^="blob:"]')) {
+      const item = img.closest('.item')
+      if (item && item.dataset.type === 'image') board.remove([item.dataset.id])
+      else img.parentElement.remove()
+    }
+  }
+
   const save = async () => {
     if (!dirty || saving || !editable()) return
-    for (const img of note.querySelectorAll('img[src^="blob:"]')) img.parentElement.remove()
-    const html = serialize(note)
+    dropPendingImages()
+    const content = board.serialize()
     saving = true
     dirty = false
     try {
-      const result = await api.saveShared(token, html, revision)
+      const result = await api.saveShared(token, content, revision)
       revision = result.revision
       retryDelay = 0
       setState(dirty ? 'saving' : 'saved')
@@ -94,7 +101,7 @@ export function createVisitor({ api, token, note, history, chooser, translate, s
       onReady(mode)
     } catch (error) {
       const gone = Boolean(error && error.status === 404)
-      note.textContent = translate(gone ? 'linkGone' : 'loadFailed')
+      board.setMessage(translate(gone ? 'linkGone' : 'loadFailed'))
       lock()
       if (!gone) window.addEventListener('online', load, { once: true })
     }

@@ -28,21 +28,17 @@ onRecordRequestOTPRequest((e) => {
 onRecordCreateRequest((e) => {
   e.record.set('user', e.auth ? e.auth.id : '')
   e.next()
-}, 'notes', 'images')
+}, 'boards', 'images')
 
 onRecordCreateRequest((e) => {
-  const { sanitizeHtml } = require(`${__hooks}/sanitize.js`)
-  const { titleOf, coverOf } = require(`${__hooks}/summary.js`)
   const { nextRevision } = require(`${__hooks}/revision.js`)
-  const content = sanitizeHtml(e.record.getString('content'))
-  e.record.set('content', content)
-  e.record.set('title', titleOf(content))
-  e.record.set('cover', coverOf(content))
+  const { applyBoard } = require(`${__hooks}/items.js`)
+  applyBoard(e.record, e.record.getString('content'))
   e.record.set('revision', nextRevision())
   e.record.set('share_mode', 'off')
   e.record.set('share_token', '')
   e.next()
-}, 'notes')
+}, 'boards')
 
 routerAdd('GET', '/api/shared', (e) => {
   const { findShared } = require(`${__hooks}/share.js`)
@@ -57,23 +53,20 @@ routerAdd('GET', '/api/shared', (e) => {
 
 routerAdd('PATCH', '/api/shared', (e) => {
   const { findShared } = require(`${__hooks}/share.js`)
-  const { sanitizeHtml } = require(`${__hooks}/sanitize.js`)
-  const { titleOf, coverOf } = require(`${__hooks}/summary.js`)
   const { claimRevision, nextRevision } = require(`${__hooks}/revision.js`)
+  const { applyBoard } = require(`${__hooks}/items.js`)
   const record = findShared(e)
   if (record.getString('share_mode') !== 'edit') throw new ForbiddenError('This link is view only.')
   const info = e.requestInfo()
   const expected = String(info.headers.x_note_rev || '')
   if (expected !== '' && expected !== record.getString('revision')) {
-    throw new ApiError(409, 'The note changed elsewhere.', { revision: record.getString('revision') })
+    throw new ApiError(409, 'The board changed elsewhere.', { revision: record.getString('revision') })
   }
-  const content = sanitizeHtml(String(info.body.content || ''))
-  if (content !== record.getString('content')) {
+  const previous = record.getString('content')
+  const content = applyBoard(record, String(info.body.content || '[]'))
+  if (content !== previous) {
     record.set('revision', expected === '' ? nextRevision() : claimRevision(e.app, record.id, expected))
   }
-  record.set('content', content)
-  record.set('title', titleOf(content))
-  record.set('cover', coverOf(content))
   e.app.save(record)
   return e.json(200, { revision: record.getString('revision') })
 })
@@ -86,23 +79,19 @@ cronAdd('expire-shares', '*/15 * * * *', () => {
 })
 
 onRecordUpdateRequest((e) => {
-  const { sanitizeHtml } = require(`${__hooks}/sanitize.js`)
-  const { titleOf, coverOf } = require(`${__hooks}/summary.js`)
   const { isExpired, nextShare } = require(`${__hooks}/share.js`)
   const { claimRevision, nextRevision } = require(`${__hooks}/revision.js`)
+  const { applyBoard } = require(`${__hooks}/items.js`)
   const info = e.requestInfo()
   const original = e.record.original()
   const expected = String(info.headers.x_note_rev || '')
   if (expected !== '' && expected !== original.getString('revision')) {
-    throw new ApiError(409, 'The note changed elsewhere.', { revision: original.getString('revision') })
+    throw new ApiError(409, 'The board changed elsewhere.', { revision: original.getString('revision') })
   }
-  const content = sanitizeHtml(e.record.getString('content'))
+  const content = applyBoard(e.record, e.record.getString('content'))
   if (content !== original.getString('content')) {
     e.record.set('revision', expected === '' ? nextRevision() : claimRevision(e.app, e.record.id, expected))
   }
-  e.record.set('content', content)
-  e.record.set('title', titleOf(content))
-  e.record.set('cover', coverOf(content))
   const share = nextShare({
     mode: e.record.getString('share_mode'),
     modeGiven: info.body.share_mode !== undefined,
@@ -115,4 +104,4 @@ onRecordUpdateRequest((e) => {
   e.record.set('share_token', share.token)
   if (share.expires !== undefined) e.record.set('share_expires', share.expires)
   e.next()
-}, 'notes')
+}, 'boards')

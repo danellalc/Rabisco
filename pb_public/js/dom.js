@@ -38,6 +38,45 @@ export function createToast(element) {
   }
 }
 
+export function createPopover(element) {
+  const close = () => {
+    element.hidden = true
+    element.replaceChildren()
+    document.removeEventListener('pointerdown', closeIfOutside, true)
+    document.removeEventListener('keydown', closeOnEscape)
+  }
+  const closeIfOutside = (event) => {
+    if (!element.contains(event.target)) close()
+  }
+  const closeOnEscape = (event) => {
+    if (event.key === 'Escape') close()
+  }
+
+  const open = (actions, anchor) => {
+    close()
+    for (const action of actions) {
+      const item = document.createElement('button')
+      item.type = 'button'
+      item.className = action.danger ? 'menu-item danger' : 'menu-item'
+      item.textContent = action.label
+      item.addEventListener('click', () => {
+        close()
+        action.run()
+      })
+      element.append(item)
+    }
+    const parent = element.offsetParent || element.parentElement
+    const box = parent.getBoundingClientRect()
+    element.hidden = false
+    element.style.top = `${anchor.bottom - box.top + 4}px`
+    element.style.left = `${Math.max(8, Math.min(anchor.right - box.left - element.offsetWidth, parent.clientWidth - element.offsetWidth - 8))}px`
+    document.addEventListener('pointerdown', closeIfOutside, true)
+    document.addEventListener('keydown', closeOnEscape)
+  }
+
+  return { open, close }
+}
+
 export function createChooser(element) {
   let fallback = null
   let dismissed = () => {}

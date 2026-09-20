@@ -4,11 +4,11 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="color-scheme" content="light dark">
-<meta name="theme-color" content="#efefef" media="(prefers-color-scheme: light)">
-<meta name="theme-color" content="#161616" media="(prefers-color-scheme: dark)">
-<title>Rabisco</title>
-<meta property="og:title" content="Rabisco">
-<meta property="og:description" content="Uma nota compartilhada com você · A note shared with you">
+<meta name="theme-color" content="#edebe7" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#191816" media="(prefers-color-scheme: dark)">
+<title>Trecos</title>
+<meta property="og:title" content="Trecos">
+<meta property="og:description" content="Um quadro compartilhado com você · A board shared with you">
 <meta property="og:type" content="website">
 <link rel="manifest" href="/manifest.json">
 <link rel="icon" href="/icon.svg" type="image/svg+xml">
@@ -19,13 +19,13 @@
 <body>
 <section class="login" id="login">
 <form class="login-form" id="email-form">
-<p class="login-title">Rabisco</p>
+<p class="login-title">Trecos</p>
 <input class="field" id="email" type="email" required autocomplete="email" placeholder="you@example.com" data-i18n-input="emailPlaceholder">
 <p class="login-error" id="email-error" hidden></p>
 <button class="primary" type="submit" data-i18n="getCode">Get a code</button>
 </form>
 <form class="login-form" id="code-form" hidden>
-<p class="login-title">Rabisco</p>
+<p class="login-title">Trecos</p>
 <p class="login-note" id="code-note"></p>
 <input class="field" id="code" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="6" required placeholder="6-digit code" data-i18n-input="codePlaceholder">
 <p class="login-error" id="code-error" hidden></p>
@@ -38,7 +38,7 @@
 <aside class="list" id="list">
 <div class="list-top">
 <input class="search" id="search" type="search" placeholder="Search" aria-label="Search" data-i18n-input="search" data-i18n-label="search">
-<button class="new" id="new" type="button" aria-label="New note" data-i18n-label="newNote">+</button>
+<button class="new" id="new" type="button" aria-label="New board" data-i18n-label="newBoard">+</button>
 </div>
 <div class="rows" id="rows"></div>
 <div class="list-foot">
@@ -54,12 +54,16 @@
 </button>
 <span class="save-state" id="save-state"></span>
 <button class="text-button" id="share" type="button" data-i18n="share" aria-controls="share-panel">Share</button>
-<button class="icon-button more" id="menu" type="button" aria-label="More" data-i18n-label="more" aria-controls="menu-panel">⋯</button>
+<button class="icon-button more-button" id="menu" type="button" aria-label="More" data-i18n-label="more" aria-controls="menu-panel">⋯</button>
 <div class="menu" id="share-panel" hidden></div>
 <div class="menu" id="menu-panel" hidden></div>
 </header>
-<main class="note-area" id="note-area">
-<div class="note" id="note" contenteditable="true" data-placeholder="Write" data-i18n-placeholder="placeholder"></div>
+<main class="board" id="board" data-editable="false">
+<div class="layer" id="layer"></div>
+<div class="lasso" id="lasso" hidden></div>
+<div class="guide guide-x" id="guide-x" hidden></div>
+<div class="guide guide-y" id="guide-y" hidden></div>
+<p class="board-message" id="board-message" hidden></p>
 <div class="image-selection" id="image-selection" hidden>
 <div class="resize-handle" id="resize-handle"></div>
 </div>
@@ -89,10 +93,17 @@
 <span class="sep"></span>
 <button type="button" data-cmd="clear" aria-label="Clear formatting" data-i18n-label="clear"><svg width="16" height="16" viewBox="0 0 24 24"><path d="M8 4L3 18M8 4l5 14M5.2 13h6.4M4 20L20 4"/></svg></button>
 </div>
+<div class="zoom" id="zoom">
+<button type="button" id="zoom-out" aria-label="Zoom out" data-i18n-label="zoomOut">−</button>
+<span id="zoom-level">100%</span>
+<button type="button" id="zoom-in" aria-label="Zoom in" data-i18n-label="zoomIn">+</button>
+<button type="button" id="fit" aria-label="Fit all" data-i18n-label="fit"><svg width="20" height="20" viewBox="0 0 24 24"><path d="M4 9V6a2 2 0 0 1 2-2h3M15 4h3a2 2 0 0 1 2 2v3M20 15v3a2 2 0 0 1-2 2h-3M9 20H6a2 2 0 0 1-2-2v-3"/></svg></button>
+</div>
+<div class="menu item-menu" id="item-menu" hidden></div>
 </main>
 <footer class="shared-foot" id="shared-foot" hidden>
-<span data-i18n="madeWith">Made with Rabisco</span>
-<a href="/" data-i18n="createYours">Create your note</a>
+<span data-i18n="madeWith">Made with Trecos</span>
+<a href="/" data-i18n="createYours">Create your own board</a>
 <button class="text-link" id="duplicate" type="button" data-i18n="duplicate">Duplicate</button>
 </footer>
 </div>

@@ -1,4 +1,4 @@
-export const SHARE_CACHE = 'rabisco-share'
+export const SHARE_CACHE = 'trecos-share'
 export const SHARE_HASH = '#share-target'
 
 const hasCaches = () => typeof caches !== 'undefined'

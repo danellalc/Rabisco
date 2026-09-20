@@ -1,7 +1,7 @@
 const MINUTE = 60000
 const HOUR = 60 * MINUTE
 const DAY = 24 * HOUR
-const listKey = 'rabisco.list'
+const listKey = 'trecos.list'
 
 export function normalize(text) {
   return String(text || '').normalize('NFD').replace(/\p{M}/gu, '').toLowerCase()
@@ -78,7 +78,7 @@ export function initList({ rows, search, translate, language, onOpen, onSearchCo
     }
     const title = document.createElement('span')
     title.className = 'title'
-    title.textContent = item.title || translate(item.cover ? 'imageNote' : 'untitled')
+    title.textContent = item.title || translate(item.cover ? 'imageBoard' : 'untitled')
     button.append(title)
     const time = document.createElement('span')
     time.className = 'time'
@@ -103,7 +103,7 @@ export function initList({ rows, search, translate, language, onOpen, onSearchCo
     if (visible.length === 0) {
       const empty = document.createElement('p')
       empty.className = 'empty'
-      empty.textContent = translate(items.length === 0 && !query.trim() ? 'noNotes' : 'noResults')
+      empty.textContent = translate(items.length === 0 && !query.trim() ? 'noBoards' : 'noResults')
       rows.append(empty)
     }
     if (focused) {

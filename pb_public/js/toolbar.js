@@ -4,7 +4,7 @@ function clamp(value, min, max) {
   return Math.min(max, Math.max(min, value))
 }
 
-export function initToolbar({ note, area, bar, apply, active, beforeChange }) {
+export function initToolbar({ host, area, bar, apply, active, beforeChange }) {
   let timer = 0
   const isPhone = () => matchMedia('(max-width:719px)').matches
 
@@ -19,16 +19,17 @@ export function initToolbar({ note, area, bar, apply, active, beforeChange }) {
     const rect = range.getBoundingClientRect()
     const areaBox = area.getBoundingClientRect()
     const above = rect.top - areaBox.top >= bar.offsetHeight + GAP
-    const top = (above ? rect.top - bar.offsetHeight - GAP : rect.bottom + GAP) - areaBox.top + area.scrollTop
+    const top = (above ? rect.top - bar.offsetHeight - GAP : rect.bottom + GAP) - areaBox.top
     const left = clamp(rect.left + rect.width / 2 - bar.offsetWidth / 2 - areaBox.left, GAP, area.clientWidth - bar.offsetWidth - GAP)
     bar.style.top = `${top}px`
     bar.style.left = `${left}px`
   }
 
   const update = () => {
+    const root = host.active()
     const selection = document.getSelection()
-    const visible = note.isContentEditable && selection.rangeCount > 0 && !selection.isCollapsed
-      && note.contains(selection.anchorNode) && note.contains(selection.focusNode)
+    const visible = Boolean(root) && selection.rangeCount > 0 && !selection.isCollapsed
+      && root.contains(selection.anchorNode) && root.contains(selection.focusNode)
     if (!visible) {
       bar.hidden = true
       return
@@ -48,7 +49,6 @@ export function initToolbar({ note, area, bar, apply, active, beforeChange }) {
   }
 
   document.addEventListener('selectionchange', scheduleUpdate)
-  area.addEventListener('scroll', () => { if (!bar.hidden) update() })
   if (window.visualViewport) {
     window.visualViewport.addEventListener('resize', () => { if (!bar.hidden) update() })
     window.visualViewport.addEventListener('scroll', () => { if (!bar.hidden) update() })
@@ -64,4 +64,6 @@ export function initToolbar({ note, area, bar, apply, active, beforeChange }) {
     apply(button.dataset.cmd)
     update()
   })
+
+  return { update }
 }

@@ -139,40 +139,43 @@ function paint(root, selector, tag, className) {
   keepingSelection(root, () => retag(root, 'font[color]', tag, className))
 }
 
-export function createFormatter(root) {
+export function createFormatter(host) {
   const commands = {
     bold: () => document.execCommand('bold'),
     italic: () => document.execCommand('italic'),
     underline: () => document.execCommand('underline'),
-    strike: () => {
+    strike: (root) => {
       document.execCommand('strikeThrough')
       keepingSelection(root, () => retag(root, 'strike', 's'))
     },
-    heading1: () => toggleBlock(root, 'h1'),
-    heading2: () => toggleBlock(root, 'h2'),
-    bulletList: () => toggleList(root, false, false),
-    numberedList: () => toggleList(root, true, false),
-    checklist: () => toggleList(root, false, true),
-    hlNone: () => keepingSelection(root, () => unwrapTouching(root, 'mark')),
-    cDefault: () => keepingSelection(root, () => unwrapTouching(root, COLOR_SELECTOR)),
-    clear: () => {
+    heading1: (root) => toggleBlock(root, 'h1'),
+    heading2: (root) => toggleBlock(root, 'h2'),
+    bulletList: (root) => toggleList(root, false, false),
+    numberedList: (root) => toggleList(root, true, false),
+    checklist: (root) => toggleList(root, false, true),
+    hlNone: (root) => keepingSelection(root, () => unwrapTouching(root, 'mark')),
+    cDefault: (root) => keepingSelection(root, () => unwrapTouching(root, COLOR_SELECTOR)),
+    clear: (root) => {
       keepingSelection(root, () => unwrapTouching(root, `mark,${COLOR_SELECTOR}`))
       document.execCommand('removeFormat')
       if (['H1', 'H2'].includes(currentBlockTag(root))) document.execCommand('formatBlock', false, '<div>')
     }
   }
-  for (const name of HIGHLIGHTS) commands[name] = () => paint(root, 'mark', 'mark', name)
-  for (const name of COLORS) commands[name] = () => paint(root, COLOR_SELECTOR, 'span', name)
+  for (const name of HIGHLIGHTS) commands[name] = (root) => paint(root, 'mark', 'mark', name)
+  for (const name of COLORS) commands[name] = (root) => paint(root, COLOR_SELECTOR, 'span', name)
 
   const apply = (name) => {
     const command = commands[name]
-    if (!command) return
+    const root = host.active()
+    if (!command || !root) return
     root.focus({ preventScroll: true })
-    command()
+    command(root)
   }
 
   const active = () => {
     const set = new Set()
+    const root = host.active()
+    if (!root) return set
     if (document.queryCommandState('bold')) set.add('bold')
     if (document.queryCommandState('italic')) set.add('italic')
     if (document.queryCommandState('underline')) set.add('underline')
@@ -194,17 +197,19 @@ export function createFormatter(root) {
   return { apply, active }
 }
 
-export function initChecklist(root, beforeChange) {
-  root.addEventListener('click', (event) => {
+export function initChecklist(host, beforeChange) {
+  host.layer.addEventListener('click', (event) => {
     const item = event.target
-    if (!root.isContentEditable || !(item instanceof Element) || item.tagName !== 'LI' || event.offsetX > 24) return
+    const root = item instanceof Element ? host.rootOf(item) : null
+    if (!root || root !== host.active() || item.tagName !== 'LI' || event.offsetX > 24) return
     if (!item.parentElement.classList.contains('ck')) return
     beforeChange()
     item.classList.toggle('on')
   })
 
-  root.addEventListener('input', (event) => {
-    if (event.inputType !== 'insertParagraph') return
+  host.layer.addEventListener('input', (event) => {
+    const root = host.active()
+    if (event.inputType !== 'insertParagraph' || !root || !root.contains(event.target)) return
     const element = elementAtCaret(root)
     const item = element ? element.closest('li') : null
     if (!item || !item.parentElement.classList.contains('ck') || !item.classList.contains('on')) return

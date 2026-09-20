@@ -1,7 +1,7 @@
-const storageKey = 'rabisco.settings'
+const storageKey = 'trecos.settings'
 
-export const defaults = { theme: 'system', width: 'wide', sidebar: 'open' }
-export const choices = { theme: ['system', 'light', 'dark'], width: ['normal', 'wide'], sidebar: ['open', 'closed'] }
+export const defaults = { theme: 'system', sidebar: 'open' }
+export const choices = { theme: ['system', 'light', 'dark'], sidebar: ['open', 'closed'] }
 
 export function sanitizeSettings(raw) {
   const result = { ...defaults }
@@ -31,6 +31,5 @@ export function writeSettings(storage, settings) {
 export function applySettings(root, settings) {
   if (settings.theme === 'system') delete root.dataset.theme
   else root.dataset.theme = settings.theme
-  root.dataset.width = settings.width
   root.dataset.sidebar = settings.sidebar
 }

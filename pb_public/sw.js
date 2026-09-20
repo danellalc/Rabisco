@@ -1,6 +1,6 @@
 const VERSION = 'dev'
-const CACHE = `rabisco-${VERSION}`
-const SHARE_CACHE = 'rabisco-share'
+const CACHE = `trecos-${VERSION}`
+const SHARE_CACHE = 'trecos-share'
 const SHARE_PATH = '/share-target'
 const MAX_SHARE_BYTES = 25 * 1024 * 1024
 const ASSETS = [
@@ -10,6 +10,9 @@ const ASSETS = [
   '/icon.svg',
   '/js/api.js',
   '/js/auth.js',
+  '/js/board.js',
+  '/js/boards.js',
+  '/js/camera.js',
   '/js/dom.js',
   '/js/duplicate.js',
   '/js/editor.js',
@@ -18,13 +21,13 @@ const ASSETS = [
   '/js/history.js',
   '/js/i18n.js',
   '/js/images.js',
+  '/js/items.js',
   '/js/lightbox.js',
   '/js/links.js',
   '/js/list.js',
   '/js/main.js',
   '/js/menu.js',
   '/js/move.js',
-  '/js/notes.js',
   '/js/paste.js',
   '/js/resize.js',
   '/js/sanitize.js',
@@ -32,6 +35,7 @@ const ASSETS = [
   '/js/share-target.js',
   '/js/share.js',
   '/js/shortcuts.js',
+  '/js/snap.js',
   '/js/store.js',
   '/js/table.js',
   '/js/toolbar.js',

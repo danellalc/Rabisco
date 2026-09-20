@@ -1,4 +1,3 @@
-import { render, serialize } from './sanitize.js'
 import { parseDate, readList, writeList } from './list.js'
 import { expiryDate } from './share.js'
 
@@ -8,8 +7,9 @@ const RETRY_MIN = 2000
 const RETRY_MAX = 30000
 const SHRINK_MIN_LENGTH = 2000
 const SHRINK_RATIO = 0.3
-const lastKey = 'rabisco.last'
-const draftKey = (id) => `rabisco.draft:${id}`
+const lastKey = 'trecos.last'
+const draftKey = (id) => `trecos.draft:${id}`
+const cameraKey = (id) => `trecos.camera:${id}`
 
 export function isSuspiciousShrink(previousLength, nextLength) {
   return previousLength > SHRINK_MIN_LENGTH && nextLength < previousLength * SHRINK_RATIO
@@ -22,7 +22,7 @@ export function nextRetryDelay(previous) {
 export function readDraft(storage, id) {
   try {
     const parsed = JSON.parse(storage.getItem(draftKey(id)) || 'null')
-    return parsed && typeof parsed.html === 'string' && typeof parsed.revision === 'string' ? parsed : null
+    return parsed && typeof parsed.content === 'string' && typeof parsed.revision === 'string' ? parsed : null
   } catch {
     return null
   }
@@ -32,6 +32,23 @@ export function writeDraft(storage, id, draft) {
   try {
     if (draft) storage.setItem(draftKey(id), JSON.stringify(draft))
     else storage.removeItem(draftKey(id))
+  } catch {
+    return
+  }
+}
+
+export function readCamera(storage, id) {
+  try {
+    const parsed = JSON.parse(storage.getItem(cameraKey(id)) || 'null')
+    return parsed && [parsed.zoom, parsed.x, parsed.y].every((value) => typeof value === 'number' && isFinite(value)) ? parsed : null
+  } catch {
+    return null
+  }
+}
+
+export function writeCamera(storage, id, camera) {
+  try {
+    storage.setItem(cameraKey(id), JSON.stringify(camera))
   } catch {
     return
   }
@@ -71,7 +88,7 @@ const noShare = { mode: 'off', token: '', expires: '' }
 const isClientError = (error) => Boolean(error && error.status >= 400 && error.status < 500)
 const failureState = () => (navigator.onLine ? 'error' : 'offline')
 
-export function createNotes({ api, store, note, list, history, chooser, translate, setState, onAuthLost, showToast, onOpened, focusEditor }) {
+export function createBoards({ api, store, board, layer, list, history, chooser, translate, setState, onAuthLost, showToast, onOpened }) {
   let timer = 0
   let saving = false
   let switching = false
@@ -81,7 +98,7 @@ export function createNotes({ api, store, note, list, history, chooser, translat
   const uploads = new Set()
   const uploadRetries = new Map()
   const pendingDeletes = new Map()
-  const channel = typeof BroadcastChannel === 'undefined' ? null : new BroadcastChannel('rabisco')
+  const channel = typeof BroadcastChannel === 'undefined' ? null : new BroadcastChannel('trecos')
 
   const serial = (task) => {
     const run = chain.then(task, task)
@@ -89,29 +106,31 @@ export function createNotes({ api, store, note, list, history, chooser, translat
     return run
   }
 
-  const current = () => store.note
+  const current = () => store.board
 
   const releaseUploaded = () => {
     for (const blobUrl of store.uploaded.keys()) URL.revokeObjectURL(blobUrl)
     store.uploaded.clear()
   }
 
-  const show = (html) => {
-    render(note, html)
+  const show = (id, content) => {
+    board.load(content, readCamera(localStorage, id))
     history.reset()
     releaseUploaded()
   }
 
   const swapUploadedImages = () => {
-    for (const img of note.querySelectorAll('img[src^="blob:"]')) {
+    for (const img of layer.querySelectorAll('img[src^="blob:"]')) {
       const url = store.uploaded.get(img.src)
       if (url) img.src = url
     }
   }
 
-  const hasPendingImages = () => [...note.querySelectorAll('img[src^="blob:"]')].some((img) => {
+  const hasPendingImages = () => [...layer.querySelectorAll('img[src^="blob:"]')].some((img) => {
     if (store.pendingImages.has(img.src)) return true
-    img.parentElement.remove()
+    const item = img.closest('.item')
+    if (item && item.dataset.type === 'image') board.remove([item.dataset.id])
+    else img.parentElement.remove()
     return false
   })
 
@@ -127,6 +146,10 @@ export function createNotes({ api, store, note, list, history, chooser, translat
     schedule()
   }
 
+  const rememberCamera = (camera) => {
+    if (current()) writeCamera(localStorage, current().id, camera)
+  }
+
   const summary = (record) => ({ id: record.id, title: record.title, cover: record.cover, pinned: record.pinned, updated: record.updated })
 
   const persistList = () => writeList(localStorage, list.get())
@@ -135,9 +158,9 @@ export function createNotes({ api, store, note, list, history, chooser, translat
 
   const applyServer = (record) => {
     clearTimeout(timer)
-    store.note = { id: record.id, revision: record.revision, length: record.content.length, share: shareOf(record) }
-    show(record.content)
-    note.contentEditable = 'true'
+    store.board = { id: record.id, revision: record.revision, length: record.content.length, share: shareOf(record) }
+    show(record.id, record.content)
+    board.setEditable(true)
     switching = false
     store.dirty = false
     list.upsert(summary(record))
@@ -148,14 +171,14 @@ export function createNotes({ api, store, note, list, history, chooser, translat
   const conflict = () => {
     chooser.open(translate('conflict'), [
       { label: translate('keepMine'), run: async () => {
-        const latest = await api.getNote(current().id)
+        const latest = await api.getBoard(current().id)
         current().revision = latest.revision
         store.dirty = true
         save()
       } },
       { label: translate('reload'), run: async () => {
         const id = current().id
-        applyServer(await api.getNote(id))
+        applyServer(await api.getBoard(id))
         writeDraft(localStorage, id, null)
       } }
     ], { focus: false, onDismiss: () => setState('error') })
@@ -167,10 +190,10 @@ export function createNotes({ api, store, note, list, history, chooser, translat
     if (!store.dirty) return !saving
     if (saving) return false
     swapUploadedImages()
-    writeDraft(localStorage, active.id, { html: serialize(note), revision: active.revision, at: Date.now() })
+    writeDraft(localStorage, active.id, { content: board.serialize(), revision: active.revision, at: Date.now() })
     if (hasPendingImages()) return false
-    const html = serialize(note)
-    if (!allowShrink && isSuspiciousShrink(active.length, html.length)) {
+    const content = board.serialize()
+    if (!allowShrink && isSuspiciousShrink(active.length, content.length)) {
       chooser.open(translate('shrunk'), [
         { label: translate('keep'), run: () => { allowShrink = true; save() } },
         { label: translate('undo'), run: () => { history.undo(); store.dirty = true; schedule() } }
@@ -180,10 +203,10 @@ export function createNotes({ api, store, note, list, history, chooser, translat
     saving = true
     store.dirty = false
     try {
-      const result = await api.saveNote(active.id, html, active.revision)
+      const result = await api.saveBoard(active.id, content, active.revision)
       active.revision = result.revision
       active.share = shareOf(result)
-      active.length = html.length
+      active.length = content.length
       allowShrink = false
       retryDelay = 0
       writeDraft(localStorage, active.id, null)
@@ -224,7 +247,7 @@ export function createNotes({ api, store, note, list, history, chooser, translat
       clearTimeout(timeout)
       pendingDeletes.delete(id)
       try {
-        await api.deleteNote(id)
+        await api.deleteBoard(id)
       } catch {
         showToast(translate('saveFailed'))
       }
@@ -233,18 +256,19 @@ export function createNotes({ api, store, note, list, history, chooser, translat
 
   const flush = async () => {
     clearTimeout(timer)
+    board.stopEditing()
     await commitDeletes()
     await Promise.all([...uploads])
     if (!store.dirty) return true
     return save()
   }
 
-  const upload = async (blobUrl, noteId = current() ? current().id : '') => {
+  const upload = async (blobUrl, boardId = current() ? current().id : '') => {
     const blob = store.pendingImages.get(blobUrl)
-    if (!noteId || !blob) return
+    if (!boardId || !blob) return
     const task = (async () => {
       try {
-        const record = await api.uploadImage(noteId, blob, `image.${blob.type.split('/')[1]}`)
+        const record = await api.uploadImage(boardId, blob, `image.${blob.type.split('/')[1]}`)
         const url = api.imageUrl(record)
         await new Promise((resolve, reject) => {
           const probe = new Image()
@@ -255,7 +279,7 @@ export function createNotes({ api, store, note, list, history, chooser, translat
         store.uploaded.set(blobUrl, url)
         store.pendingImages.delete(blobUrl)
         uploadRetries.delete(blobUrl)
-        if (current() && current().id === noteId) {
+        if (current() && current().id === boardId) {
           swapUploadedImages()
           markDirty()
         }
@@ -263,12 +287,12 @@ export function createNotes({ api, store, note, list, history, chooser, translat
         if (isClientError(error)) {
           store.pendingImages.delete(blobUrl)
           showToast(translate('imageUnreadable'))
-          if (current() && current().id === noteId) markDirty()
+          if (current() && current().id === boardId) markDirty()
         } else {
           setState(failureState())
           const delay = nextRetryDelay(uploadRetries.get(blobUrl) || 0)
           uploadRetries.set(blobUrl, delay)
-          setTimeout(() => upload(blobUrl, noteId), delay)
+          setTimeout(() => upload(blobUrl, boardId), delay)
         }
       }
     })()
@@ -280,19 +304,19 @@ export function createNotes({ api, store, note, list, history, chooser, translat
     for (const blobUrl of store.pendingImages.keys()) upload(blobUrl)
   }
 
-  const isBlankNote = () => serialize(note) === '' && store.pendingImages.size === 0
+  const isBlankBoard = () => board.isBlank() && store.pendingImages.size === 0
 
   const discardIfBlank = async () => {
     const active = current()
-    if (!active || !isBlankNote() || list.get().length < 2) return
+    if (!active || !isBlankBoard() || list.get().length < 2) return
     clearTimeout(timer)
     store.dirty = false
-    store.note = null
+    store.board = null
     list.remove(active.id)
     persistList()
     writeDraft(localStorage, active.id, null)
     try {
-      await api.deleteNote(active.id)
+      await api.deleteBoard(active.id)
     } catch {
       return
     }
@@ -302,12 +326,12 @@ export function createNotes({ api, store, note, list, history, chooser, translat
     const draft = readDraft(localStorage, id)
     if (!draft) return
     if (draft.revision === record.revision) {
-      show(draft.html)
+      show(id, draft.content)
       markDirty()
       return
     }
     chooser.open(translate('conflict'), [
-      { label: translate('keepMine'), run: () => { show(draft.html); markDirty() } },
+      { label: translate('keepMine'), run: () => { show(id, draft.content); markDirty() } },
       { label: translate('reload'), run: () => writeDraft(localStorage, id, null) }
     ], { focus: false, onDismiss: () => setState('error') })
   }
@@ -315,18 +339,17 @@ export function createNotes({ api, store, note, list, history, chooser, translat
   const switchTo = async (id) => {
     if (current() && current().id === id) {
       onOpened()
-      focusEditor()
       return
     }
     if (!(await flush())) return
     switching = true
-    note.contentEditable = 'false'
+    board.setEditable(false)
     let record
     try {
-      record = await api.getNote(id)
+      record = await api.getBoard(id)
     } catch (error) {
       switching = false
-      if (current()) note.contentEditable = 'true'
+      if (current()) board.setEditable(true)
       throw error
     }
     await discardIfBlank()
@@ -335,19 +358,21 @@ export function createNotes({ api, store, note, list, history, chooser, translat
     writeLast(localStorage, id)
     onOpened()
     restoreDraft(id, record)
-    focusEditor()
+    if (board.isBlank()) board.editFirstText()
   }
 
   const open = (id) => serial(() => switchTo(id))
 
+  const freshBoard = () => api.createBoard(JSON.stringify([{ id: 'first000', type: 'text', x: 0, y: 0, z: 1, w: 640, html: '' }]))
+
   const create = () => serial(async () => {
-    if (current() && isBlankNote()) {
+    if (current() && isBlankBoard()) {
       onOpened()
-      focusEditor()
+      board.editFirstText()
       return
     }
     if (!(await flush())) return
-    const record = await api.createNote()
+    const record = await freshBoard()
     list.upsert(summary(record))
     persistList()
     await switchTo(record.id)
@@ -355,7 +380,7 @@ export function createNotes({ api, store, note, list, history, chooser, translat
 
   const load = () => serial(async () => {
     list.set(readList(localStorage))
-    const result = await api.listNotes()
+    const result = await api.listBoards()
     list.set(result.items)
     persistList()
     const last = readLast(localStorage)
@@ -364,7 +389,7 @@ export function createNotes({ api, store, note, list, history, chooser, translat
       await switchTo(first.id)
       return
     }
-    const record = await api.createNote()
+    const record = await freshBoard()
     list.upsert(summary(record))
     persistList()
     await switchTo(record.id)
@@ -374,7 +399,7 @@ export function createNotes({ api, store, note, list, history, chooser, translat
     const active = current()
     if (!active) return
     const entry = list.find(active.id)
-    const record = await api.pinNote(active.id, !(entry && entry.pinned))
+    const record = await api.pinBoard(active.id, !(entry && entry.pinned))
     active.share = shareOf(record)
     list.upsert(summary(record))
     persistList()
@@ -389,7 +414,7 @@ export function createNotes({ api, store, note, list, history, chooser, translat
   const setShare = async (mode, choice) => {
     const active = current()
     if (!active) return
-    const record = await api.shareNote(active.id, mode, choice === undefined ? undefined : expiryDate(choice))
+    const record = await api.shareBoard(active.id, mode, choice === undefined ? undefined : expiryDate(choice))
     active.share = shareOf(record)
     list.upsert(summary(record))
     persistList()
@@ -412,11 +437,11 @@ export function createNotes({ api, store, note, list, history, chooser, translat
     list.remove(id)
     persistList()
     writeDraft(localStorage, id, null)
-    store.note = null
+    store.board = null
     const next = list.get()[0]
     if (next) await switchTo(next.id)
     else {
-      const record = await api.createNote()
+      const record = await freshBoard()
       list.upsert(summary(record))
       persistList()
       await switchTo(record.id)
@@ -424,7 +449,7 @@ export function createNotes({ api, store, note, list, history, chooser, translat
     const timeout = setTimeout(async () => {
       pendingDeletes.delete(id)
       try {
-        await api.deleteNote(id)
+        await api.deleteBoard(id)
       } catch {
         showToast(translate('saveFailed'))
       }
@@ -447,14 +472,14 @@ export function createNotes({ api, store, note, list, history, chooser, translat
     for (const timeout of pendingDeletes.values()) clearTimeout(timeout)
     pendingDeletes.clear()
     uploadRetries.clear()
-    store.note = null
+    store.board = null
     store.dirty = false
     switching = false
     store.pendingImages.clear()
     releaseUploaded()
     list.reset()
-    note.replaceChildren()
-    note.contentEditable = 'false'
+    board.load('[]', { zoom: 1, x: 24, y: 24 })
+    board.setEditable(false)
   }
 
   if (channel) {
@@ -466,7 +491,7 @@ export function createNotes({ api, store, note, list, history, chooser, translat
         return
       }
       if (saving || switching || store.dirty || event.data.revision === active.revision) return
-      applyServer(await api.getNote(active.id))
+      applyServer(await api.getBoard(active.id))
     })
   }
 
@@ -481,7 +506,7 @@ export function createNotes({ api, store, note, list, history, chooser, translat
     event.returnValue = ''
   })
 
-  note.contentEditable = 'false'
+  board.setEditable(false)
 
-  return { load, open, create, pin, remove, reset, markDirty, upload, save, flush, getShare, setShare, title, isPinned: () => { const entry = current() && list.find(current().id); return Boolean(entry && entry.pinned) } }
+  return { load, open, create, pin, remove, reset, markDirty, rememberCamera, upload, save, flush, getShare, setShare, title, isPinned: () => { const entry = current() && list.find(current().id); return Boolean(entry && entry.pinned) } }
 }

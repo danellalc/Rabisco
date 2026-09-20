@@ -1,31 +1,35 @@
 import { createApi } from './api.js'
 import { initAuth, readAuth, writeAuth } from './auth.js'
-import { createChooser, createToast } from './dom.js'
+import { createBoard } from './board.js'
+import { createBoards, writeLast } from './boards.js'
+import { ZOOM_STEP, zoomLabel } from './camera.js'
+import { createChooser, createPopover, createToast } from './dom.js'
 import { duplicateShared } from './duplicate.js'
-import { clearIfBlank, createInsertImage, insertText, placeCaretAtEnd, removeImageBlock } from './editor.js'
-import { fileName, toMarkdown, toText, treeOf } from './export.js'
+import { clearIfBlank, createInsertImage, insertText, removeImageBlock } from './editor.js'
+import { fileName, toMarkdown, toText, treeOfBoard } from './export.js'
 import { createFormatter, initChecklist } from './format.js'
 import { bindHistoryKeys, createHistory } from './history.js'
 import { applyTranslations, createTranslator, pickLanguage } from './i18n.js'
 import { compressImage, copyImage, downloadBlob, fileExtension } from './images.js'
+import { parseContent, textOfItems } from './items.js'
 import { createLightbox } from './lightbox.js'
-import { initLinks, linkSelection } from './links.js'
+import { initLinks, isUrl, linkSelection, toHref } from './links.js'
 import { initList } from './list.js'
 import { initMenu } from './menu.js'
 import { initMove } from './move.js'
-import { createNotes, writeLast } from './notes.js'
-import { initPaste } from './paste.js'
+import { imageFiles, initPaste } from './paste.js'
 import { initResize } from './resize.js'
 import { serviceWorkerUrl, textOf } from './sanitize.js'
 import { applySettings, readSettings, writeSettings } from './settings.js'
 import { SHARE_HASH, clearShareTarget, readShareTarget } from './share-target.js'
 import { initShare, tokenFromHash } from './share.js'
 import { initShortcuts } from './shortcuts.js'
-import { store } from './store.js'
+import { migrateStorage, store } from './store.js'
 import { createInsertTable } from './table.js'
 import { initToolbar } from './toolbar.js'
 import { createVisitor } from './visitor.js'
 
+migrateStorage(localStorage)
 store.settings = readSettings(localStorage)
 applySettings(document.documentElement, store.settings)
 if (/Android/.test(navigator.userAgent)) document.querySelector('meta[name=viewport]').content += ', interactive-widget=resizes-content'
@@ -38,16 +42,15 @@ applyTranslations(document, translate)
 
 const sharedPage = location.pathname.startsWith('/s/')
 const sharedToken = sharedPage ? tokenFromHash(location.hash) : ''
-const duplicateKey = 'rabisco.duplicate'
-const note = document.getElementById('note')
-const area = document.getElementById('note-area')
-const selection = document.getElementById('image-selection')
-const handle = document.getElementById('resize-handle')
+const duplicateKey = 'trecos.duplicate'
+const area = document.getElementById('board')
+const layer = document.getElementById('layer')
 const saveState = document.getElementById('save-state')
+const zoomLevel = document.getElementById('zoom-level')
 const showToast = createToast(document.getElementById('toast'))
 const chooser = createChooser(document.getElementById('paste-choice'))
+const itemMenu = createPopover(document.getElementById('item-menu'))
 const openLightbox = createLightbox(document.getElementById('lightbox'))
-const formatter = createFormatter(note)
 const api = createApi({
   getToken: () => (store.auth ? store.auth.token : ''),
   getUserId: () => (store.auth ? store.auth.userId : ''),
@@ -58,7 +61,7 @@ const api = createApi({
   }
 })
 const setState = (state) => { saveState.textContent = translate(state) }
-const sync = { markDirty: () => {} }
+const sync = { markDirty: () => {}, rememberCamera: () => {}, imageInserted: () => {} }
 const isPhone = () => matchMedia('(max-width:719px)').matches
 const showNote = () => { document.body.dataset.view = 'note' }
 const showList = () => { document.body.dataset.view = 'list' }
@@ -72,7 +75,7 @@ const imageBlob = async (img) => store.pendingImages.get(img.src) || (await fetc
 const downloadImage = async (img) => {
   try {
     const blob = await imageBlob(img)
-    downloadBlob(blob, `rabisco-${Date.now()}.${fileExtension(blob.type)}`)
+    downloadBlob(blob, `trecos-${Date.now()}.${fileExtension(blob.type)}`)
   } catch {
     showToast(translate('imageUnreadable'))
   }
@@ -96,36 +99,76 @@ const recorded = (action) => (...args) => {
   return action(...args)
 }
 
-const imageSelection = initResize({
-  note,
+const showItemMenu = (id, anchor) => {
+  const element = layer.querySelector(`.item[data-id="${id}"]`)
+  const actions = []
+  if (element && element.dataset.type === 'image') actions.push({ label: translate('download'), run: () => downloadImage(element.querySelector('img')) })
+  actions.push(
+    { label: translate('duplicate'), run: () => board.duplicate([id]) },
+    { label: translate('bringToFront'), run: () => board.bringToFront([id]) },
+    { label: translate('delete'), danger: true, run: () => board.remove([id]) }
+  )
+  itemMenu.open(actions, anchor.getBoundingClientRect())
+}
+
+const board = createBoard({
   area,
-  selection,
-  handle,
+  layer,
+  lasso: document.getElementById('lasso'),
+  guides: { x: document.getElementById('guide-x'), y: document.getElementById('guide-y') },
+  message: document.getElementById('board-message'),
+  translate,
+  onChange: () => sync.markDirty(),
+  beforeChange,
+  onCamera: (camera) => {
+    zoomLevel.textContent = zoomLabel(camera.zoom)
+    sync.rememberCamera(camera)
+  },
+  onOpenImage: (img) => openLightbox(img.src, () => downloadImage(img)),
+  onItemMenu: showItemMenu,
+  onImageInserted: (img, file) => sync.imageInserted(img, file)
+})
+const host = board.host
+const formatter = createFormatter(host)
+const history = createHistory({ snapshot: board.snapshot, restore: (entry) => { imageSelection.clear(); board.restore(entry) } })
+
+const imageSelection = initResize({
+  host,
+  area,
+  selection: document.getElementById('image-selection'),
+  handle: document.getElementById('resize-handle'),
   beforeChange,
   afterChange: () => sync.markDirty(),
   onOpen: (img) => openLightbox(img.src, () => downloadImage(img)),
   onCopy: copySelectedImage,
   onDownload: downloadImage
 })
-const history = createHistory(note, { onRestore: () => { imageSelection.clear(); sync.markDirty() } })
 
-note.addEventListener('beforeinput', () => chooser.settle())
+layer.addEventListener('beforeinput', () => chooser.settle())
 initShortcuts({
-  note,
+  host,
   apply: formatter.apply,
   beforeChange,
   insertDate: () => recorded(insertText)(new Intl.DateTimeFormat(language, { dateStyle: 'short' }).format(new Date()))
 })
-initLinks({ note, beforeChange, openOnClick: () => !note.isContentEditable })
-bindHistoryKeys(note, history)
-note.addEventListener('input', () => {
-  clearIfBlank(note)
+initLinks({ host, beforeChange })
+bindHistoryKeys(host, history)
+layer.addEventListener('input', (event) => {
+  const root = host.active()
+  if (!root || !root.contains(event.target)) return
+  clearIfBlank(root)
   sync.markDirty()
 })
 
+document.getElementById('zoom-out').addEventListener('click', () => board.zoomBy(1 / ZOOM_STEP))
+document.getElementById('zoom-in').addEventListener('click', () => board.zoomBy(ZOOM_STEP))
+document.getElementById('fit').addEventListener('click', () => board.fit())
+
 const discardImage = (img) => {
   if (!img.isConnected) return
-  removeImageBlock(note, img)
+  const item = img.closest('.item')
+  if (item && item.dataset.type === 'image') board.remove([item.dataset.id])
+  else removeImageBlock(host.rootOf(img), img)
   store.pendingImages.delete(img.src)
   showToast(translate('imageUnreadable'))
 }
@@ -134,34 +177,37 @@ const choose = (question, options) => {
   chooser.open(translate(question), options.map((option) => ({ label: translate(option.label), run: option.run })))
 }
 
-const wireEditor = (insertImage) => {
-  initMove({
-    note,
-    area,
-    marker: document.getElementById('drop-marker'),
-    beforeChange,
-    onMoved: () => imageSelection.clear()
-  })
-  initPaste(note, {
-    insertImage,
+const wireEditor = ({ insertImageInText, addImageOnBoard }) => {
+  initMove({ host, area, marker: document.getElementById('drop-marker'), beforeChange, onMoved: () => imageSelection.clear() })
+  initPaste({ host, area }, {
+    insertImage: insertImageInText,
     insertText: recorded(insertText),
-    insertTable: recorded(createInsertTable(note)),
-    linkSelection: recorded((url) => linkSelection(note, url)),
-    choose
+    insertTable: recorded(createInsertTable(host)),
+    linkSelection: recorded((url) => linkSelection(host.active(), url)),
+    choose,
+    boardPaste: (transfer, point) => {
+      const origin = point ? board.worldPoint(point) : board.center()
+      const files = imageFiles(transfer)
+      if (files.length > 0) {
+        files.forEach((file, index) => addImageOnBoard({ x: origin.x + index * 24, y: origin.y + index * 24 }, file))
+        return
+      }
+      const text = transfer.getData('text/plain')
+      if (isUrl(text)) board.addLink(origin, toHref(text))
+      else if (text.trim() !== '') {
+        board.addText(origin)
+        recorded(insertText)(text)
+      }
+    }
   })
-  initToolbar({ note, area, bar: document.getElementById('toolbar'), apply: formatter.apply, active: formatter.active, beforeChange })
-  initChecklist(note, beforeChange)
+  initToolbar({ host, area, bar: document.getElementById('toolbar'), apply: formatter.apply, active: formatter.active, beforeChange })
+  initChecklist(host, beforeChange)
 }
 
 const duplicate = async (token) => {
   const id = await duplicateShared(api, token)
   writeLast(localStorage, id)
 }
-
-area.addEventListener('click', (event) => {
-  if (event.target !== area || !note.isContentEditable) return
-  placeCaretAtEnd(note)
-})
 
 document.execCommand('styleWithCSS', false, 'false')
 document.execCommand('defaultParagraphSeparator', false, 'div')
@@ -174,7 +220,8 @@ if (sharedPage) {
   const visitor = createVisitor({
     api,
     token: sharedToken,
-    note,
+    board,
+    layer,
     history,
     chooser,
     translate,
@@ -183,11 +230,11 @@ if (sharedPage) {
     onReady: (mode) => {
       document.body.dataset.mode = mode
       document.getElementById('shared-foot').hidden = false
-      if (mode === 'edit') placeCaretAtEnd(note)
     }
   })
   sync.markDirty = visitor.markDirty
-  wireEditor(() => showToast(translate('imagesOwnerOnly')))
+  const refuse = () => showToast(translate('imagesOwnerOnly'))
+  wireEditor({ insertImageInText: refuse, addImageOnBoard: refuse })
   document.getElementById('duplicate').addEventListener('click', async () => {
     try {
       if (!store.auth) throw Object.assign(new Error('sign in first'), { status: 401 })
@@ -209,17 +256,18 @@ if (sharedPage) {
     search: document.getElementById('search'),
     translate,
     language,
-    onOpen: (id) => notes.open(id).catch(() => showToast(translate('loadFailed'))),
+    onOpen: (id) => boards.open(id).catch(() => showToast(translate('loadFailed'))),
     onSearchContents: async () => {
       const result = await api.listContents()
-      return new Map(result.items.map((item) => [item.id, textOf(item.content)]))
+      return new Map(result.items.map((item) => [item.id, textOfItems(parseContent(item.content), textOf)]))
     },
     onSearchFailed: () => showToast(translate('searchFailed'))
   })
-  const notes = createNotes({
+  const boards = createBoards({
     api,
     store,
-    note,
+    board,
+    layer,
     list,
     history,
     chooser,
@@ -227,29 +275,29 @@ if (sharedPage) {
     setState,
     onAuthLost: () => auth.signOut(),
     showToast,
-    onOpened: showNote,
-    focusEditor: () => placeCaretAtEnd(note)
+    onOpened: showNote
   })
-  sync.markDirty = notes.markDirty
+  sync.markDirty = boards.markDirty
+  sync.rememberCamera = boards.rememberCamera
+  sync.imageInserted = async (img, file) => {
+    try {
+      const blobUrl = img.src
+      store.pendingImages.set(blobUrl, await compressImage(file))
+      boards.upload(blobUrl)
+    } catch {
+      discardImage(img)
+    }
+  }
   const signedIn = () => Boolean(store.auth) && ['note', 'list'].includes(document.body.dataset.view)
 
-  const insertImage = createInsertImage(note, {
-    onInserted: async (img, file) => {
-      try {
-        const blobUrl = img.src
-        store.pendingImages.set(blobUrl, await compressImage(file))
-        notes.upload(blobUrl)
-      } catch {
-        discardImage(img)
-      }
-    },
-    onFailed: discardImage
-  })
-  const insertRecorded = recorded(insertImage)
-  wireEditor(insertRecorded)
-  const exportNote = (extension, convert, type) => {
-    const content = convert(treeOf(note), location.origin)
-    downloadBlob(new Blob([content], { type }), fileName(notes.title() || textOf(note.innerHTML).slice(0, 60), extension))
+  const insertImageInText = recorded(createInsertImage(host, { onInserted: sync.imageInserted, onFailed: discardImage }))
+  const addImageOnBoard = (point, file) => board.addImage(point, file)
+  wireEditor({ insertImageInText, addImageOnBoard })
+
+  const exportBoard = (extension, convert, type) => {
+    board.stopEditing()
+    const content = convert(treeOfBoard(board.elementsInReadingOrder()), location.origin)
+    downloadBlob(new Blob([content], { type }), fileName(boards.title() || content.slice(0, 60), extension))
   }
   initMenu({
     button: document.getElementById('menu'),
@@ -257,11 +305,11 @@ if (sharedPage) {
     translate,
     settings: store.settings,
     actions: [
-      { label: () => translate(notes.isPinned() ? 'unpin' : 'pin'), run: () => notes.pin().catch(() => showToast(translate('saveFailed'))) },
-      { label: () => translate('downloadTxt'), run: () => exportNote('txt', toText, 'text/plain') },
-      { label: () => translate('downloadMd'), run: () => exportNote('md', toMarkdown, 'text/markdown') },
+      { label: () => translate(boards.isPinned() ? 'unpin' : 'pin'), run: () => boards.pin().catch(() => showToast(translate('saveFailed'))) },
+      { label: () => translate('downloadTxt'), run: () => exportBoard('txt', toText, 'text/plain') },
+      { label: () => translate('downloadMd'), run: () => exportBoard('md', toMarkdown, 'text/markdown') },
       { label: () => translate('print'), run: () => window.print() },
-      { label: () => translate('delete'), danger: true, run: () => notes.remove().catch(() => showToast(translate('saveFailed'))) }
+      { label: () => translate('delete'), danger: true, run: () => boards.remove().catch(() => showToast(translate('saveFailed'))) }
     ],
     onChange: saveSettings
   })
@@ -269,24 +317,24 @@ if (sharedPage) {
     button: document.getElementById('share'),
     panel: document.getElementById('share-panel'),
     translate,
-    getShare: notes.getShare,
-    setShare: notes.setShare,
+    getShare: boards.getShare,
+    setShare: boards.setShare,
     showToast
   })
 
-  const createNote = () => {
+  const createBoardNow = () => {
     if (!signedIn()) return
-    notes.create().catch(() => showToast(translate('saveFailed')))
+    boards.create().catch(() => showToast(translate('saveFailed')))
   }
-  document.getElementById('new').addEventListener('click', createNote)
+  document.getElementById('new').addEventListener('click', createBoardNow)
   document.addEventListener('keydown', (event) => {
     if (!(event.ctrlKey || event.metaKey) || !event.altKey || event.key.toLowerCase() !== 'n') return
     event.preventDefault()
-    createNote()
+    createBoardNow()
   })
   document.getElementById('back').addEventListener('click', () => {
     if (isPhone()) {
-      notes.flush()
+      boards.flush()
       showList()
       return
     }
@@ -294,7 +342,7 @@ if (sharedPage) {
     saveSettings()
   })
   document.getElementById('sign-out').addEventListener('click', async () => {
-    await notes.flush()
+    await boards.flush()
     auth.signOut()
   })
 
@@ -316,10 +364,10 @@ if (sharedPage) {
     onSignedIn: () => {
       document.getElementById('me').textContent = store.auth.email
       showNote()
-      loadNotes()
+      loadBoards()
     },
     onSignedOut: () => {
-      notes.reset()
+      boards.reset()
       clearShareTarget()
       document.getElementById('me').textContent = ''
       saveState.textContent = ''
@@ -341,9 +389,12 @@ if (sharedPage) {
 
   const addShared = async (shared) => {
     try {
-      await notes.create()
-      if (shared.text) recorded(insertText)(shared.text)
-      shared.files.forEach(insertRecorded)
+      const origin = board.center()
+      shared.files.forEach((file, index) => addImageOnBoard({ x: origin.x + index * 24, y: origin.y + index * 24 }, file))
+      if (shared.text) {
+        board.addText({ x: origin.x, y: origin.y + shared.files.length * 24 })
+        recorded(insertText)(shared.text)
+      }
     } catch {
       showToast(translate('saveFailed'))
     }
@@ -363,10 +414,10 @@ if (sharedPage) {
     ])
   }
 
-  async function loadNotes() {
+  async function loadBoards() {
     try {
       await duplicatePending()
-      await notes.load()
+      await boards.load()
       await receiveShared()
     } catch (error) {
       if (error && error.status === 401) {
@@ -374,7 +425,7 @@ if (sharedPage) {
         return
       }
       saveState.textContent = translate('loadFailed')
-      window.addEventListener('online', loadNotes, { once: true })
+      window.addEventListener('online', loadBoards, { once: true })
     }
   }
 

@@ -11,17 +11,19 @@ export function toPercent(width, total) {
   return Math.round((width / total) * 1000) / 10
 }
 
-export function initResize({ note, area, selection, handle, beforeChange, afterChange, onOpen, onCopy, onDownload }) {
+export function initResize({ host, area, selection, handle, beforeChange, afterChange, onOpen, onCopy, onDownload }) {
   let selected = null
   let expectedCaret = null
   let drag = null
+
+  const root = () => (selected ? host.rootOf(selected) : null)
 
   const reposition = () => {
     if (!selected) return
     const areaBox = area.getBoundingClientRect()
     const box = selected.getBoundingClientRect()
-    selection.style.left = `${box.left - areaBox.left + area.scrollLeft}px`
-    selection.style.top = `${box.top - areaBox.top + area.scrollTop}px`
+    selection.style.left = `${box.left - areaBox.left}px`
+    selection.style.top = `${box.top - areaBox.top}px`
     selection.style.width = `${box.width}px`
     selection.style.height = `${box.height}px`
   }
@@ -33,15 +35,16 @@ export function initResize({ note, area, selection, handle, beforeChange, afterC
   }
 
   const select = (img) => {
-    if (!note.isContentEditable) {
-      onOpen(img)
+    const owner = host.rootOf(img)
+    if (owner !== host.active()) {
+      if (!host.editable()) onOpen(img)
       return
     }
     selected = img
     selection.hidden = false
     reposition()
-    note.focus({ preventScroll: true })
-    expectedCaret = placeCaretAfter(note, img.parentElement)
+    owner.focus({ preventScroll: true })
+    expectedCaret = placeCaretAfter(owner, img.parentElement)
   }
 
   const resetWidth = () => {
@@ -56,15 +59,15 @@ export function initResize({ note, area, selection, handle, beforeChange, afterC
       && current.anchorNode === expectedCaret.node && current.anchorOffset === expectedCaret.offset
   }
 
-  note.addEventListener('click', (event) => {
-    const img = event.target.closest('img')
+  host.layer.addEventListener('click', (event) => {
+    const img = event.target.closest('.note img')
     if (img) select(img)
     else clear()
   })
 
-  note.addEventListener('dblclick', (event) => {
-    const img = event.target.closest('img')
-    if (img && note.isContentEditable) onOpen(img)
+  host.layer.addEventListener('dblclick', (event) => {
+    const img = event.target.closest('.note img')
+    if (img && host.rootOf(img) === host.active()) onOpen(img)
   })
 
   handle.addEventListener('dblclick', () => {
@@ -75,10 +78,13 @@ export function initResize({ note, area, selection, handle, beforeChange, afterC
     if (selected && expectedCaret && !caretStillExpected()) clear()
   })
 
-  note.addEventListener('focusout', clear)
+  host.layer.addEventListener('focusout', (event) => {
+    if (selected && host.rootOf(event.target) === root()) clear()
+  })
 
   document.addEventListener('keydown', (event) => {
-    if (!selected || !note.contains(document.activeElement)) return
+    const owner = root()
+    if (!selected || !owner || !owner.contains(document.activeElement)) return
     const modifier = event.ctrlKey || event.metaKey
     const key = event.key.toLowerCase()
     if (event.key === 'Escape') {
@@ -108,7 +114,7 @@ export function initResize({ note, area, selection, handle, beforeChange, afterC
     if (event.altKey && (event.key === 'ArrowUp' || event.key === 'ArrowDown')) {
       event.preventDefault()
       beforeChange()
-      shiftImageBlock(note, selected, event.key === 'ArrowUp' ? -1 : 1)
+      shiftImageBlock(owner, selected, event.key === 'ArrowUp' ? -1 : 1)
       select(selected)
       return
     }
@@ -117,20 +123,22 @@ export function initResize({ note, area, selection, handle, beforeChange, afterC
     const img = selected
     clear()
     beforeChange()
-    removeImageBlock(note, img)
+    removeImageBlock(owner, img)
   })
 
   handle.addEventListener('pointerdown', (event) => {
-    if (!selected || !note.isContentEditable) return
+    const owner = root()
+    if (!selected || !owner) return
     event.preventDefault()
+    event.stopPropagation()
     handle.setPointerCapture(event.pointerId)
     beforeChange()
-    drag = { startX: event.clientX, startWidth: selected.getBoundingClientRect().width, max: contentWidth(note) }
+    drag = { startX: event.clientX, startWidth: selected.getBoundingClientRect().width, max: contentWidth(owner), scale: selected.getBoundingClientRect().width / selected.offsetWidth }
   })
 
   handle.addEventListener('pointermove', (event) => {
     if (!drag) return
-    const width = clampWidth(drag.startWidth + event.clientX - drag.startX, MIN_WIDTH, drag.max)
+    const width = clampWidth((drag.startWidth + event.clientX - drag.startX) / drag.scale, MIN_WIDTH, drag.max)
     setImageWidth(selected, toPercent(width, drag.max))
     reposition()
   })
@@ -142,8 +150,7 @@ export function initResize({ note, area, selection, handle, beforeChange, afterC
   handle.addEventListener('pointerup', endDrag)
   handle.addEventListener('pointercancel', endDrag)
 
-  area.addEventListener('scroll', reposition)
   window.addEventListener('resize', reposition)
 
-  return { clear }
+  return { clear, reposition }
 }

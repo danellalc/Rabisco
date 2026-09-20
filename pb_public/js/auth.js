@@ -1,4 +1,4 @@
-const storageKey = 'rabisco.auth'
+const storageKey = 'trecos.auth'
 const RESEND_COOLDOWN = 15000
 
 export function readAuth(storage) {
@@ -116,7 +116,7 @@ export function initAuth({ api, store, elements, translate, onSignedIn, onSigned
     store.auth = null
     writeAuth(localStorage, null)
     for (const key of Object.keys(localStorage)) {
-      if (key.startsWith('rabisco.') && key !== 'rabisco.settings') localStorage.removeItem(key)
+      if (key.startsWith('trecos.') && key !== 'trecos.settings') localStorage.removeItem(key)
     }
     onSignedOut()
     show('email')

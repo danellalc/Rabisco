@@ -1,5 +1,5 @@
 const REFRESH_WINDOW = 3600000
-const NOTE_FIELDS = 'id,content,revision,updated,title,cover,pinned,share_mode,share_token,share_expires'
+const BOARD_FIELDS = 'id,content,revision,updated,title,cover,pinned,share_mode,share_token,share_expires'
 const SUMMARY_FIELDS = 'id,revision,updated,title,cover,pinned,share_mode,share_token,share_expires'
 
 export class ApiError extends Error {
@@ -67,17 +67,17 @@ export function createApi({ getToken, getUserId, onSession = () => {} }) {
     requestCode: (email) => call('POST', '/api/collections/users/request-otp', { body: { email } }),
     signIn: (otpId, code) => call('POST', '/api/collections/users/auth-with-otp', { body: { otpId, password: code } }),
     refresh,
-    listNotes: () => fresh('GET', '/api/collections/notes/records?sort=-pinned,-updated&perPage=200&skipTotal=1&fields=id,title,cover,pinned,updated'),
-    listContents: () => fresh('GET', '/api/collections/notes/records?perPage=200&skipTotal=1&fields=id,content'),
-    getNote: (id) => fresh('GET', `/api/collections/notes/records/${id}?fields=${NOTE_FIELDS}`),
-    createNote: (content = '') => fresh('POST', `/api/collections/notes/records?fields=${NOTE_FIELDS}`, { body: { content, user: getUserId() } }),
-    saveNote: (id, content, revision) => fresh('PATCH', `/api/collections/notes/records/${id}?fields=${SUMMARY_FIELDS}`, { body: { content }, headers: { 'X-Note-Rev': revision } }),
-    pinNote: (id, pinned) => fresh('PATCH', `/api/collections/notes/records/${id}?fields=${SUMMARY_FIELDS}`, { body: { pinned } }),
-    shareNote: (id, mode, expires) => fresh('PATCH', `/api/collections/notes/records/${id}?fields=${SUMMARY_FIELDS}`, { body: shareBody(mode, expires) }),
-    deleteNote: (id) => fresh('DELETE', `/api/collections/notes/records/${id}`),
-    uploadImage: (noteId, blob, name) => {
+    listBoards: () => fresh('GET', '/api/collections/boards/records?sort=-pinned,-updated&perPage=200&skipTotal=1&fields=id,title,cover,pinned,updated'),
+    listContents: () => fresh('GET', '/api/collections/boards/records?perPage=200&skipTotal=1&fields=id,content'),
+    getBoard: (id) => fresh('GET', `/api/collections/boards/records/${id}?fields=${BOARD_FIELDS}`),
+    createBoard: (content = '[]') => fresh('POST', `/api/collections/boards/records?fields=${BOARD_FIELDS}`, { body: { content, user: getUserId() } }),
+    saveBoard: (id, content, revision) => fresh('PATCH', `/api/collections/boards/records/${id}?fields=${SUMMARY_FIELDS}`, { body: { content }, headers: { 'X-Note-Rev': revision } }),
+    pinBoard: (id, pinned) => fresh('PATCH', `/api/collections/boards/records/${id}?fields=${SUMMARY_FIELDS}`, { body: { pinned } }),
+    shareBoard: (id, mode, expires) => fresh('PATCH', `/api/collections/boards/records/${id}?fields=${SUMMARY_FIELDS}`, { body: shareBody(mode, expires) }),
+    deleteBoard: (id) => fresh('DELETE', `/api/collections/boards/records/${id}`),
+    uploadImage: (boardId, blob, name) => {
       const form = new FormData()
-      form.append('note', noteId)
+      form.append('board', boardId)
       form.append('user', getUserId())
       form.append('file', blob, name)
       return fresh('POST', '/api/collections/images/records?fields=id,file', { body: form })

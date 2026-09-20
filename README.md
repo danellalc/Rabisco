@@ -1,24 +1,23 @@
-# Rabisco
+# Trecos
 
-A very light notes app. A blank page where you write, paste screenshots, resize them, format the basics and share by link. Nothing else.
+A very light board for notes and files. An infinite canvas where you write in text blocks, paste screenshots, drop links and files, move everything around with magnetic snapping, zoom out to see it all and share the board (or a piece of it) by link. Version 1 was called Rabisco, a single page of text; its notes migrate into boards automatically.
 
-Version 2, named Trecos, turns the page into an infinite board that also holds files: see `trecos-prompt.md` for the spec and `docs/design/BRIEFING-TRECOS.md` for the design brief. The code below is version 1, complete and deployable.
+Spec: `trecos-prompt.md`. Design: `docs/design/BRIEFING-TRECOS.md` and the handoff in `docs/design/trecos/`.
 
 Vanilla HTML, CSS and JavaScript served by PocketBase. No frameworks and nothing loaded by the browser besides our own files. The only development dependency is esbuild, used to bundle and minify for deployment.
 
 ## Status
 
-Stages 1 to 6 of 7 are done: editor, formatting, backend (sign in by email code, save and load, image upload, local draft, conflict detection), note list, sharing by link, export, print and the installable app with the Android share target.
+Everything from version 1 works on the board: text formatting, pasting screenshots (inline in a block or as an item), spreadsheet cells as a table, links, list with search and pin, sharing by link with expiry, export to text and markdown, print, installable app, Android share target. Version 2 stage 1 (the board itself) is done.
 
 ## Roadmap
 
-1. Local editor: done.
-2. Formatting: done.
-3. Backend: done.
-4. Note list: done.
-5. Sharing: done. View or edit link, optional expiry, revoke and rotate, clean reading mode, duplicate into your account.
-6. Extras: done. Print stylesheet, export to text and markdown, installable app that opens from the cache, share target on Android.
-7. Drawing: a vector sketch board loaded on demand (pen with pressure, highlighter, line, arrow, rectangle, ellipse, text, select and move, undo, zoom) that becomes an image in the note and can be reopened for editing; the same board annotates and crops a pasted screenshot. Then version history, find in note, markdown paste, captions and image alignment.
+1. Board: done. Pan, zoom, text blocks as items, image and link items, drag with snapping to the grid and to neighbours, lasso, tidy, undo and redo of everything, autosave of the whole board, migration of version 1 notes.
+2. Files and quota: any file as an item with an icon, upload progress, blocked types, per user quota, download, rename, video and audio playing in the card, Cloudflare R2 storage.
+3. Sharing v2: board, selection or single file, active links, download page, duplicate with files.
+4. Polish: copy and paste items across boards, global search, zip export, share target landing on the board.
+5. Direct upload to the bucket for big files and paid plans.
+6. Drawing: a vector sketch item.
 
 ## Run locally
 
@@ -60,10 +59,10 @@ Then set SMTP in the dashboard, Settings, Mail settings. The container runs as a
 
 ## Layout
 
-- `pb_public/`: the app source. `index.html`, `style.css`, ES modules under `js/`, the service worker `sw.js`, `manifest.json` and the icon (`icon.svg` is the master, the PNG sizes are exported from it).
-- `pb_hooks/`: server hooks. Security headers, user creation on the first sign in code, ownership, HTML sanitizing, share tokens, conflict detection.
+- `pb_public/`: the app source. `index.html`, `style.css`, ES modules under `js/` (`board.js` is the canvas, `boards.js` the persistence, `camera.js`, `snap.js` and `items.js` the pure math), the service worker `sw.js`, `manifest.json` and the icon (`icon.svg` is the master, the PNG sizes are exported from it).
+- `pb_hooks/`: server hooks. Security headers, user creation on the first sign in code, ownership, item validation and HTML sanitizing, share tokens, conflict detection with compare and set.
 - `pb_migrations/`: collections, rules and settings, applied on first start.
 - `tests/`: unit tests for pure functions, run with Node's built in test runner.
 - `tools/`: dev server, mail sink, build and size report.
 - `docs/design/`: design system, tokens, icons and screens.
-- `rabisco-prompt.md`: product and technical spec of version 1. `trecos-prompt.md`: version 2.
+- `trecos-prompt.md`: product and technical spec. `rabisco-prompt.md`: the version 1 spec, kept for history.

@@ -2,23 +2,21 @@ const MOUSE_THRESHOLD = 4
 const TOUCH_THRESHOLD = 10
 const LONG_PRESS = 300
 const GHOST_WIDTH = 240
-const EDGE = 48
-const SCROLL_STEP = 12
 
-export function initMove({ note, area, marker, beforeChange, onMoved }) {
+export function initMove({ host, area, marker, beforeChange, onMoved }) {
   let pending = null
   let drag = null
 
-  const blockAt = (x, y) => {
+  const blockAt = (root, x, y) => {
     const hit = document.elementFromPoint(x, y)
-    if (!hit || hit === note || !note.contains(hit)) return null
+    if (!hit || hit === root || !root.contains(hit)) return null
     let block = hit
-    while (block.parentNode !== note) block = block.parentNode
+    while (block.parentNode !== root) block = block.parentNode
     return block
   }
 
-  const targetFor = (x, y) => {
-    const block = blockAt(x, y) || note.lastElementChild
+  const targetFor = (root, x, y) => {
+    const block = blockAt(root, x, y) || root.lastElementChild
     if (!block) return null
     const box = block.getBoundingClientRect()
     return { block, before: y < box.top + box.height / 2 }
@@ -27,16 +25,10 @@ export function initMove({ note, area, marker, beforeChange, onMoved }) {
   const showMarker = (target) => {
     const areaBox = area.getBoundingClientRect()
     const box = target.block.getBoundingClientRect()
-    marker.style.top = `${(target.before ? box.top : box.bottom) - areaBox.top + area.scrollTop}px`
+    marker.style.top = `${(target.before ? box.top : box.bottom) - areaBox.top}px`
     marker.style.left = `${box.left - areaBox.left}px`
     marker.style.width = `${box.width}px`
     marker.hidden = false
-  }
-
-  const autoScroll = (y) => {
-    const box = area.getBoundingClientRect()
-    if (y < box.top + EDGE) area.scrollTop -= SCROLL_STEP
-    else if (y > box.bottom - EDGE) area.scrollTop += SCROLL_STEP
   }
 
   const cancelPending = () => {
@@ -52,7 +44,7 @@ export function initMove({ note, area, marker, beforeChange, onMoved }) {
   }
 
   const start = () => {
-    const { img, x, y } = pending
+    const { img, root, x, y } = pending
     cancelPending()
     const box = img.getBoundingClientRect()
     const scale = Math.min(1, GHOST_WIDTH / box.width)
@@ -62,15 +54,14 @@ export function initMove({ note, area, marker, beforeChange, onMoved }) {
     ghost.style.width = `${box.width * scale}px`
     document.body.append(ghost)
     document.body.classList.add('dragging')
-    drag = { img, ghost, target: null, offsetX: (x - box.left) * scale, offsetY: (y - box.top) * scale }
+    drag = { img, root, ghost, target: null, offsetX: (x - box.left) * scale, offsetY: (y - box.top) * scale }
     update(x, y)
   }
 
   const update = (x, y) => {
     drag.ghost.style.left = `${x - drag.offsetX}px`
     drag.ghost.style.top = `${y - drag.offsetY}px`
-    autoScroll(y)
-    drag.target = targetFor(x, y)
+    drag.target = targetFor(drag.root, x, y)
     if (drag.target) showMarker(drag.target)
     else marker.hidden = true
   }
@@ -86,12 +77,14 @@ export function initMove({ note, area, marker, beforeChange, onMoved }) {
     onMoved()
   }
 
-  note.addEventListener('pointerdown', (event) => {
-    if (event.button !== 0 || !note.isContentEditable || !(event.target instanceof Element)) return
-    const img = event.target.closest('img')
-    if (!img) return
+  host.layer.addEventListener('pointerdown', (event) => {
+    if (event.button !== 0 || !(event.target instanceof Element)) return
+    const img = event.target.closest('.note img')
+    const root = img ? host.rootOf(img) : null
+    if (!root || root !== host.active()) return
     event.preventDefault()
-    pending = { img, x: event.clientX, y: event.clientY, timer: 0 }
+    event.stopPropagation()
+    pending = { img, root, x: event.clientX, y: event.clientY, timer: 0 }
     if (event.pointerType !== 'mouse') pending.timer = setTimeout(start, LONG_PRESS)
   })
 
@@ -120,7 +113,7 @@ export function initMove({ note, area, marker, beforeChange, onMoved }) {
     if (drag) event.preventDefault()
   }, { passive: false })
 
-  note.addEventListener('contextmenu', (event) => {
+  host.layer.addEventListener('contextmenu', (event) => {
     if (drag || pending) event.preventDefault()
   })
 }
