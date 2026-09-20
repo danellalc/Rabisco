@@ -1,7 +1,8 @@
 const REFRESH_WINDOW = 3600000
-const BOARD_FIELDS = 'id,content,revision,updated,title,cover,pinned,share_mode,share_token,share_expires'
-const SUMMARY_FIELDS = 'id,revision,updated,title,cover,pinned,share_mode,share_token,share_expires'
+const BOARD_FIELDS = 'id,content,revision,updated,title,cover,pinned'
+const SUMMARY_FIELDS = 'id,revision,updated,title,cover,pinned'
 const FILE_FIELDS = 'id,name,size,kind'
+const SHARE_FIELDS = 'id,token,mode,items,expires'
 
 export class ApiError extends Error {
   constructor(status, message, data) {
@@ -92,8 +93,6 @@ export function createApi({ getToken, getUserId, onSession = () => {} }) {
     request.send(form)
   })
 
-  const shareBody = (mode, expires) => (expires === undefined ? { share_mode: mode } : { share_mode: mode, share_expires: expires })
-
   return {
     requestCode: (email) => call('POST', '/api/collections/users/request-otp', { body: { email } }),
     signIn: (otpId, code) => call('POST', '/api/collections/users/auth-with-otp', { body: { otpId, password: code } }),
@@ -104,8 +103,11 @@ export function createApi({ getToken, getUserId, onSession = () => {} }) {
     createBoard: (content = '[]') => fresh('POST', `/api/collections/boards/records?fields=${BOARD_FIELDS}`, { body: { content, user: getUserId() } }),
     saveBoard: (id, content, revision) => fresh('PATCH', `/api/collections/boards/records/${id}?fields=${SUMMARY_FIELDS}`, { body: { content }, headers: { 'X-Note-Rev': revision } }),
     pinBoard: (id, pinned) => fresh('PATCH', `/api/collections/boards/records/${id}?fields=${SUMMARY_FIELDS}`, { body: { pinned } }),
-    shareBoard: (id, mode, expires) => fresh('PATCH', `/api/collections/boards/records/${id}?fields=${SUMMARY_FIELDS}`, { body: shareBody(mode, expires) }),
     deleteBoard: (id) => fresh('DELETE', `/api/collections/boards/records/${id}`),
+    listShares: (boardId) => fresh('GET', `/api/collections/shares/records?perPage=50&skipTotal=1&sort=created&filter=${encodeURIComponent(`board='${boardId}'`)}&fields=${SHARE_FIELDS}`),
+    createShare: (boardId, items, mode, expires) => fresh('POST', `/api/collections/shares/records?fields=${SHARE_FIELDS}`, { body: { board: boardId, user: getUserId(), items: JSON.stringify(items), mode, expires } }),
+    updateShare: (id, patch) => fresh('PATCH', `/api/collections/shares/records/${id}?fields=${SHARE_FIELDS}`, { body: patch }),
+    deleteShare: (id) => fresh('DELETE', `/api/collections/shares/records/${id}`),
     uploadImage: (boardId, blob, name) => {
       const form = new FormData()
       form.append('board', boardId)

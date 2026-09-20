@@ -31,6 +31,7 @@ const ASSETS = [
   '/js/paste.js',
   '/js/resize.js',
   '/js/sanitize.js',
+  '/js/search.js',
   '/js/settings.js',
   '/js/share-target.js',
   '/js/share.js',
@@ -40,7 +41,8 @@ const ASSETS = [
   '/js/table.js',
   '/js/toolbar.js',
   '/js/visitor.js',
-  '/js/widths.js'
+  '/js/widths.js',
+  '/js/zip.js'
 ]
 
 const shellFor = (path) => (path === '/' || path === '/index.html' || path === '/s' || path.startsWith('/s/') ? '/' : '')

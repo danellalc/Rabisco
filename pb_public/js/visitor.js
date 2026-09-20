@@ -30,6 +30,15 @@ export function createVisitor({ api, token, board, layer, history, chooser, tran
     if (mode === 'edit') setState('saved')
   }
 
+  const singleFile = (shared) => {
+    try {
+      const items = JSON.parse(shared.content)
+      return shared.partial && items.length === 1 && items[0].type === 'file' ? items[0] : null
+    } catch {
+      return null
+    }
+  }
+
   const schedule = (delay = SAVE_DELAY) => {
     clearTimeout(timer)
     timer = setTimeout(save, delay)
@@ -99,7 +108,13 @@ export function createVisitor({ api, token, board, layer, history, chooser, tran
 
   const load = async () => {
     try {
-      apply(await api.getShared(token))
+      const shared = await api.getShared(token)
+      const file = singleFile(shared)
+      if (file) {
+        onReady('download', file)
+        return
+      }
+      apply(shared)
       onReady(mode)
     } catch (error) {
       const gone = Boolean(error && error.status === 404)

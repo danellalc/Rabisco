@@ -105,12 +105,25 @@
 </div>
 <div class="menu item-menu" id="item-menu" hidden></div>
 </main>
+<section class="download-page" id="download-page" hidden>
+<span class="download-icon"><svg viewBox="0 0 32 32" width="64" height="64"><path d=""/></svg><span class="ext" id="download-ext"></span></span>
+<div>
+<p class="download-name" id="download-name"></p>
+<p class="download-size" id="download-size"></p>
+</div>
+<p class="download-warning" data-i18n="fileWarning">File uploaded by someone else. Only download it if you trust the sender.</p>
+<button class="primary" type="button" id="download-button" data-i18n="download">Download</button>
+</section>
 <footer class="shared-foot" id="shared-foot" hidden>
 <span data-i18n="madeWith">Made with Trecos</span>
 <a href="/" data-i18n="createYours">Create your own board</a>
 <button class="text-link" id="duplicate" type="button" data-i18n="duplicate">Duplicate</button>
 </footer>
 </div>
+</div>
+<div class="menu palette" id="palette" hidden>
+<input class="palette-input" id="palette-input" type="search" placeholder="Search everything" aria-label="Search everything" data-i18n-input="searchEverything" data-i18n-label="searchEverything">
+<div class="palette-rows" id="palette-rows"></div>
 </div>
 <div class="toast" id="toast" hidden></div>
 <div class="chooser" id="paste-choice" hidden></div>

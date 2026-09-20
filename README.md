@@ -8,14 +8,14 @@ Vanilla HTML, CSS and JavaScript served by PocketBase. No frameworks and nothing
 
 ## Status
 
-Everything from version 1 works on the board: text formatting, pasting screenshots (inline in a block or as an item), spreadsheet cells as a table, links, list with search and pin, sharing by link with expiry, export to text and markdown, print, installable app, Android share target. Version 2 stage 1 (the board itself) is done.
+Everything from version 1 works on the board: text formatting, pasting screenshots (inline in a block or as an item), spreadsheet cells as a table, links, list with search and pin, sharing by link with expiry, export to text and markdown, print, installable app, Android share target. Version 2 stages 1 to 4 are done.
 
 ## Roadmap
 
 1. Board: done. Pan, zoom, text blocks as items, image and link items, drag with snapping to the grid and to neighbours, lasso, tidy, undo and redo of everything, autosave of the whole board, migration of version 1 notes.
-2. Files and quota: any file as an item with an icon, upload progress, blocked types, per user quota, download, rename, video and audio playing in the card, Cloudflare R2 storage.
-3. Sharing v2: board, selection or single file, active links, download page, duplicate with files.
-4. Polish: copy and paste items across boards, global search, zip export, share target landing on the board.
+2. Files and quota: done. Any file as a card with an icon, upload progress, blocked executable types, 500 MB per file, 2 GB per user (100 GB on the pro plan, both adjustable per user in the dashboard), signed short lived download links, rename, video and audio playing in the card, daily cleanup of files no board references. Storage goes wherever PocketBase points (local disk or an S3 bucket such as Cloudflare R2, set in the dashboard).
+3. Sharing v2: done. A link for the whole board (view or edit), for a selection (view) or for a single file (download page), several active links per board, expiry, revoke, duplicate with files.
+4. Polish: done. Copy, cut and paste items inside a board or across boards (files are copied), global search with Ctrl+K, download everything as a zip, share target from Android landing on the board.
 5. Direct upload to the bucket for big files and paid plans.
 6. Drawing: a vector sketch item.
 
@@ -56,6 +56,8 @@ docker compose exec pb /pb/pocketbase superuser upsert you@example.com "a-strong
 ```
 
 Then set SMTP in the dashboard, Settings, Mail settings. The container runs as an unprivileged user, so `pb_data` must be owned by uid 1001 on the host.
+
+For files, point PocketBase at an S3 compatible bucket in Settings, Files storage (Cloudflare R2 works with the account endpoint, the bucket name, region `auto` and an access key with object read and write). Keep bucket versioning on and back up only the database: `pb_data` without `storage`. Quotas live on each user record (`plan` and `quota_bytes`).
 
 ## Layout
 

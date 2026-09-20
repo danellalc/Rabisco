@@ -23,6 +23,9 @@ import { serviceWorkerUrl, textOf } from './sanitize.js'
 import { applySettings, readSettings, writeSettings } from './settings.js'
 import { SHARE_HASH, clearShareTarget, readShareTarget } from './share-target.js'
 import { initShare, tokenFromHash } from './share.js'
+import { FILE_ICON_PATHS, parseClipboard } from './board.js'
+import { initSearch, buildIndex } from './search.js'
+import { buildZip, uniqueName } from './zip.js'
 import { initShortcuts } from './shortcuts.js'
 import { migrateStorage, store } from './store.js'
 import { createInsertTable } from './table.js'
@@ -61,7 +64,7 @@ const api = createApi({
   }
 })
 const setState = (state) => { saveState.textContent = translate(state) }
-const sync = { markDirty: () => {}, rememberCamera: () => {}, imageInserted: () => {}, fileInserted: () => {}, mediaLink: () => Promise.reject(new Error('no link')), renameFile: () => Promise.reject(new Error('no rename')) }
+const sync = { markDirty: () => {}, rememberCamera: () => {}, imageInserted: () => {}, fileInserted: () => {}, fileCopy: () => {}, shareItems: () => {}, boardId: () => '', mediaLink: () => Promise.reject(new Error('no link')), renameFile: () => Promise.reject(new Error('no rename')) }
 const formatBytes = (bytes) => formatSize(bytes, language)
 const isPhone = () => matchMedia('(max-width:719px)').matches
 const showNote = () => { document.body.dataset.view = 'note' }
@@ -120,6 +123,7 @@ const showItemMenu = (id, anchor) => {
   if (item && item.type === 'file' && item.file) {
     if (!sharedPage) actions.push({ label: translate('rename'), run: () => board.renameFile(id) })
     actions.push({ label: translate('download'), run: () => downloadFile(item) })
+    if (!sharedPage) actions.push({ label: translate('shareFile'), run: () => sync.shareItems([id]) })
   }
   actions.push(
     { label: translate('duplicate'), run: () => board.duplicate([id]) },
@@ -137,6 +141,7 @@ const board = createBoard({
   message: document.getElementById('board-message'),
   translate,
   language,
+  boardId: () => sync.boardId(),
   onChange: () => sync.markDirty(),
   beforeChange,
   onCamera: (camera) => {
@@ -148,6 +153,7 @@ const board = createBoard({
   onItemMenu: showItemMenu,
   onImageInserted: (img, file) => sync.imageInserted(img, file),
   onFileInserted: (item, file) => sync.fileInserted(item, file),
+  onFileCopy: (item, source) => sync.fileCopy(item, source),
   onMediaLink: (item) => sync.mediaLink(item),
   onRenameFile: (item, name) => sync.renameFile(item, name)
 })
@@ -220,7 +226,9 @@ const wireEditor = ({ insertImageInText, addImageOnBoard, addFilesOnBoard }) => 
       }
       if (others.length > 0) return
       const text = transfer.getData('text/plain')
-      if (isUrl(text)) board.addLink(origin, toHref(text))
+      const copied = parseClipboard(text)
+      if (copied) board.pasteItems(copied, origin)
+      else if (isUrl(text)) board.addLink(origin, toHref(text))
       else if (text.trim() !== '') {
         board.addText(origin)
         recorded(insertText)(text)
@@ -254,9 +262,17 @@ if (sharedPage) {
     translate,
     setState,
     showToast,
-    onReady: (mode) => {
+    onReady: (mode, file) => {
       document.body.dataset.mode = mode
       document.getElementById('shared-foot').hidden = false
+      if (mode !== 'download') return
+      const page = document.getElementById('download-page')
+      page.querySelector('path').setAttribute('d', FILE_ICON_PATHS[file.kind] || FILE_ICON_PATHS.generic)
+      document.getElementById('download-ext').textContent = file.name.split('.').pop().toUpperCase().slice(0, 4)
+      document.getElementById('download-name').textContent = file.name
+      document.getElementById('download-size').textContent = formatBytes(file.size)
+      document.getElementById('download-button').addEventListener('click', () => downloadFile(file))
+      page.hidden = false
     }
   })
   sync.markDirty = visitor.markDirty
@@ -287,7 +303,7 @@ if (sharedPage) {
     onOpen: (id) => boards.open(id).catch(() => showToast(translate('loadFailed'))),
     onSearchContents: async () => {
       const result = await api.listContents()
-      return new Map(result.items.map((item) => [item.id, textOfItems(parseContent(item.content), textOf)]))
+      return new Map(result.items.map((item) => [item.id, textOfItems(parseContent(item.content) || [], textOf)]))
     },
     onSearchFailed: () => showToast(translate('searchFailed'))
   })
@@ -314,6 +330,8 @@ if (sharedPage) {
   sync.markDirty = boards.markDirty
   sync.rememberCamera = boards.rememberCamera
   sync.fileInserted = (item, file) => boards.uploadFile(item.id, file)
+  sync.fileCopy = (item, source) => boards.uploadFile(item.id, { name: item.name }, source)
+  sync.boardId = boards.currentId
   sync.mediaLink = async (item) => (await api.fileLink(item.file)).url
   sync.renameFile = (item, name) => api.renameFile(item.file, name)
   sync.imageInserted = async (img, file) => {
@@ -354,6 +372,27 @@ if (sharedPage) {
     const content = convert(treeOfBoard(board.elementsInReadingOrder()), location.origin)
     downloadBlob(new Blob([content], { type }), fileName(boards.title() || content.slice(0, 60), extension))
   }
+
+  const exportZip = async () => {
+    board.stopEditing()
+    try {
+      const taken = new Set()
+      const entries = [{ name: uniqueName('board.md', taken), data: new TextEncoder().encode(toMarkdown(treeOfBoard(board.elementsInReadingOrder()), location.origin)) }]
+      for (const item of parseContent(board.serialize()) || []) {
+        if (item.type === 'file' && item.file) {
+          const blob = await (await fetch((await api.fileLink(item.file)).url)).blob()
+          entries.push({ name: uniqueName(item.name, taken), data: new Uint8Array(await blob.arrayBuffer()) })
+        }
+      }
+      for (const img of layer.querySelectorAll('img[src^="/api/files/images/"]')) {
+        const blob = await (await fetch(img.getAttribute('src'))).blob()
+        entries.push({ name: uniqueName(img.getAttribute('src').split('/').pop(), taken), data: new Uint8Array(await blob.arrayBuffer()) })
+      }
+      downloadBlob(buildZip(entries), fileName(boards.title() || 'board', 'zip'))
+    } catch {
+      showToast(translate('zipFailed'))
+    }
+  }
   initMenu({
     button: document.getElementById('menu'),
     menu: document.getElementById('menu-panel'),
@@ -364,19 +403,44 @@ if (sharedPage) {
       { label: () => translate('addFile'), run: () => fileInput.click() },
       { label: () => translate('downloadTxt'), run: () => exportBoard('txt', toText, 'text/plain') },
       { label: () => translate('downloadMd'), run: () => exportBoard('md', toMarkdown, 'text/markdown') },
+      { label: () => translate('downloadZip'), run: exportZip },
       { label: () => translate('print'), run: () => window.print() },
       { label: () => translate('delete'), danger: true, run: () => boards.remove().catch(() => showToast(translate('saveFailed'))) }
     ],
     onChange: saveSettings
   })
-  initShare({
+  const share = initShare({
     button: document.getElementById('share'),
     panel: document.getElementById('share-panel'),
     translate,
-    getShare: boards.getShare,
-    setShare: boards.setShare,
+    getState: () => ({ selected: board.selected(), items: parseContent(board.serialize()) || [], shares: boards.getShares() }),
+    createShare: boards.createShare,
+    updateShare: boards.updateShare,
+    deleteShare: boards.deleteShare,
     showToast
   })
+  sync.shareItems = (ids) => share.open(ids)
+
+  const search = initSearch({
+    palette: document.getElementById('palette'),
+    input: document.getElementById('palette-input'),
+    rows: document.getElementById('palette-rows'),
+    translate,
+    language,
+    loadIndex: async () => {
+      const result = await api.listContents()
+      return buildIndex(list.get(), new Map(result.items.map((item) => [item.id, item.content])), textOf)
+    },
+    onOpen: async (row) => {
+      try {
+        await boards.open(row.boardId)
+        if (row.itemId) board.focusItem(row.itemId)
+      } catch {
+        showToast(translate('loadFailed'))
+      }
+    }
+  })
+  document.getElementById('search').addEventListener('focus', () => search.invalidate())
 
   const createBoardNow = () => {
     if (!signedIn()) return

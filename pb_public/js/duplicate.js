@@ -33,7 +33,7 @@ export async function duplicateShared(api, token) {
   const shared = await api.getShared(token)
   const record = await api.createBoard()
   const items = []
-  for (const item of parseContent(shared.content)) {
+  for (const item of parseContent(shared.content) || []) {
     try {
       if (item.type === 'text') items.push({ ...item, html: await copyInlineImages(api, item.html, record.id) })
       else if (item.type === 'image') items.push({ ...item, src: await copyImage(api, item.src, record.id) })

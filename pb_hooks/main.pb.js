@@ -28,7 +28,7 @@ onRecordRequestOTPRequest((e) => {
 onRecordCreateRequest((e) => {
   e.record.set('user', e.auth ? e.auth.id : '')
   e.next()
-}, 'boards', 'images', 'files')
+}, 'boards', 'images', 'files', 'shares')
 
 onRecordCreateRequest((e) => {
   const { assertQuota } = require(`${__hooks}/files.js`)
@@ -61,12 +61,27 @@ onRecordUpdateRequest((e) => {
 }, 'files')
 
 onRecordCreateRequest((e) => {
+  const { sharedItemIds, shareMode } = require(`${__hooks}/share.js`)
+  const board = e.app.findRecordById('boards', e.record.getString('board'))
+  const itemIds = sharedItemIds(board.getString('content'), e.record.getString('items'))
+  if (e.record.getString('items') !== '' && e.record.getString('items') !== '[]' && itemIds.length === 0) throw new BadRequestError('Nothing to share.')
+  e.record.set('items', JSON.stringify(itemIds))
+  e.record.set('mode', shareMode(e.record.getString('mode'), itemIds))
+  e.record.set('token', $security.randomString(22))
+  e.next()
+}, 'shares')
+
+onRecordUpdateRequest((e) => {
+  const { parseIds, shareMode } = require(`${__hooks}/share.js`)
+  e.record.set('mode', shareMode(e.record.getString('mode'), parseIds(e.record.getString('items'))))
+  e.next()
+}, 'shares')
+
+onRecordCreateRequest((e) => {
   const { nextRevision } = require(`${__hooks}/revision.js`)
   const { applyBoard } = require(`${__hooks}/items.js`)
   applyBoard(e.app, e.record, e.record.getString('content'))
   e.record.set('revision', nextRevision())
-  e.record.set('share_mode', 'off')
-  e.record.set('share_token', '')
   e.next()
 }, 'boards')
 
@@ -100,29 +115,31 @@ routerAdd('GET', '/api/dl/{token}', (e) => {
 })
 
 routerAdd('GET', '/api/shared', (e) => {
-  const { findShared } = require(`${__hooks}/share.js`)
-  const record = findShared(e)
+  const { findShared, filterContent } = require(`${__hooks}/share.js`)
+  const shared = findShared(e)
   return e.json(200, {
-    content: record.getString('content'),
-    revision: record.getString('revision'),
-    mode: record.getString('share_mode'),
-    title: record.getString('title')
+    content: filterContent(shared.board.getString('content'), shared.itemIds),
+    revision: shared.board.getString('revision'),
+    mode: shared.mode,
+    title: shared.board.getString('title'),
+    partial: shared.itemIds.length > 0
   })
 })
 
 routerAdd('POST', '/api/shared/file-link', (e) => {
-  const { findShared } = require(`${__hooks}/share.js`)
+  const { findShared, filterContent } = require(`${__hooks}/share.js`)
   const { downloadLink } = require(`${__hooks}/files.js`)
-  const record = findShared(e)
+  const shared = findShared(e)
   const id = String(e.requestInfo().body.file || '')
-  if (id === '' || record.getString('content').indexOf('"file":"' + id + '"') < 0) throw new NotFoundError('File not found.')
+  const visible = filterContent(shared.board.getString('content'), shared.itemIds)
+  if (id === '' || visible.indexOf('"file":"' + id + '"') < 0) throw new NotFoundError('File not found.')
   let file
   try {
     file = e.app.findRecordById('files', id)
   } catch (error) {
     throw new NotFoundError('File not found.')
   }
-  if (file.getString('board') !== record.id) throw new NotFoundError('File not found.')
+  if (file.getString('board') !== shared.board.id) throw new NotFoundError('File not found.')
   return e.json(200, downloadLink(e.app, file))
 })
 
@@ -130,8 +147,9 @@ routerAdd('PATCH', '/api/shared', (e) => {
   const { findShared } = require(`${__hooks}/share.js`)
   const { claimRevision, nextRevision } = require(`${__hooks}/revision.js`)
   const { applyBoard } = require(`${__hooks}/items.js`)
-  const record = findShared(e)
-  if (record.getString('share_mode') !== 'edit') throw new ForbiddenError('This link is view only.')
+  const shared = findShared(e)
+  if (shared.mode !== 'edit') throw new ForbiddenError('This link is view only.')
+  const record = shared.board
   const info = e.requestInfo()
   const expected = String(info.headers.x_note_rev || '')
   if (expected !== '' && expected !== record.getString('revision')) {
@@ -159,7 +177,6 @@ cronAdd('clean-files', '30 3 * * *', () => {
 })
 
 onRecordUpdateRequest((e) => {
-  const { isExpired, nextShare } = require(`${__hooks}/share.js`)
   const { claimRevision, nextRevision } = require(`${__hooks}/revision.js`)
   const { applyBoard } = require(`${__hooks}/items.js`)
   const info = e.requestInfo()
@@ -172,16 +189,5 @@ onRecordUpdateRequest((e) => {
   if (content !== original.getString('content')) {
     e.record.set('revision', expected === '' ? nextRevision() : claimRevision(e.app, e.record.id, expected))
   }
-  const share = nextShare({
-    mode: e.record.getString('share_mode'),
-    modeGiven: info.body.share_mode !== undefined,
-    previousMode: original.getString('share_mode'),
-    previousToken: original.getString('share_token'),
-    previousExpired: isExpired(original),
-    expiresGiven: info.body.share_expires !== undefined
-  }, () => $security.randomString(22))
-  e.record.set('share_mode', share.mode)
-  e.record.set('share_token', share.token)
-  if (share.expires !== undefined) e.record.set('share_expires', share.expires)
   e.next()
 }, 'boards')

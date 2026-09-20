@@ -1,13 +1,17 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { createRequire } from 'node:module'
-import { expiryDate, shareUrl, tokenFromHash } from '../pb_public/js/share.js'
+import { expiryDate, shareTarget, shareUrl, tokenFromHash } from '../pb_public/js/share.js'
 
 const require = createRequire(import.meta.url)
-const { isExpired, nextShare } = require('../pb_hooks/share.js')
+const { filterContent, isExpired, parseIds, shareMode, sharedItemIds } = require('../pb_hooks/share.js')
 
 const record = (expires) => ({ getString: () => expires })
-const generate = () => 'fresh'
+const content = JSON.stringify([
+  { id: 'txt00001', type: 'text', x: 0, y: 0, z: 1, w: 640, html: 'a' },
+  { id: 'fil00001', type: 'file', x: 0, y: 0, z: 2, file: 'f1', name: 'r.pdf', size: 1, kind: 'pdf' },
+  { id: 'img00001', type: 'image', x: 0, y: 0, z: 3, w: 100, src: '/api/files/images/a/b.webp' }
+])
 
 test('expiry is detected on the server', () => {
   assert.equal(isExpired(record('')), false)
@@ -15,23 +19,24 @@ test('expiry is detected on the server', () => {
   assert.equal(isExpired(record('2999-01-01 00:00:00.000Z')), false)
 })
 
-test('the token only changes when a link is turned off or on', () => {
-  const active = { previousMode: 'view', previousToken: 'old', previousExpired: false, modeGiven: true }
-  assert.deepEqual(nextShare({ ...active, mode: 'edit', expiresGiven: false }, generate), { mode: 'edit', token: 'old' })
-  assert.deepEqual(nextShare({ ...active, mode: 'view', expiresGiven: true }, generate), { mode: 'view', token: 'old' })
-  assert.deepEqual(nextShare({ ...active, mode: 'view', modeGiven: false, expiresGiven: false }, generate), { mode: 'view', token: 'old' })
-  assert.deepEqual(nextShare({ ...active, mode: 'off', expiresGiven: false }, generate), { mode: 'off', token: '', expires: '' })
-  const off = { previousMode: 'off', previousToken: '', previousExpired: false, modeGiven: true }
-  assert.deepEqual(nextShare({ ...off, mode: 'view', expiresGiven: false }, generate), { mode: 'view', token: 'fresh', expires: '' })
-  assert.deepEqual(nextShare({ ...off, mode: 'view', expiresGiven: true }, generate), { mode: 'view', token: 'fresh' })
+test('shared item ids are validated against the board and deduplicated', () => {
+  assert.deepEqual(parseIds('["txt00001", 3, "bad id", "fil00001"]'), ['txt00001', 'fil00001'])
+  assert.deepEqual(parseIds('{nope'), [])
+  assert.deepEqual(sharedItemIds(content, '["fil00001","ghost001","fil00001"]'), ['fil00001'])
+  assert.deepEqual(sharedItemIds(content, '[]'), [])
+  assert.deepEqual(sharedItemIds(content, ''), [])
 })
 
-test('an expired link gets a new token and a clean expiry only when enabled again on purpose', () => {
-  const expired = { previousMode: 'view', previousToken: 'old', previousExpired: true }
-  assert.deepEqual(nextShare({ ...expired, mode: 'view', modeGiven: true, expiresGiven: false }, generate), { mode: 'view', token: 'fresh', expires: '' })
-  assert.deepEqual(nextShare({ ...expired, mode: 'edit', modeGiven: true, expiresGiven: true }, generate), { mode: 'edit', token: 'fresh' })
-  assert.deepEqual(nextShare({ ...expired, mode: 'view', modeGiven: false, expiresGiven: false }, generate), { mode: 'off', token: '', expires: '' })
-  assert.deepEqual(nextShare({ ...expired, mode: 'view', modeGiven: false, expiresGiven: true }, generate), { mode: 'off', token: '', expires: '' })
+test('a selection or file share is always view only, a board share can edit', () => {
+  assert.equal(shareMode('edit', []), 'edit')
+  assert.equal(shareMode('view', []), 'view')
+  assert.equal(shareMode('anything', []), 'view')
+  assert.equal(shareMode('edit', ['fil00001']), 'view')
+})
+
+test('the visitor only receives the shared items', () => {
+  assert.equal(filterContent(content, []), content)
+  assert.deepEqual(JSON.parse(filterContent(content, ['fil00001', 'img00001'])).map((item) => item.id), ['fil00001', 'img00001'])
 })
 
 test('expiry choices become dates from now', () => {
@@ -49,4 +54,12 @@ test('share links carry the token in the fragment only', () => {
   assert.equal(tokenFromHash('#short'), '')
   assert.equal(tokenFromHash(''), '')
   assert.equal(tokenFromHash('#<script>alert(1)</script>xx'), '')
+})
+
+test('the share target is the board, a selection or a single file', () => {
+  const items = JSON.parse(content)
+  assert.deepEqual(shareTarget([], items), { kind: 'board', ids: [] })
+  assert.deepEqual(shareTarget(['fil00001'], items), { kind: 'file', ids: ['fil00001'], name: 'r.pdf' })
+  assert.deepEqual(shareTarget(['txt00001', 'fil00001'], items), { kind: 'selection', ids: ['txt00001', 'fil00001'] })
+  assert.deepEqual(shareTarget(['ghost'], items), { kind: 'board', ids: [] })
 })

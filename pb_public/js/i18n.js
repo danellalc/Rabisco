@@ -113,7 +113,23 @@ export const dictionaries = {
     fileTooBig: 'Files can have at most 500 MB',
     storageFull: 'Storage full: {used} of {quota}',
     quotaLine: '{used} of {quota}',
-    downloadFailed: 'Could not download the file'
+    downloadFailed: 'Could not download the file',
+    thisBoard: 'This board',
+    selectionOf: 'Selection ({n} items)',
+    selectionHint: 'Anyone who opens it sees only what is selected',
+    activeLinks: 'Active links',
+    disable: 'Disable',
+    shareFile: 'Share file',
+    targetBoard: 'Board',
+    targetSelection: 'Selection · {n} items',
+    modeView: 'view only',
+    modeEdit: 'can edit',
+    fileWarning: 'File uploaded by someone else. Only download it if you trust the sender.',
+    searchEverything: 'Search everything: boards and files',
+    kindBoard: 'board',
+    kindFile: 'file',
+    downloadZip: 'Download all (.zip)',
+    zipFailed: 'Could not build the zip'
   },
   'pt-BR': {
     placeholder: 'Escreva',
@@ -229,7 +245,23 @@ export const dictionaries = {
     fileTooBig: 'Arquivos têm no máximo 500 MB',
     storageFull: 'Espaço cheio: {used} de {quota}',
     quotaLine: '{used} de {quota}',
-    downloadFailed: 'Não deu pra baixar o arquivo'
+    downloadFailed: 'Não deu pra baixar o arquivo',
+    thisBoard: 'Este quadro',
+    selectionOf: 'Seleção ({n} itens)',
+    selectionHint: 'Quem abrir vê só o que está selecionado',
+    activeLinks: 'Links ativos',
+    disable: 'Desativar',
+    shareFile: 'Compartilhar arquivo',
+    targetBoard: 'Quadro',
+    targetSelection: 'Seleção · {n} itens',
+    modeView: 'só ver',
+    modeEdit: 'pode editar',
+    fileWarning: 'Arquivo enviado por outra pessoa. Baixe só se confiar em quem mandou.',
+    searchEverything: 'Buscar em tudo: quadros e arquivos',
+    kindBoard: 'quadro',
+    kindFile: 'arquivo',
+    downloadZip: 'Baixar tudo (.zip)',
+    zipFailed: 'Não deu pra montar o zip'
   }
 }
 

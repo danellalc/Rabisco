@@ -1,6 +1,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { expiryChoice, isShareExpired, isSuspiciousShrink, nextRetryDelay, readCamera, readDraft, writeCamera, writeDraft } from '../pb_public/js/boards.js'
+import { isSuspiciousShrink, liveShares, nextRetryDelay, readCamera, readDraft, writeCamera, writeDraft } from '../pb_public/js/boards.js'
+import { expiryChoice } from '../pb_public/js/share.js'
 import { errorKey, magicLinkFrom, readAuth, writeAuth } from '../pb_public/js/auth.js'
 import { migrateStorage } from '../pb_public/js/store.js'
 
@@ -27,11 +28,14 @@ test('retries back off exponentially up to a ceiling', () => {
   assert.equal(nextRetryDelay(30000), 30000)
 })
 
-test('share expiry is read from the stored date', () => {
+test('expired shares are hidden from the panel and the expiry choice reads the stored date', () => {
   const now = new Date('2026-09-20T12:00:00.000Z').getTime()
-  assert.equal(isShareExpired('', now), false)
-  assert.equal(isShareExpired('2026-09-20 11:59:59.000Z', now), true)
-  assert.equal(isShareExpired('2026-09-20 12:30:00.000Z', now), false)
+  const shares = [
+    { id: 'a', expires: '' },
+    { id: 'b', expires: '2026-09-20 11:59:59.000Z' },
+    { id: 'c', expires: '2026-09-20 12:30:00.000Z' }
+  ]
+  assert.deepEqual(liveShares(shares, now).map((share) => share.id), ['a', 'c'])
   assert.equal(expiryChoice('', now), 'never')
   assert.equal(expiryChoice('2026-09-20 12:30:00.000Z', now), '1h')
   assert.equal(expiryChoice('2026-09-21 06:00:00.000Z', now), '1d')

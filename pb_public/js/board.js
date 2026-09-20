@@ -1,7 +1,7 @@
 import { WHEEL_STEP, ZOOM_STEP, fitCamera, panBy, toScreen, toWorld, zoomAt } from './camera.js'
 import { isBlank, placeCaretAtEnd, placeCaretAtPoint } from './editor.js'
 import { CARD_HEIGHT, IMAGE_MIN_WIDTH, TEXT_MIN_WIDTH, boundsOf, extensionOf, formatSize, formatTime, isMedia, kindOf, linkLabel, newId, nextZ, overlaps, parseContent, readingOrder } from './items.js'
-import { render, serialize } from './sanitize.js'
+import { render, safeHref, safeImageSource, serialize } from './sanitize.js'
 import { GRID, SNAP_DISTANCE, snapMove, snapToGrid, tidy } from './snap.js'
 
 const DRAG_THRESHOLD = 4
@@ -26,6 +26,32 @@ const FILE_ICONS = {
   code: `${SHEET} M13.5 14l-2.5 3 2.5 3 M18.5 14l2.5 3-2.5 3`
 }
 const CARDS = ['link', 'file']
+export const FILE_ICON_PATHS = FILE_ICONS
+export const CLIPBOARD_PREFIX = 'trecos-items:'
+
+export function cleanItems(raw) {
+  const kept = []
+  for (const item of raw) {
+    const clean = { ...item, x: Number(item.x) || 0, y: Number(item.y) || 0, z: Number(item.z) || 1, w: Number(item.w) || NEW_TEXT_WIDTH }
+    if (clean.type === 'link') clean.url = safeHref(String(clean.url || ''))
+    if (clean.type === 'image') clean.src = safeImageSource(String(clean.src || ''), true)
+    if (clean.type === 'text') clean.html = String(clean.html || '')
+    if (clean.type === 'file') clean.name = String(clean.name || '')
+    if (!['text', 'image', 'link', 'file'].includes(clean.type) || clean.url === null || clean.src === null) continue
+    kept.push(clean)
+  }
+  return kept
+}
+
+export function parseClipboard(text) {
+  if (typeof text !== 'string' || !text.startsWith(CLIPBOARD_PREFIX)) return null
+  try {
+    const parsed = JSON.parse(text.slice(CLIPBOARD_PREFIX.length))
+    return parsed && Array.isArray(parsed.items) ? { board: String(parsed.board || ''), items: parsed.items } : null
+  } catch {
+    return null
+  }
+}
 const CONTROLS = '.toolbar, .image-selection, .zoom, .menu, .chooser, .board-message, .play, .rename, video'
 
 function svgIcon(path, size) {
@@ -64,7 +90,7 @@ function restoreCaretPath(root, caret) {
     placeCaretAtEnd(root)
     return
   }
-  root.focus()
+  root.focus({ preventScroll: true })
   const limit = node.nodeType === Node.TEXT_NODE ? node.length : node.childNodes.length
   const range = document.createRange()
   range.setStart(node, Math.min(caret.offset, limit))
@@ -74,7 +100,7 @@ function restoreCaretPath(root, caret) {
   selection.addRange(range)
 }
 
-export function createBoard({ area, layer, lasso, guides, message, translate, language, onChange, beforeChange, onCamera, onOpenImage, onOpenFile, onItemMenu, onImageInserted, onFileInserted, onMediaLink, onRenameFile }) {
+export function createBoard({ area, layer, lasso, guides, message, translate, language, boardId, onChange, beforeChange, onCamera, onOpenImage, onOpenFile, onItemMenu, onImageInserted, onFileInserted, onFileCopy, onMediaLink, onRenameFile }) {
   let items = []
   const elements = new Map()
   let camera = { zoom: 1, x: 24, y: 24 }
@@ -85,6 +111,8 @@ export function createBoard({ area, layer, lasso, guides, message, translate, la
   const touches = new Map()
   let spaceHeld = false
   let playing = null
+  let suppressClick = false
+  let broken = false
 
   const itemOf = (id) => items.find((item) => item.id === id)
   const noteOf = (id) => elements.get(id).querySelector('.note')
@@ -467,6 +495,60 @@ export function createBoard({ area, layer, lasso, guides, message, translate, la
     onChange()
   }
 
+  const clipboardText = (ids) => {
+    const chosen = ids.map(itemOf).filter((item) => item && (item.type !== 'file' || item.file))
+    if (chosen.length === 0) return ''
+    const payload = chosen.map((item) => (item.type === 'text' ? { ...item, html: serialize(noteOf(item.id)) } : item))
+    return `${CLIPBOARD_PREFIX}${JSON.stringify({ board: boardId(), items: payload })}`
+  }
+
+  const pasteItems = (parsed, point) => {
+    const incoming = cleanItems(parseContent(JSON.stringify(parsed.items)) || [])
+    if (incoming.length === 0) return
+    beforeChange()
+    const bounds = boundsOf(incoming.map((item) => ({ x: Number(item.x) || 0, y: Number(item.y) || 0, w: Number(item.w) || CARD_HEIGHT, h: CARD_HEIGHT })))
+    let z = nextZ(items)
+    const sameBoard = parsed.board === boardId()
+    const pasted = incoming.map((source) => {
+      const item = { ...source, id: newId(), x: snapToGrid(point.x + (Number(source.x) || 0) - bounds.x0), y: snapToGrid(point.y + (Number(source.y) || 0) - bounds.y0), z: z++ }
+      if (item.type === 'file' && !sameBoard) {
+        const sourceFile = item.file
+        item.file = ''
+        addItem(item)
+        onFileCopy(item, sourceFile)
+        return item
+      }
+      return addItem(item)
+    })
+    setSelection(pasted.map((item) => item.id))
+    onChange()
+  }
+
+  const focusItem = (id) => {
+    if (!elements.has(id)) return
+    setSelection([id])
+    fit([id])
+  }
+
+  document.addEventListener('copy', (event) => {
+    if (!editable || editing || selection.size === 0 || inField(event.target)) return
+    const text = clipboardText([...selection])
+    if (!text) return
+    event.clipboardData.setData('text/plain', text)
+    event.preventDefault()
+  })
+
+  document.addEventListener('cut', (event) => {
+    if (!editable || editing || selection.size === 0 || inField(event.target)) return
+    const text = clipboardText([...selection])
+    if (!text) return
+    event.clipboardData.setData('text/plain', text)
+    event.preventDefault()
+    beforeChange()
+    removeItems([...selection])
+    onChange()
+  })
+
   const bringToFront = (ids) => {
     beforeChange()
     let z = nextZ(items)
@@ -599,14 +681,17 @@ export function createBoard({ area, layer, lasso, guides, message, translate, la
     lasso.hidden = true
     showGuides([])
     document.body.classList.remove('dragging')
+    suppressClick = Boolean(finished.moved)
     if ((finished.kind === 'drag' || finished.kind === 'resize') && finished.moved) onChange()
     if (finished.kind === 'drag' && !finished.moved && finished.tap && finished.wasSelected) startEditing(finished.origins[0].id)
   }
 
   const itemAt = (target) => (target instanceof Element ? target.closest('.item') : null)
   const isControl = (target) => target instanceof Element && Boolean(target.closest(CONTROLS))
+  const inField = (target) => target instanceof Element && (target.matches('input, textarea') || target.isContentEditable)
 
   area.addEventListener('pointerdown', (event) => {
+    suppressClick = false
     if (isControl(event.target)) return
     if (event.pointerType === 'touch') {
       touches.set(event.pointerId, screenPoint(event))
@@ -639,6 +724,12 @@ export function createBoard({ area, layer, lasso, guides, message, translate, la
       const wasSelected = selection.has(id)
       if (event.shiftKey) setSelection(wasSelected ? [...selection].filter((other) => other !== id) : [...selection, id])
       else if (!wasSelected) setSelection([id])
+      const grabbed = itemOf(id)
+      if (grabbed && grabbed.z !== nextZ(items) - 1) {
+        grabbed.z = nextZ(items)
+        applyGeometry(grabbed)
+        onChange()
+      }
       if (element.dataset.type !== 'link' || event.pointerType === 'mouse') event.preventDefault()
       const chosen = [...selection]
       if (chosen.length === 0) return
@@ -671,7 +762,10 @@ export function createBoard({ area, layer, lasso, guides, message, translate, la
     }
     if (!gesture || gesture.pointerId !== event.pointerId) return
     if (gesture.kind === 'pan') {
-      setCamera(panBy(gesture.startCamera, event.clientX - gesture.startClient.x, event.clientY - gesture.startClient.y))
+      const dx = event.clientX - gesture.startClient.x
+      const dy = event.clientY - gesture.startClient.y
+      if (Math.hypot(dx, dy) > DRAG_THRESHOLD) gesture.moved = true
+      setCamera(panBy(gesture.startCamera, dx, dy))
     } else if (gesture.kind === 'drag') dragUpdate(event)
     else if (gesture.kind === 'lasso') lassoUpdate(event)
     else if (gesture.kind === 'resize') resizeUpdate(event)
@@ -688,12 +782,19 @@ export function createBoard({ area, layer, lasso, guides, message, translate, la
   document.addEventListener('pointerup', release)
   document.addEventListener('pointercancel', release)
 
+  area.addEventListener('click', (event) => {
+    if (!suppressClick) return
+    suppressClick = false
+    event.preventDefault()
+    event.stopPropagation()
+  }, true)
+
   layer.addEventListener('click', (event) => {
     const element = itemAt(event.target)
     if (!element) return
     if (element.dataset.type === 'image' && !editable) onOpenImage(element.querySelector('img'))
     if (element.dataset.type === 'file' && !editable && !isControl(event.target)) onOpenFile(itemOf(element.dataset.id))
-    if (element.dataset.type === 'link' && (document.body.classList.contains('dragging') || (editable && !event.ctrlKey && !event.metaKey && event.pointerType !== 'touch' && selection.size > 1))) event.preventDefault()
+    if (element.dataset.type === 'link' && editable && !event.ctrlKey && !event.metaKey && event.pointerType !== 'touch' && selection.size > 1) event.preventDefault()
   })
 
   area.addEventListener('dblclick', (event) => {
@@ -704,6 +805,14 @@ export function createBoard({ area, layer, lasso, guides, message, translate, la
       return
     }
     const type = element.dataset.type
+    if (event.target.closest('.handle') && type === 'image') {
+      const item = itemOf(element.dataset.id)
+      beforeChange()
+      item.w = Math.max(IMAGE_MIN_WIDTH, Math.min(IMAGE_MAX_WIDTH, item.width || item.w))
+      applyGeometry(item)
+      onChange()
+      return
+    }
     if (type === 'text') startEditing(element.dataset.id, { x: event.clientX, y: event.clientY })
     else if (type === 'image') onOpenImage(element.querySelector('img'))
   })
@@ -717,8 +826,6 @@ export function createBoard({ area, layer, lasso, guides, message, translate, la
     const horizontal = event.shiftKey && event.deltaX === 0
     setCamera(panBy(camera, -(horizontal ? event.deltaY : event.deltaX), horizontal ? 0 : -event.deltaY))
   }, { passive: false })
-
-  const inField = (target) => target instanceof Element && (target.matches('input, textarea') || target.isContentEditable)
 
   document.addEventListener('keydown', (event) => {
     if (event.key === ' ' && !inField(event.target)) spaceHeld = true
@@ -768,6 +875,10 @@ export function createBoard({ area, layer, lasso, guides, message, translate, la
   const zoomBy = (factor) => setCamera(zoomAt(camera, factor, { x: area.clientWidth / 2, y: area.clientHeight / 2 }))
 
   const fit = (ids) => {
+    if (area.clientWidth === 0 || area.clientHeight === 0) {
+      requestAnimationFrame(() => { if (area.clientWidth > 0 && area.clientHeight > 0) fit(ids) })
+      return
+    }
     const chosen = ids ? ids.map(itemOf).filter(Boolean) : items
     const bounds = boundsOf(chosen.map(rectOf))
     setCamera(bounds ? fitCamera(bounds, viewport()) : { zoom: 1, x: 24, y: 24 })
@@ -776,8 +887,11 @@ export function createBoard({ area, layer, lasso, guides, message, translate, la
   const load = (content, storedCamera) => {
     stopEditing()
     selection = new Set()
-    items = parseContent(content).map((item) => ({ ...item, x: Number(item.x) || 0, y: Number(item.y) || 0, z: Number(item.z) || 1, w: Number(item.w) || NEW_TEXT_WIDTH }))
+    const parsed = parseContent(content)
+    broken = parsed === null
+    items = cleanItems(parsed || [])
     renderAll()
+    setMessage(broken ? translate('loadFailed') : '')
     if (storedCamera) setCamera(storedCamera)
     else fit()
   }
@@ -797,7 +911,7 @@ export function createBoard({ area, layer, lasso, guides, message, translate, la
     const stored = camera
     const target = entry.editing
     editing = null
-    items = parseContent(entry.key)
+    items = cleanItems(parseContent(entry.key) || [])
     renderAll()
     setCamera(stored)
     if (target && elements.has(target)) {
@@ -808,8 +922,8 @@ export function createBoard({ area, layer, lasso, guides, message, translate, la
   }
 
   const setEditable = (next) => {
-    editable = next
-    area.dataset.editable = String(next)
+    editable = next && !broken
+    area.dataset.editable = String(editable)
     if (!next) {
       stopEditing()
       setSelection([])
@@ -858,6 +972,7 @@ export function createBoard({ area, layer, lasso, guides, message, translate, la
     snapshot,
     restore,
     setEditable,
+    isBroken: () => broken,
     isBlank: isBlankBoard,
     editFirstText,
     stopEditing,
@@ -870,6 +985,8 @@ export function createBoard({ area, layer, lasso, guides, message, translate, la
     renameFile,
     pendingFileIds: () => [...layer.querySelectorAll('.item.file[data-pending]')].map((element) => element.dataset.id),
     duplicate: duplicateItems,
+    pasteItems,
+    focusItem,
     bringToFront,
     remove: (ids) => {
       beforeChange()

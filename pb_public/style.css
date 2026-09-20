@@ -94,7 +94,35 @@ body[data-view=list] .pane{display:none}
 .menu-row span{flex:1;color:var(--fg2);font-size:13px;letter-spacing:.04em;text-transform:uppercase}
 .menu-row button{min-height:32px;padding:2px var(--s2);border-radius:4px}
 .menu-row button[aria-pressed=true]{color:var(--acc);font-weight:700}
-.board{flex:1;position:relative;overflow:hidden;touch-action:none;user-select:none;-webkit-user-select:none}
+.menu-title{margin:0 0 var(--s1);padding:0 var(--s1);font-weight:700}
+.menu-hint,.menu-label{margin:0 0 var(--s1);padding:0 var(--s1);color:var(--fg2);font-size:13px}
+.menu-label{letter-spacing:.04em;text-transform:uppercase}
+.divider{margin:var(--s2) 0;border-top:1px solid var(--line)}
+.share-row{display:flex;align-items:baseline;gap:var(--s2);padding:var(--s1)}
+.share-row .target{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-align:left;text-decoration:underline;text-decoration-color:var(--acc);text-underline-offset:3px}
+.share-row .mode{flex-shrink:0;font:12px/1.5 var(--mono);color:var(--fg2)}
+.share-row .small{min-height:0;align-self:auto;font-size:13px}
+.share-row .quiet{color:var(--fg2)}
+.share-row input{position:absolute;opacity:0;pointer-events:none}
+.palette{position:fixed;top:72px;left:50%;right:auto;transform:translateX(-50%);width:520px;max-width:90%;margin:0;z-index:7}
+.palette-input{display:block;width:100%;padding:var(--s2) var(--s1);border:0;border-bottom:1px solid var(--line);background:none;color:var(--fg);outline:0;-webkit-appearance:none}
+.palette-rows{max-height:320px;overflow-y:auto;margin-top:var(--s2)}
+.palette-row{display:flex;align-items:baseline;gap:var(--s2);width:100%;padding:var(--s2) var(--s1);border-radius:4px;text-align:left}
+.palette-row:focus-visible,.palette-row:hover{background:var(--bg)}
+.palette-row .kind{width:64px;flex-shrink:0;font-size:13px;letter-spacing:.04em;text-transform:uppercase;color:var(--fg2)}
+.palette-row .label{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.meta-mono{flex-shrink:0;font:12px/1.5 var(--mono);color:var(--fg2)}
+.download-page{flex:1;flex-direction:column;align-items:center;justify-content:center;gap:var(--s4);max-width:360px;margin:0 auto;padding:var(--s5) var(--s4);text-align:center}
+.download-page:not([hidden]){display:flex}
+body[data-mode=download] .board,body[data-mode=download] .note-header{display:none}
+.download-icon{position:relative;width:64px;height:64px}
+.download-icon svg{stroke-width:1.4}
+.download-icon .ext{position:absolute;left:50%;bottom:2px;transform:translateX(-50%);padding:0 var(--s1);background:var(--bg);font:12px/1.2 var(--mono);letter-spacing:.05em;color:var(--fg2)}
+.download-name{margin:0;font-size:21px;font-weight:700;overflow-wrap:anywhere}
+.download-size{margin:0;font:13px/1.5 var(--mono);color:var(--fg2)}
+.download-warning{margin:0;font-size:15px;color:var(--fg2)}
+.download-page .primary{align-self:center;margin-top:0;padding:var(--s2) var(--s5);font-size:16px}
+.board{flex:1;position:relative;overflow:clip;touch-action:none;user-select:none;-webkit-user-select:none}
 .layer{position:absolute;left:0;top:0;transform-origin:0 0;--zoom:1}
 .item{position:absolute;left:0;top:0;border-radius:4px}
 .board[data-editable=true] .item:not(.editing){cursor:grab}
