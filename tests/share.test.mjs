@@ -68,7 +68,7 @@ test('share links carry the token in the fragment only', () => {
 test('the share target is the board, a selection or a single file', () => {
   const items = JSON.parse(content)
   assert.deepEqual(shareTarget([], items), { kind: 'board', ids: [] })
-  assert.deepEqual(shareTarget(['fil00001'], items), { kind: 'file', ids: ['fil00001'], name: 'r.pdf' })
+  assert.deepEqual(shareTarget(['fil00001'], items), { kind: 'file', ids: [], file: 'f1', name: 'r.pdf' })
   assert.deepEqual(shareTarget(['txt00001', 'fil00001'], items), { kind: 'selection', ids: ['txt00001', 'fil00001'] })
   assert.deepEqual(shareTarget(['ghost'], items), { kind: 'board', ids: [] })
 })

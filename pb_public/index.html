@@ -37,9 +37,12 @@
 <div class="app" id="app">
 <aside class="list" id="list">
 <div class="list-top">
-<input class="search" id="search" type="search" placeholder="Search" aria-label="Search" data-i18n-input="search" data-i18n-label="search">
-<button class="new" id="new" type="button" aria-label="New board" data-i18n-label="newBoard">+</button>
+<nav class="crumbs" id="crumbs" aria-label="Folders"></nav>
+<button class="icon-button show-board" id="show-board" type="button" aria-label="Show board" data-i18n-label="showBoard"><svg width="20" height="20" viewBox="0 0 24 24"><path d="M4 5h16v14H4z M9 9h6v6H9z"/></svg></button>
+<button class="new" id="new" type="button" aria-label="New" data-i18n-label="newMenu" aria-controls="new-menu">+</button>
+<div class="menu new-menu" id="new-menu" hidden></div>
 </div>
+<input class="search" id="search" type="search" placeholder="Search" aria-label="Search" data-i18n-input="search" data-i18n-label="search">
 <div class="rows" id="rows"></div>
 <div class="list-foot">
 <div class="list-foot-row">
@@ -49,6 +52,7 @@
 <span class="quota" id="quota"></span>
 </div>
 <input type="file" id="file-input" multiple hidden>
+<input type="file" id="image-input" accept="image/*" multiple hidden>
 </aside>
 <div class="pane">
 <header class="note-header">
@@ -72,6 +76,15 @@
 <div class="resize-handle" id="resize-handle"></div>
 </div>
 <div class="drop-marker" id="drop-marker" hidden></div>
+<section class="doc" id="doc" hidden>
+<div class="doc-page">
+<div class="doc-top">
+<button class="text-link" id="doc-close" type="button" data-i18n="backToBoard">Back to board</button>
+</div>
+<input class="doc-name" id="doc-name" type="text" placeholder="Document name" aria-label="Document name" data-i18n-input="docNamePlaceholder" data-i18n-label="docNamePlaceholder">
+<div class="note doc-note" id="doc-note" data-placeholder="Write" data-i18n-placeholder="placeholder"></div>
+</div>
+</section>
 <div class="toolbar" id="toolbar" hidden>
 <button type="button" data-cmd="bold" aria-label="Bold" data-i18n-label="bold"><b>B</b></button>
 <button type="button" data-cmd="italic" aria-label="Italic" data-i18n-label="italic"><i>I</i></button>
@@ -125,6 +138,7 @@
 <input class="palette-input" id="palette-input" type="search" placeholder="Search everything" aria-label="Search everything" data-i18n-input="searchEverything" data-i18n-label="searchEverything">
 <div class="palette-rows" id="palette-rows"></div>
 </div>
+<div class="menu picker" id="picker" hidden></div>
 <div class="toast" id="toast" hidden></div>
 <div class="chooser" id="paste-choice" hidden></div>
 <dialog class="lightbox" id="lightbox">

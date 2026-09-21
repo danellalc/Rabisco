@@ -1,12 +1,10 @@
-import { parseDate, readList, writeList } from './list.js'
+import { parseDate } from './list.js'
 
 const SAVE_DELAY = 1000
-const UNDO_DELAY = 5000
 const RETRY_MIN = 2000
 const RETRY_MAX = 30000
 const SHRINK_MIN_LENGTH = 2000
 const SHRINK_RATIO = 0.3
-const lastKey = 'trecos.last'
 const draftKey = (id) => `trecos.draft:${id}`
 const cameraKey = (id) => `trecos.camera:${id}`
 
@@ -53,22 +51,6 @@ export function writeCamera(storage, id, camera) {
   }
 }
 
-function readLast(storage) {
-  try {
-    return storage.getItem(lastKey) || ''
-  } catch {
-    return ''
-  }
-}
-
-export function writeLast(storage, id) {
-  try {
-    storage.setItem(lastKey, id)
-  } catch {
-    return
-  }
-}
-
 export function liveShares(shares, now = Date.now()) {
   return shares.filter((share) => !share.expires || parseDate(share.expires).getTime() > now)
 }
@@ -76,7 +58,7 @@ export function liveShares(shares, now = Date.now()) {
 const isClientError = (error) => Boolean(error && error.status >= 400 && error.status < 500)
 const failureState = () => (navigator.onLine ? 'error' : 'offline')
 
-export function createBoards({ api, store, board, layer, list, history, chooser, translate, formatBytes, setState, onAuthLost, showToast, onOpened, onQuota }) {
+export function createBoards({ api, store, board, root, history, chooser, translate, formatBytes, setState, onAuthLost, showToast, onOpened, onQuota, onSummary, onImageUploaded }) {
   let timer = 0
   let saving = false
   let switching = false
@@ -86,7 +68,6 @@ export function createBoards({ api, store, board, layer, list, history, chooser,
   const uploads = new Set()
   const uploadRetries = new Map()
   const pendingFiles = new Map()
-  const pendingDeletes = new Map()
   const channel = typeof BroadcastChannel === 'undefined' ? null : new BroadcastChannel('trecos')
 
   const serial = (task) => {
@@ -109,7 +90,7 @@ export function createBoards({ api, store, board, layer, list, history, chooser,
   }
 
   const swapUploadedImages = () => {
-    for (const img of layer.querySelectorAll('img[src^="blob:"]')) {
+    for (const img of root.querySelectorAll('img[src^="blob:"]')) {
       const url = store.uploaded.get(img.src)
       if (url) img.src = url
     }
@@ -117,7 +98,7 @@ export function createBoards({ api, store, board, layer, list, history, chooser,
 
   const pruneStaleImages = () => {
     let pending = false
-    for (const img of layer.querySelectorAll('img[src^="blob:"]')) {
+    for (const img of root.querySelectorAll('img[src^="blob:"]')) {
       if (store.pendingImages.has(img.src)) {
         pending = true
         continue
@@ -168,21 +149,16 @@ export function createBoards({ api, store, board, layer, list, history, chooser,
     if (current()) writeCamera(localStorage, current().id, camera)
   }
 
-  const summary = (record) => ({ id: record.id, title: record.title, cover: record.cover, pinned: record.pinned, updated: record.updated })
-
-  const persistList = () => writeList(localStorage, list.get())
-
-  const stillListed = (id) => !pendingDeletes.has(id) && Boolean(list.find(id))
+  const summary = (record) => ({ id: record.id, title: record.title, cover: record.cover, pinned: record.pinned, updated: record.updated, name: record.name, parent: record.parent })
 
   const applyServer = (record, shares = []) => {
     clearTimeout(timer)
-    store.board = { id: record.id, revision: record.revision, length: record.content.length, shares }
+    store.board = { id: record.id, revision: record.revision, length: record.content.length, shares, name: record.name, parent: record.parent }
     show(record.id, record.content)
     board.setEditable(true)
     switching = false
     store.dirty = false
-    list.upsert(summary(record))
-    persistList()
+    onSummary(summary(record))
     setState('saved')
   }
 
@@ -227,16 +203,13 @@ export function createBoards({ api, store, board, layer, list, history, chooser,
       allowShrink = false
       retryDelay = 0
       writeDraft(localStorage, active.id, null)
-      if (stillListed(active.id)) {
-        list.upsert(summary(result))
-        persistList()
-      }
+      onSummary(summary(result))
       if (channel) channel.postMessage({ id: active.id, revision: active.revision })
       if (current() === active) {
         setState(store.dirty ? 'saving' : 'saved')
         if (store.dirty) schedule()
       }
-      const holdsStorage = content.includes('"file":') || content.includes('/api/files/images/')
+      const holdsStorage = content.includes('/api/files/images/')
       if (holdsStorage || active.holdsStorage) refreshQuota()
       active.holdsStorage = holdsStorage
       return !store.dirty
@@ -262,22 +235,9 @@ export function createBoards({ api, store, board, layer, list, history, chooser,
     }
   }
 
-  const commitDeletes = async () => {
-    for (const [id, timeout] of [...pendingDeletes]) {
-      clearTimeout(timeout)
-      pendingDeletes.delete(id)
-      try {
-        await api.deleteBoard(id)
-      } catch {
-        showToast(translate('saveFailed'))
-      }
-    }
-  }
-
   const flush = async () => {
     clearTimeout(timer)
     board.stopEditing()
-    await commitDeletes()
     await Promise.all([...uploads, ...pendingFiles.values()])
     if (!store.dirty) return true
     return save()
@@ -304,6 +264,8 @@ export function createBoards({ api, store, board, layer, list, history, chooser,
           board.setFileRecord(itemId, record)
           markDirty()
         }
+        refreshQuota()
+        onSummary({ id: boardId, filesChanged: true })
       } catch (error) {
         pendingFiles.delete(itemId)
         if (current() && current().id === boardId) {
@@ -331,14 +293,14 @@ export function createBoards({ api, store, board, layer, list, history, chooser,
         store.uploaded.set(blobUrl, url)
         store.pendingImages.delete(blobUrl)
         uploadRetries.delete(blobUrl)
-        if (current() && current().id === boardId) {
-          swapUploadedImages()
-          markDirty()
-        }
+        swapUploadedImages()
+        onImageUploaded()
+        if (current() && current().id === boardId) markDirty()
       } catch (error) {
         if (isClientError(error)) {
           store.pendingImages.delete(blobUrl)
           showToast(error.status === 413 ? uploadFailure(error) : translate('imageUnreadable'))
+          onImageUploaded()
           if (current() && current().id === boardId) markDirty()
         } else {
           setState(failureState())
@@ -354,24 +316,6 @@ export function createBoards({ api, store, board, layer, list, history, chooser,
 
   const retryUploads = () => {
     for (const blobUrl of store.pendingImages.keys()) upload(blobUrl)
-  }
-
-  const isBlankBoard = () => !board.isBroken() && board.isBlank() && store.pendingImages.size === 0 && pendingFiles.size === 0
-
-  const discardIfBlank = async () => {
-    const active = current()
-    if (!active || !isBlankBoard() || list.get().length < 2) return
-    clearTimeout(timer)
-    store.dirty = false
-    store.board = null
-    list.remove(active.id)
-    persistList()
-    writeDraft(localStorage, active.id, null)
-    try {
-      await api.deleteBoard(active.id)
-    } catch {
-      return
-    }
   }
 
   const restoreDraft = (id, record) => {
@@ -406,58 +350,26 @@ export function createBoards({ api, store, board, layer, list, history, chooser,
       if (current()) board.setEditable(true)
       throw error
     }
-    await discardIfBlank()
     onOpened()
     applyServer(record, liveShares(shares))
-    list.setActive(id)
-    writeLast(localStorage, id)
     restoreDraft(id, record)
     if (board.isBlank()) board.editFirstText()
   }
 
   const open = (id) => serial(() => switchTo(id))
 
-  const freshBoard = () => api.createBoard(JSON.stringify([{ id: 'first000', type: 'text', x: 0, y: 0, z: 1, w: 640, html: '' }]))
-
-  const create = () => serial(async () => {
-    if (current() && isBlankBoard()) {
-      onOpened()
-      board.editFirstText()
-      return
-    }
-    if (!(await flush())) return
-    const record = await freshBoard()
-    list.upsert(summary(record))
-    persistList()
-    await switchTo(record.id)
+  const close = () => serial(async () => {
+    if (!current()) return
+    await flush()
+    clearTimeout(timer)
+    store.board = null
+    store.dirty = false
+    board.load('[]', { zoom: 1, x: 24, y: 24 })
+    board.setEditable(false)
+    history.reset()
+    releaseUploaded()
+    setState('')
   })
-
-  const load = () => serial(async () => {
-    list.set(readList(localStorage))
-    const result = await api.listBoards()
-    list.set(result.items)
-    persistList()
-    const last = readLast(localStorage)
-    const first = list.find(last) || list.get()[0]
-    refreshQuota()
-    if (first) {
-      await switchTo(first.id)
-      return
-    }
-    const record = await freshBoard()
-    list.upsert(summary(record))
-    persistList()
-    await switchTo(record.id)
-  })
-
-  const pin = async () => {
-    const active = current()
-    if (!active) return
-    const entry = list.find(active.id)
-    const record = await api.pinBoard(active.id, !(entry && entry.pinned))
-    list.upsert(summary(record))
-    persistList()
-  }
 
   const getShares = () => (current() ? liveShares(current().shares) : [])
 
@@ -466,12 +378,13 @@ export function createBoards({ api, store, board, layer, list, history, chooser,
     if (channel && active) channel.postMessage({ id: active.id, shares: active.shares })
   }
 
-  const createShare = async (items, mode, expires) => {
+  const createShare = async (target, mode, expires) => {
     const active = current()
-    if (!active) return
-    const share = await api.createShare(active.id, items, mode, expires)
+    if (!active) return null
+    const share = await api.createShare({ board: active.id, items: target.ids || [], mode, expires, doc: target.doc || '', file: target.file || '' })
     active.shares = [...active.shares, share]
     publishShares()
+    return share
   }
 
   const updateShare = async (id, patch) => {
@@ -490,56 +403,8 @@ export function createBoards({ api, store, board, layer, list, history, chooser,
     publishShares()
   }
 
-  const title = () => {
-    const entry = current() && list.find(current().id)
-    return entry ? entry.title : ''
-  }
-
-  const remove = () => serial(async () => {
-    const active = current()
-    if (!active) return
-    const id = active.id
-    clearTimeout(timer)
-    store.dirty = false
-    await commitDeletes()
-    const entry = list.find(id)
-    list.remove(id)
-    persistList()
-    writeDraft(localStorage, id, null)
-    store.board = null
-    const next = list.get()[0]
-    if (next) await switchTo(next.id)
-    else {
-      const record = await freshBoard()
-      list.upsert(summary(record))
-      persistList()
-      await switchTo(record.id)
-    }
-    const timeout = setTimeout(async () => {
-      pendingDeletes.delete(id)
-      try {
-        await api.deleteBoard(id)
-      } catch {
-        showToast(translate('saveFailed'))
-      }
-    }, UNDO_DELAY)
-    pendingDeletes.set(id, timeout)
-    showToast(translate('deleted'), {
-      label: translate('undo'),
-      run: () => {
-        clearTimeout(pendingDeletes.get(id))
-        pendingDeletes.delete(id)
-        if (entry) list.upsert(entry)
-        persistList()
-        open(id).catch(() => showToast(translate('loadFailed')))
-      }
-    })
-  })
-
   const reset = () => {
     clearTimeout(timer)
-    for (const timeout of pendingDeletes.values()) clearTimeout(timeout)
-    pendingDeletes.clear()
     uploadRetries.clear()
     pendingFiles.clear()
     store.board = null
@@ -547,7 +412,6 @@ export function createBoards({ api, store, board, layer, list, history, chooser,
     switching = false
     store.pendingImages.clear()
     releaseUploaded()
-    list.reset()
     board.load('[]', { zoom: 1, x: 24, y: 24 })
     board.setEditable(false)
   }
@@ -571,12 +435,12 @@ export function createBoards({ api, store, board, layer, list, history, chooser,
   })
 
   window.addEventListener('beforeunload', (event) => {
-    if (!store.dirty && store.pendingImages.size === 0 && pendingDeletes.size === 0) return
+    if (!store.dirty && store.pendingImages.size === 0) return
     event.preventDefault()
     event.returnValue = ''
   })
 
   board.setEditable(false)
 
-  return { load, open, create, pin, remove, reset, markDirty, rememberCamera, upload, uploadFile, refreshQuota, save, flush, getShares, createShare, updateShare, deleteShare, title, currentId: () => (current() ? current().id : ''), isPinned: () => { const entry = current() && list.find(current().id); return Boolean(entry && entry.pinned) } }
+  return { open, close, reset, markDirty, rememberCamera, upload, uploadFile, refreshQuota, save, flush, getShares, createShare, updateShare, deleteShare, current, currentId: () => (current() ? current().id : '') }
 }

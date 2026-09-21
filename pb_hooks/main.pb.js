@@ -66,18 +66,27 @@ onRecordUpdateRequest((e) => {
 
 onRecordCreateRequest((e) => {
   const { parseBoard, sharedItemIds, isScoped, shareMode } = require(`${__hooks}/share.js`)
-  const docId = e.record.getString('doc')
-  if (docId !== '') {
-    let doc
+  const ownTarget = (collection, id) => {
+    let record
     try {
-      doc = e.app.findRecordById('docs', docId)
+      record = e.app.findRecordById(collection, id)
     } catch (error) {
       throw new BadRequestError('Nothing to share.')
     }
-    if (doc.getString('user') !== e.auth.id) throw new BadRequestError('Nothing to share.')
-    e.record.set('board', doc.getString('board'))
+    if (record.getString('user') !== e.auth.id) throw new BadRequestError('Nothing to share.')
+    return record
+  }
+  const docId = e.record.getString('doc')
+  const fileId = e.record.getString('file')
+  if (docId !== '') {
+    e.record.set('board', ownTarget('docs', docId).getString('board'))
+    e.record.set('file', '')
     e.record.set('items', '[]')
     e.record.set('mode', shareMode(e.record.getString('mode'), false))
+  } else if (fileId !== '') {
+    e.record.set('board', ownTarget('files', fileId).getString('board'))
+    e.record.set('items', '[]')
+    e.record.set('mode', 'view')
   } else {
     const board = e.app.findRecordById('boards', e.record.getString('board'))
     const requested = e.record.getString('items')
@@ -205,6 +214,16 @@ routerAdd('GET', '/api/shared', (e) => {
       partial: false
     })
   }
+  if (shared.kind === 'file') {
+    const file = shared.file
+    return e.json(200, {
+      kind: 'file',
+      file: { id: file.id, name: file.getString('name'), size: Number(file.get('size')) || 0, kind: file.getString('kind') },
+      mode: 'view',
+      title: file.getString('name'),
+      partial: true
+    })
+  }
   return e.json(200, {
     kind: 'board',
     content: shared.content,
@@ -219,8 +238,12 @@ routerAdd('POST', '/api/shared/file-link', (e) => {
   const { findShared } = require(`${__hooks}/share.js`)
   const { downloadLink } = require(`${__hooks}/files.js`)
   const shared = findShared(e)
-  if (shared.kind !== 'board') throw new NotFoundError('File not found.')
   const id = String(e.requestInfo().body.file || '')
+  if (shared.kind === 'file') {
+    if (id !== shared.file.id) throw new NotFoundError('File not found.')
+    return e.json(200, downloadLink(e.app, shared.file))
+  }
+  if (shared.kind !== 'board') throw new NotFoundError('File not found.')
   if (id === '' || shared.content.indexOf('"file":"' + id + '"') < 0) throw new NotFoundError('File not found.')
   let file
   try {

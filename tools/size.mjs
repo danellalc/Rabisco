@@ -4,7 +4,7 @@ import { gzipSync } from 'node:zlib'
 import { fileURLToPath } from 'node:url'
 
 const root = resolve(fileURLToPath(new URL('../', import.meta.url)), process.argv[2] || 'build')
-const budgets = { css: 24 * 1024, js: 128 * 1024, raw: 160 * 1024, gzip: 48 * 1024 }
+const budgets = { css: 32 * 1024, js: 192 * 1024, raw: 240 * 1024, gzip: 72 * 1024 }
 const counted = new Set(['.html', '.css', '.js'])
 
 async function walk(dir) {

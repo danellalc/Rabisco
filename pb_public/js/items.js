@@ -1,12 +1,14 @@
 export const TEXT_WIDTH = 640
 export const TEXT_MIN_WIDTH = 160
 export const IMAGE_MIN_WIDTH = 60
+export const IMAGE_MIN_HEIGHT = 40
 export const CARD_WIDTH = 230
 export const CARD_HEIGHT = 64
 export const FILE_MAX_BYTES = 500 * 1024 * 1024
 export const BLOCKED_EXTENSIONS = ['exe', 'msi', 'bat', 'cmd', 'com', 'scr', 'pif', 'vbs', 'js', 'jse', 'wsf', 'ps1', 'jar', 'hta', 'dll', 'lnk']
 export const FILE_KINDS = {
   pdf: ['pdf'],
+  image: ['png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp', 'heic', 'avif'],
   doc: ['doc', 'docx', 'odt', 'rtf', 'txt', 'md', 'pages'],
   sheet: ['xls', 'xlsx', 'ods', 'csv', 'numbers'],
   slides: ['ppt', 'pptx', 'odp', 'key'],
@@ -15,6 +17,8 @@ export const FILE_KINDS = {
   audio: ['mp3', 'm4a', 'wav', 'ogg', 'aac', 'flac'],
   code: ['json', 'xml', 'html', 'css', 'py', 'go', 'ts', 'sql', 'sh', 'yml', 'yaml', 'toml']
 }
+export const REFERENCE_TYPES = ['file', 'doc', 'folder']
+export const TEXT_COLORS = ['hl1', 'hl2', 'hl3']
 const ID_ALPHABET = 'abcdefghijklmnopqrstuvwxyz0123456789'
 const SIZE_UNITS = ['B', 'KB', 'MB', 'GB']
 
@@ -30,6 +34,14 @@ export function kindOf(name) {
 
 export function isBlockedName(name) {
   return BLOCKED_EXTENSIONS.includes(extensionOf(String(name || '').replace(/[.\s]+$/, '')))
+}
+
+export function isReference(item) {
+  return REFERENCE_TYPES.includes(item.type)
+}
+
+export function previewable(kind) {
+  return ['pdf', 'image', 'video', 'audio'].includes(kind)
 }
 
 export function formatSize(bytes, language) {

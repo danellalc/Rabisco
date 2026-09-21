@@ -30,7 +30,9 @@ export function shareTarget(selectedIds, items) {
   const ids = selectedIds.filter((id) => items.some((item) => item.id === id))
   if (ids.length === 0) return { kind: 'board', ids: [] }
   const only = items.find((item) => item.id === ids[0])
-  if (ids.length === 1 && only.type === 'file') return { kind: 'file', ids, name: only.name }
+  if (ids.length === 1 && only.type === 'file' && only.file) return { kind: 'file', ids: [], file: only.file, name: only.name }
+  if (ids.length === 1 && only.type === 'doc') return { kind: 'doc', ids: [], doc: only.doc, name: only.name }
+  if (ids.length === 1 && only.type === 'folder') return { kind: 'folder', ids: [], folder: only.folder, name: only.name }
   return { kind: 'selection', ids }
 }
 
@@ -43,7 +45,17 @@ export function parseShareItems(raw) {
   }
 }
 
-const sameIds = (a, b) => a.length === b.length && a.every((id) => b.includes(id))
+export function matchesTarget(share, target) {
+  if (target.kind === 'doc') return share.doc === target.doc
+  if (target.kind === 'file') return share.file === target.file
+  if (share.doc || share.file) return false
+  const ids = parseShareItems(share.items)
+  return ids.length === target.ids.length && ids.every((id) => target.ids.includes(id))
+}
+
+export function canEdit(target) {
+  return target.kind === 'board' || target.kind === 'doc'
+}
 
 function copyField(field) {
   field.focus()
@@ -51,7 +63,7 @@ function copyField(field) {
   return document.execCommand('copy')
 }
 
-export function initShare({ button, panel, translate, getState, createShare, updateShare, deleteShare, showToast }) {
+export function initShare({ button, panel, translate, getState, createShare, updateShare, deleteShare, showToast, onFolderTarget }) {
   let target = null
 
   const close = () => {
@@ -89,12 +101,20 @@ export function initShare({ button, panel, translate, getState, createShare, upd
     showToast(translate('linkCopied'))
   }
 
-  const targetLabel = (share, items) => {
+  const targetLabel = (share, state) => {
+    if (share.doc) return state.nameOf('doc', share.doc)
+    if (share.file) return state.nameOf('file', share.file)
     const ids = parseShareItems(share.items)
-    const kind = shareTarget(ids, items)
-    if (kind.kind === 'board') return translate('targetBoard')
-    if (kind.kind === 'file') return kind.name
+    if (ids.length === 0) return translate('targetBoard')
+    const kind = shareTarget(ids, state.items)
+    if (kind.kind === 'file' || kind.kind === 'doc') return kind.name
     return translate('targetSelection').replace('{n}', String(ids.length))
+  }
+
+  const titleOf = (state) => {
+    if (target.kind === 'board') return state.doc ? state.doc.name : translate('thisBoard')
+    if (target.kind === 'selection') return translate('selectionOf').replace('{n}', String(target.ids.length))
+    return target.name
   }
 
   const textButton = (label, className, run) => {
@@ -108,12 +128,17 @@ export function initShare({ button, panel, translate, getState, createShare, upd
 
   const render = () => {
     const state = getState()
-    if (!target) target = shareTarget(state.selected, state.items)
-    const current = state.shares.find((share) => sameIds(parseShareItems(share.items), target.ids)) || null
+    if (!target) target = state.doc ? { kind: 'doc', ids: [], doc: state.doc.id, name: state.doc.name } : shareTarget(state.selected, state.items)
+    if (target.kind === 'folder') {
+      onFolderTarget(target)
+      close()
+      return
+    }
+    const current = state.shares.find((share) => matchesTarget(share, target)) || null
     panel.replaceChildren()
     const title = document.createElement('p')
     title.className = 'menu-title'
-    title.textContent = target.kind === 'board' ? translate('thisBoard') : target.kind === 'file' ? target.name : translate('selectionOf').replace('{n}', String(target.ids.length))
+    title.textContent = titleOf(state)
     panel.append(title)
     if (target.kind === 'selection') {
       const hint = document.createElement('p')
@@ -124,7 +149,7 @@ export function initShare({ button, panel, translate, getState, createShare, upd
     const modes = document.createElement('div')
     modes.className = 'menu-row modes'
     const activeMode = current ? current.mode : 'off'
-    for (const mode of target.kind === 'board' ? MODES : ['view']) {
+    for (const mode of canEdit(target) ? MODES : ['view']) {
       const option = document.createElement('button')
       option.type = 'button'
       option.textContent = translate(`share${mode[0].toUpperCase()}${mode.slice(1)}`)
@@ -133,10 +158,11 @@ export function initShare({ button, panel, translate, getState, createShare, upd
         if (activeMode === mode) return
         if (mode === 'off') attempt(() => deleteShare(current.id), 'linkDisabled')
         else if (current) attempt(() => updateShare(current.id, { mode }))
-        else attempt(() => createShare(target.ids, mode, ''))
+        else attempt(() => createShare(target, mode, ''))
       })
       modes.append(option)
     }
+    if (!canEdit(target) && current) modes.append(textButton(translate('shareOff'), '', () => attempt(() => deleteShare(current.id), 'linkDisabled')))
     panel.append(modes)
     if (current) {
       const expiry = document.createElement('div')
@@ -179,8 +205,10 @@ export function initShare({ button, panel, translate, getState, createShare, upd
         mode.className = 'mode'
         mode.textContent = translate(share.mode === 'edit' ? 'modeEdit' : 'modeView')
         row.append(
-          textButton(targetLabel(share, state.items), 'target', () => {
-            target = shareTarget(parseShareItems(share.items), state.items)
+          textButton(targetLabel(share, state), 'target', () => {
+            if (share.doc) target = { kind: 'doc', ids: [], doc: share.doc, name: state.nameOf('doc', share.doc) }
+            else if (share.file) target = { kind: 'file', ids: [], file: share.file, name: state.nameOf('file', share.file) }
+            else target = shareTarget(parseShareItems(share.items), state.items)
             render()
           }),
           mode,
@@ -197,9 +225,10 @@ export function initShare({ button, panel, translate, getState, createShare, upd
     }
   }
 
-  const open = (ids) => {
-    target = ids ? shareTarget(ids, getState().items) : null
+  const open = (chosen) => {
+    target = chosen || null
     render()
+    if (panel.childElementCount === 0) return
     panel.hidden = false
     document.addEventListener('pointerdown', closeIfOutside)
     document.addEventListener('keydown', closeOnEscape)

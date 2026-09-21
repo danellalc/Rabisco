@@ -109,7 +109,12 @@ export function createVisitor({ api, token, board, layer, history, chooser, tran
   const load = async () => {
     try {
       const shared = await api.getShared(token)
-      const file = singleFile(shared)
+      if (shared.kind === 'doc') {
+        mode = shared.mode
+        onReady('doc', shared)
+        return
+      }
+      const file = shared.kind === 'file' ? shared.file : singleFile(shared)
       if (file) {
         onReady('download', file)
         return

@@ -1,8 +1,8 @@
 import { WHEEL_STEP, ZOOM_STEP, fitCamera, panBy, toScreen, toWorld, zoomAt } from './camera.js'
 import { svgIcon } from './dom.js'
-import { isBlank, placeCaretAtEnd, placeCaretAtPoint } from './editor.js'
+import { caretPathOf, isBlank, placeCaretAtEnd, placeCaretAtPoint, placeCaretByPath } from './editor.js'
 import { createFileCards } from './file-card.js'
-import { CARD_HEIGHT, IMAGE_MIN_WIDTH, TEXT_MIN_WIDTH, boundsOf, kindOf, linkLabel, newId, nextZ, overlaps, parseContent, readingOrder } from './items.js'
+import { CARD_HEIGHT, IMAGE_MIN_HEIGHT, IMAGE_MIN_WIDTH, REFERENCE_TYPES, TEXT_COLORS, TEXT_MIN_WIDTH, boundsOf, kindOf, linkLabel, newId, nextZ, overlaps, parseContent, readingOrder } from './items.js'
 import { render, safeHref, safeImageSource, serialize } from './sanitize.js'
 import { GRID, SNAP_DISTANCE, snapMove, snapToGrid, tidy } from './snap.js'
 
@@ -15,7 +15,9 @@ const IMAGE_MAX_WIDTH = 640
 const EDGE = 40
 const EDGE_STEP = 16
 const LINK_ICON = 'M13.2 18.8l5.6-5.6M11.6 15.2l-2.4 2.4a3.7 3.7 0 1 0 5.2 5.2l2.4-2.4M20.4 16.8l2.4-2.4a3.7 3.7 0 1 0-5.2-5.2l-2.4 2.4'
-const CARDS = ['link', 'file']
+const CARDS = ['link', ...REFERENCE_TYPES]
+const TYPES = ['text', 'image', 'link', ...REFERENCE_TYPES]
+const CONTROLS = '.toolbar, .image-selection, .zoom, .menu, .chooser, .board-message, .play, .rename, video, .doc'
 export const CLIPBOARD_PREFIX = 'trecos-items:'
 
 export function cleanItems(raw) {
@@ -23,10 +25,17 @@ export function cleanItems(raw) {
   for (const item of raw) {
     const clean = { ...item, x: Number(item.x) || 0, y: Number(item.y) || 0, z: Number(item.z) || 1, w: Number(item.w) || NEW_TEXT_WIDTH }
     if (clean.type === 'link') clean.url = safeHref(String(clean.url || ''))
-    if (clean.type === 'image') clean.src = safeImageSource(String(clean.src || ''), true)
-    if (clean.type === 'text') clean.html = String(clean.html || '')
-    if (clean.type === 'file') clean.name = String(clean.name || '')
-    if (!['text', 'image', 'link', 'file'].includes(clean.type) || clean.url === null || clean.src === null) continue
+    if (clean.type === 'image') {
+      clean.src = safeImageSource(String(clean.src || ''), true)
+      if (Number(clean.h) > 0) clean.h = Number(clean.h)
+      else delete clean.h
+    }
+    if (clean.type === 'text') {
+      clean.html = String(clean.html || '')
+      if (!TEXT_COLORS.includes(clean.color)) delete clean.color
+    }
+    if (REFERENCE_TYPES.includes(clean.type)) clean.name = String(clean.name || '')
+    if (!TYPES.includes(clean.type) || clean.url === null || clean.src === null) continue
     kept.push(clean)
   }
   return kept
@@ -41,44 +50,8 @@ export function parseClipboard(text) {
     return null
   }
 }
-const CONTROLS = '.toolbar, .image-selection, .zoom, .menu, .chooser, .board-message, .play, .rename, video'
 
-function caretPath(root) {
-  const selection = document.getSelection()
-  if (selection.rangeCount === 0 || !root.contains(selection.focusNode)) return null
-  const path = []
-  let node = selection.focusNode
-  while (node !== root) {
-    path.unshift([...node.parentNode.childNodes].indexOf(node))
-    node = node.parentNode
-  }
-  return { path, offset: selection.focusOffset }
-}
-
-function restoreCaretPath(root, caret) {
-  let node = root
-  for (const index of caret ? caret.path : []) {
-    node = node.childNodes[index]
-    if (!node) {
-      placeCaretAtEnd(root)
-      return
-    }
-  }
-  if (!caret) {
-    placeCaretAtEnd(root)
-    return
-  }
-  root.focus({ preventScroll: true })
-  const limit = node.nodeType === Node.TEXT_NODE ? node.length : node.childNodes.length
-  const range = document.createRange()
-  range.setStart(node, Math.min(caret.offset, limit))
-  range.collapse(true)
-  const selection = document.getSelection()
-  selection.removeAllRanges()
-  selection.addRange(range)
-}
-
-export function createBoard({ area, layer, lasso, guides, message, translate, language, boardId, onChange, beforeChange, onCamera, onOpenImage, onOpenFile, onItemMenu, onImageInserted, onFileInserted, onFileCopy, onMediaLink, onRenameFile }) {
+export function createBoard({ area, layer, lasso, guides, message, translate, language, boardId, onChange, beforeChange, onCamera, onOpenImage, onOpenItem, onItemMenu, onContextMenu, onImageInserted, onFileInserted, onFileCopy, onMediaLink, onRenameFile }) {
   let items = []
   const elements = new Map()
   let camera = { zoom: 1, x: 24, y: 24 }
@@ -90,18 +63,24 @@ export function createBoard({ area, layer, lasso, guides, message, translate, la
   let spaceHeld = false
   let suppressClick = false
   let broken = false
+  let documentNote = null
+  let documentEditable = false
 
   const itemOf = (id) => items.find((item) => item.id === id)
   const noteOf = (id) => elements.get(id).querySelector('.note')
   const cards = createFileCards({ elements, itemOf, translate, language, onMediaLink, onRenameFile, onChange })
   const host = {
-    layer,
+    layer: area,
     area,
-    editable: () => editable,
-    active: () => (editing ? noteOf(editing) : null),
+    editable: () => (documentNote ? documentEditable : editable),
+    active: () => documentNote || (editing ? noteOf(editing) : null),
     rootOf: (node) => {
       const element = node instanceof Element ? node : node.parentElement
       return element ? element.closest('.note') : null
+    },
+    setDocument: (note, canEdit = true) => {
+      documentNote = note
+      documentEditable = Boolean(note) && canEdit
     }
   }
 
@@ -135,6 +114,12 @@ export function createBoard({ area, layer, lasso, guides, message, translate, la
     element.style.transform = `translate(${item.x}px, ${item.y}px)`
     element.style.zIndex = String(item.z)
     if (!CARDS.includes(item.type)) element.style.width = `${item.w}px`
+    if (item.type === 'image') element.style.height = item.h ? `${item.h}px` : ''
+  }
+
+  const applyColor = (item) => {
+    const element = elements.get(item.id)
+    for (const color of TEXT_COLORS) element.classList.toggle(`color-${color}`, item.color === color)
   }
 
   const decorate = (element) => {
@@ -203,11 +188,12 @@ export function createBoard({ area, layer, lasso, guides, message, translate, la
       const label = document.createElement('span')
       label.textContent = linkLabel(item.url)
       element.append(svgIcon(LINK_ICON, 24), label)
-    } else if (item.type === 'file') {
+    } else {
       cards.build(element, item)
     }
     elements.set(item.id, element)
     applyGeometry(item)
+    if (item.type === 'text') applyColor(item)
     return element
   }
 
@@ -228,7 +214,7 @@ export function createBoard({ area, layer, lasso, guides, message, translate, la
     const note = element.querySelector('.note')
     note.contentEditable = 'false'
     element.classList.remove('editing')
-    if (isBlank(note) && !note.querySelector('h1,h2,ul,ol,hr')) {
+    if (isBlank(note) && !note.querySelector('h1,h2,ul,ol,hr,blockquote,pre')) {
       beforeChange()
       removeItems([id])
       onChange()
@@ -272,9 +258,11 @@ export function createBoard({ area, layer, lasso, guides, message, translate, la
 
   const place = (point) => ({ x: snapToGrid(point.x), y: snapToGrid(point.y), z: nextZ(items) })
 
-  const addText = (point, html = '') => {
+  const addText = (point, html = '', color = '') => {
     beforeChange()
-    const item = addItem({ id: newId(), type: 'text', ...place(point), w: NEW_TEXT_WIDTH, html })
+    const item = { id: newId(), type: 'text', ...place(point), w: NEW_TEXT_WIDTH, html }
+    if (TEXT_COLORS.includes(color)) item.color = color
+    addItem(item)
     onChange()
     startEditing(item.id)
     return item
@@ -316,6 +304,36 @@ export function createBoard({ area, layer, lasso, guides, message, translate, la
     return item
   }
 
+  const addReference = (point, kind, id, name, extra = {}) => {
+    beforeChange()
+    const item = addItem({ id: newId(), type: kind, ...place(point), [kind]: id, name, ...extra })
+    onChange()
+    setSelection([item.id])
+    return item
+  }
+
+  const referenceIds = (kind, id) => items.filter((item) => item.type === kind && item[kind] === id).map((item) => item.id)
+
+  const renameReferences = (kind, id, name) => {
+    for (const item of items) {
+      if (item.type !== kind || item[kind] !== id) continue
+      item.name = name
+      cards.refresh(item)
+    }
+  }
+
+  const setColor = (ids, color) => {
+    beforeChange()
+    for (const id of ids) {
+      const item = itemOf(id)
+      if (!item || item.type !== 'text') continue
+      if (TEXT_COLORS.includes(color)) item.color = color
+      else delete item.color
+      applyColor(item)
+    }
+    onChange()
+  }
+
   const duplicateItems = (ids) => {
     if (ids.length === 0) return
     beforeChange()
@@ -352,8 +370,9 @@ export function createBoard({ area, layer, lasso, guides, message, translate, la
         onFileCopy(item, sourceFile)
         return item
       }
+      if (item.type === 'doc' && !sameBoard) return null
       return addItem(item)
-    })
+    }).filter(Boolean)
     setSelection(pasted.map((item) => item.id))
     onChange()
   }
@@ -363,6 +382,9 @@ export function createBoard({ area, layer, lasso, guides, message, translate, la
     setSelection([id])
     fit([id])
   }
+
+  const inField = (target) => target instanceof Element && (target.matches('input, textarea') || target.isContentEditable)
+  const focusInBoard = () => document.activeElement === document.body || area.contains(document.activeElement)
 
   document.addEventListener('copy', (event) => {
     if (!editable || editing || selection.size === 0 || inField(event.target)) return
@@ -390,6 +412,26 @@ export function createBoard({ area, layer, lasso, guides, message, translate, la
       const item = itemOf(id)
       if (!item) continue
       item.z = z++
+      applyGeometry(item)
+    }
+    onChange()
+  }
+
+  const sendToBack = (ids) => {
+    beforeChange()
+    const chosen = new Set(ids)
+    let z = 1
+    for (const item of [...items].sort((a, b) => a.z - b.z)) {
+      if (chosen.has(item.id)) continue
+      item.z = z + ids.length
+      z++
+      applyGeometry(item)
+    }
+    let low = 1
+    for (const id of ids) {
+      const item = itemOf(id)
+      if (!item) continue
+      item.z = low++
       applyGeometry(item)
     }
     onChange()
@@ -468,6 +510,21 @@ export function createBoard({ area, layer, lasso, guides, message, translate, la
       item.y = target.y + origin.y - primary.y
       applyGeometry(item)
     }
+    highlightDropFolder(event)
+  }
+
+  const folderCardAt = (event) => {
+    const hit = document.elementFromPoint(event.clientX, event.clientY)
+    const element = hit instanceof Element ? hit.closest('.item.folder') : null
+    return element && !selection.has(element.dataset.id) ? element : null
+  }
+
+  const highlightDropFolder = (event) => {
+    const movable = gesture.origins.every((origin) => ['file', 'doc'].includes((itemOf(origin.id) || {}).type))
+    const target = movable ? folderCardAt(event) : null
+    for (const element of layer.querySelectorAll('.item.folder.drop-target')) if (element !== target) element.classList.remove('drop-target')
+    if (target) target.classList.add('drop-target')
+    gesture.dropFolder = target ? target.dataset.id : ''
   }
 
   const lassoUpdate = (event) => {
@@ -494,6 +551,7 @@ export function createBoard({ area, layer, lasso, guides, message, translate, la
       beforeChange()
     }
     item.w = Math.max(min, snapToGrid(world.x - item.x))
+    if (item.type === 'image' && item.h) item.h = Math.max(IMAGE_MIN_HEIGHT, snapToGrid(world.y - item.y))
     applyGeometry(item)
   }
 
@@ -515,14 +573,18 @@ export function createBoard({ area, layer, lasso, guides, message, translate, la
     lasso.hidden = true
     showGuides([])
     document.body.classList.remove('dragging')
+    for (const element of layer.querySelectorAll('.item.folder.drop-target')) element.classList.remove('drop-target')
     suppressClick = Boolean(finished.moved)
+    if (finished.kind === 'drag' && finished.moved && finished.dropFolder) {
+      onContextMenu({ kind: 'dropOnFolder', folder: itemOf(finished.dropFolder), ids: finished.origins.map((origin) => origin.id) })
+      return
+    }
     if ((finished.kind === 'drag' || finished.kind === 'resize') && finished.moved) onChange()
     if (finished.kind === 'drag' && !finished.moved && finished.tap && finished.wasSelected) startEditing(finished.origins[0].id)
   }
 
   const itemAt = (target) => (target instanceof Element ? target.closest('.item') : null)
   const isControl = (target) => target instanceof Element && Boolean(target.closest(CONTROLS))
-  const inField = (target) => target instanceof Element && (target.matches('input, textarea') || target.isContentEditable)
 
   area.addEventListener('pointerdown', (event) => {
     suppressClick = false
@@ -626,9 +688,10 @@ export function createBoard({ area, layer, lasso, guides, message, translate, la
   layer.addEventListener('click', (event) => {
     const element = itemAt(event.target)
     if (!element) return
-    if (element.dataset.type === 'image' && !editable) onOpenImage(element.querySelector('img'))
-    if (element.dataset.type === 'file' && !editable && !isControl(event.target)) onOpenFile(itemOf(element.dataset.id))
-    if (element.dataset.type === 'link' && editable && !event.ctrlKey && !event.metaKey && event.pointerType !== 'touch' && selection.size > 1) event.preventDefault()
+    const type = element.dataset.type
+    if (type === 'image' && !editable) onOpenImage(element.querySelector('img'))
+    if (REFERENCE_TYPES.includes(type) && !editable && !isControl(event.target)) onOpenItem(itemOf(element.dataset.id))
+    if (type === 'link' && editable && !event.ctrlKey && !event.metaKey && event.pointerType !== 'touch' && selection.size > 1) event.preventDefault()
   })
 
   area.addEventListener('dblclick', (event) => {
@@ -643,15 +706,34 @@ export function createBoard({ area, layer, lasso, guides, message, translate, la
       const item = itemOf(element.dataset.id)
       beforeChange()
       item.w = Math.max(IMAGE_MIN_WIDTH, Math.min(IMAGE_MAX_WIDTH, item.width || item.w))
+      delete item.h
       applyGeometry(item)
       onChange()
       return
     }
     if (type === 'text') startEditing(element.dataset.id, { x: event.clientX, y: event.clientY })
     else if (type === 'image') onOpenImage(element.querySelector('img'))
+    else if (REFERENCE_TYPES.includes(type)) onOpenItem(itemOf(element.dataset.id))
+  })
+
+  area.addEventListener('contextmenu', (event) => {
+    if (isControl(event.target)) return
+    const element = itemAt(event.target)
+    if (editing && element && element.dataset.id === editing && event.target.closest('.note')) return
+    event.preventDefault()
+    if (!editable) return
+    const point = { x: event.clientX, y: event.clientY }
+    if (!element) {
+      onContextMenu({ kind: 'board', point, world: worldPoint(event) })
+      return
+    }
+    const id = element.dataset.id
+    if (!selection.has(id)) setSelection([id])
+    onContextMenu({ kind: 'items', point, item: itemOf(id), ids: [...selection] })
   })
 
   area.addEventListener('wheel', (event) => {
+    if (event.target instanceof Element && event.target.closest('.doc')) return
     event.preventDefault()
     if (event.ctrlKey || event.metaKey) {
       setCamera(zoomAt(camera, event.deltaY < 0 ? WHEEL_STEP : 1 / WHEEL_STEP, screenPoint(event)))
@@ -667,10 +749,10 @@ export function createBoard({ area, layer, lasso, guides, message, translate, la
       if (editing) {
         stopEditing()
         onChange()
-      } else setSelection([])
+      } else if (!documentNote) setSelection([])
       return
     }
-    if (!editable || inField(event.target)) return
+    if (!editable || documentNote || inField(event.target) || !focusInBoard()) return
     const modifier = event.ctrlKey || event.metaKey
     const key = event.key.toLowerCase()
     if (modifier && key === 'a' && event.shiftKey) {
@@ -693,6 +775,16 @@ export function createBoard({ area, layer, lasso, guides, message, translate, la
       beforeChange()
       removeItems([...selection])
       onChange()
+    } else if (event.key === 'Enter' && selection.size === 1 && !modifier) {
+      const item = itemOf([...selection][0])
+      if (!item) return
+      event.preventDefault()
+      if (item.type === 'text') startEditing(item.id)
+      else if (item.type === 'image') onOpenImage(elements.get(item.id).querySelector('img'))
+      else if (REFERENCE_TYPES.includes(item.type)) onOpenItem(item)
+    } else if (event.key === 'F2' && selection.size === 1) {
+      event.preventDefault()
+      cards.rename([...selection][0])
     } else if (event.key.startsWith('Arrow') && selection.size > 0) {
       event.preventDefault()
       const step = event.shiftKey ? NUDGE_LARGE : NUDGE
@@ -738,7 +830,7 @@ export function createBoard({ area, layer, lasso, guides, message, translate, la
 
   const snapshot = () => {
     const key = serializeItems()
-    return { key, editing, caret: editing ? caretPath(noteOf(editing)) : null }
+    return { key, editing, caret: editing ? caretPathOf(noteOf(editing)) : null }
   }
 
   const restore = (entry) => {
@@ -750,7 +842,7 @@ export function createBoard({ area, layer, lasso, guides, message, translate, la
     setCamera(stored)
     if (target && elements.has(target)) {
       startEditing(target)
-      restoreCaretPath(noteOf(target), entry.caret)
+      placeCaretByPath(noteOf(target), entry.caret)
     }
     onChange()
   }
@@ -774,7 +866,11 @@ export function createBoard({ area, layer, lasso, guides, message, translate, la
   const elementsInReadingOrder = () => readingOrder(items).map((item) => elements.get(item.id))
 
   const setMessage = (text) => {
-    message.textContent = text
+    message.replaceChildren(...String(text || '').split('\n').filter(Boolean).map((line) => {
+      const row = document.createElement('span')
+      row.textContent = line
+      return row
+    }))
     message.hidden = !text
   }
 
@@ -784,6 +880,7 @@ export function createBoard({ area, layer, lasso, guides, message, translate, la
     for (const element of elementsInReadingOrder()) {
       element.style.transform = ''
       element.style.width = ''
+      element.style.height = ''
       layer.append(element)
     }
   }
@@ -803,30 +900,40 @@ export function createBoard({ area, layer, lasso, guides, message, translate, la
     host,
     load,
     serialize: serializeItems,
+    items: () => items,
     snapshot,
     restore,
     setEditable,
     isBroken: () => broken,
     isBlank: isBlankBoard,
     editFirstText,
+    startEditing,
     stopEditing,
     addText,
     addImage,
     addLink,
     addFile,
+    addReference,
+    referenceIds,
+    renameReferences,
+    setColor,
     setFileProgress: cards.setProgress,
     setFileRecord: cards.setRecord,
     renameFile: cards.rename,
+    refreshCard: cards.refresh,
     pendingFileIds: () => [...layer.querySelectorAll('.item.file[data-pending]')].map((element) => element.dataset.id),
     duplicate: duplicateItems,
+    clipboardText,
     pasteItems,
     focusItem,
     bringToFront,
+    sendToBack,
     remove: (ids) => {
       beforeChange()
       removeItems(ids)
       onChange()
     },
+    select: setSelection,
     selected: () => [...selection],
     camera: () => camera,
     setCamera,
@@ -835,6 +942,7 @@ export function createBoard({ area, layer, lasso, guides, message, translate, la
     center: () => toWorld(camera, { x: area.clientWidth / 2, y: area.clientHeight / 2 }),
     worldPoint: (point) => toWorld(camera, { x: point.x - area.getBoundingClientRect().left, y: point.y - area.getBoundingClientRect().top }),
     elementsInReadingOrder,
+    elementOf: (id) => elements.get(id) || null,
     setMessage,
     itemOf
   }

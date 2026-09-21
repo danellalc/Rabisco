@@ -64,18 +64,20 @@ function loadShare(e) {
   return share
 }
 
+function loadTarget(app, collection, id) {
+  try {
+    return app.findRecordById(collection, id)
+  } catch (error) {
+    throw new NotFoundError('Link not active.')
+  }
+}
+
 function findShared(e) {
   const share = loadShare(e)
   const docId = share.getString('doc')
-  if (docId !== '') {
-    let doc
-    try {
-      doc = e.app.findRecordById('docs', docId)
-    } catch (error) {
-      throw new NotFoundError('Link not active.')
-    }
-    return { kind: 'doc', share, doc, mode: shareMode(share.getString('mode'), false) }
-  }
+  if (docId !== '') return { kind: 'doc', share, doc: loadTarget(e.app, 'docs', docId), mode: shareMode(share.getString('mode'), false) }
+  const fileId = share.getString('file')
+  if (fileId !== '') return { kind: 'file', share, file: loadTarget(e.app, 'files', fileId), mode: 'view' }
   let board
   try {
     board = e.app.findRecordById('boards', share.getString('board'))

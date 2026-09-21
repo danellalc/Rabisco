@@ -1,8 +1,10 @@
 const REFRESH_WINDOW = 3600000
-const BOARD_FIELDS = 'id,content,revision,updated,title,cover,pinned'
-const SUMMARY_FIELDS = 'id,revision,updated,title,cover,pinned'
-const FILE_FIELDS = 'id,name,size,kind'
-const SHARE_FIELDS = 'id,token,mode,items,expires'
+const BOARD_FIELDS = 'id,content,revision,updated,title,cover,pinned,name,parent'
+const SUMMARY_FIELDS = 'id,revision,updated,title,cover,pinned,name,parent'
+const FILE_FIELDS = 'id,name,size,kind,board'
+const DOC_FIELDS = 'id,name,board,revision,updated'
+const DOC_CONTENT_FIELDS = 'id,name,board,revision,updated,content'
+const SHARE_FIELDS = 'id,token,mode,items,expires,doc,file'
 
 export class ApiError extends Error {
   constructor(status, message, data) {
@@ -93,19 +95,26 @@ export function createApi({ getToken, getUserId, onSession = () => {} }) {
     request.send(form)
   })
 
+  const shared = (method, path, token, extra = {}) => call(method, path, { ...extra, headers: { ...(extra.headers || {}), 'X-Share-Token': token }, anonymous: true })
+
   return {
     requestCode: (email) => call('POST', '/api/collections/users/request-otp', { body: { email } }),
     signIn: (otpId, code) => call('POST', '/api/collections/users/auth-with-otp', { body: { otpId, password: code } }),
     refresh,
-    listBoards: () => fresh('GET', '/api/collections/boards/records?sort=-pinned,-updated&perPage=200&skipTotal=1&fields=id,title,cover,pinned,updated'),
-    listContents: () => fresh('GET', '/api/collections/boards/records?perPage=200&skipTotal=1&fields=id,content'),
+    drive: (folderId) => fresh('GET', `/api/drive/${folderId || 'root'}`),
+    searchIndex: () => fresh('GET', '/api/search-index'),
     getBoard: (id) => fresh('GET', `/api/collections/boards/records/${id}?fields=${BOARD_FIELDS}`),
-    createBoard: (content = '[]') => fresh('POST', `/api/collections/boards/records?fields=${BOARD_FIELDS}`, { body: { content, user: getUserId() } }),
+    createBoard: ({ content = '[]', parent = '', name = '' } = {}) => fresh('POST', `/api/collections/boards/records?fields=${BOARD_FIELDS}`, { body: { content, parent, name, user: getUserId() } }),
     saveBoard: (id, content, revision) => fresh('PATCH', `/api/collections/boards/records/${id}?fields=${SUMMARY_FIELDS}`, { body: { content }, headers: { 'X-Note-Rev': revision } }),
-    pinBoard: (id, pinned) => fresh('PATCH', `/api/collections/boards/records/${id}?fields=${SUMMARY_FIELDS}`, { body: { pinned } }),
+    updateBoard: (id, patch) => fresh('PATCH', `/api/collections/boards/records/${id}?fields=${SUMMARY_FIELDS}`, { body: patch }),
     deleteBoard: (id) => fresh('DELETE', `/api/collections/boards/records/${id}`),
+    getDoc: (id) => fresh('GET', `/api/collections/docs/records/${id}?fields=${DOC_CONTENT_FIELDS}`),
+    createDoc: (board, name, content = '') => fresh('POST', `/api/collections/docs/records?fields=${DOC_FIELDS}`, { body: { board, name, content, user: getUserId() } }),
+    saveDoc: (id, content, revision) => fresh('PATCH', `/api/collections/docs/records/${id}?fields=${DOC_FIELDS}`, { body: { content }, headers: { 'X-Note-Rev': revision } }),
+    updateDoc: (id, patch) => fresh('PATCH', `/api/collections/docs/records/${id}?fields=${DOC_FIELDS}`, { body: patch }),
+    deleteDoc: (id) => fresh('DELETE', `/api/collections/docs/records/${id}`),
     listShares: (boardId) => fresh('GET', `/api/collections/shares/records?perPage=50&skipTotal=1&sort=created&filter=${encodeURIComponent(`board='${boardId}'`)}&fields=${SHARE_FIELDS}`),
-    createShare: (boardId, items, mode, expires) => fresh('POST', `/api/collections/shares/records?fields=${SHARE_FIELDS}`, { body: { board: boardId, user: getUserId(), items: JSON.stringify(items), mode, expires } }),
+    createShare: ({ board, items = [], mode = 'view', expires = '', doc = '', file = '' }) => fresh('POST', `/api/collections/shares/records?fields=${SHARE_FIELDS}`, { body: { board, user: getUserId(), items: JSON.stringify(items), mode, expires, doc, file } }),
     updateShare: (id, patch) => fresh('PATCH', `/api/collections/shares/records/${id}?fields=${SHARE_FIELDS}`, { body: patch }),
     deleteShare: (id) => fresh('DELETE', `/api/collections/shares/records/${id}`),
     uploadImage: (boardId, blob, name) => {
@@ -124,13 +133,14 @@ export function createApi({ getToken, getUserId, onSession = () => {} }) {
       await fresh('GET', '/api/health').catch(() => null)
       return uploadWithProgress(`/api/collections/files/records?fields=${FILE_FIELDS}`, form, onProgress)
     },
-    renameFile: (id, name) => fresh('PATCH', `/api/collections/files/records/${id}?fields=${FILE_FIELDS}`, { body: { name } }),
+    updateFile: (id, patch) => fresh('PATCH', `/api/collections/files/records/${id}?fields=${FILE_FIELDS}`, { body: patch }),
+    deleteFile: (id) => fresh('DELETE', `/api/collections/files/records/${id}`),
     fileLink: (id) => fresh('POST', `/api/files/${id}/link`),
     downloadFile: async (id) => (await fetch((await fresh('POST', `/api/files/${id}/link`)).url)).blob(),
-    downloadShared: async (token, file) => (await fetch((await call('POST', '/api/shared/file-link', { body: { file }, headers: { 'X-Share-Token': token }, anonymous: true })).url)).blob(),
+    downloadShared: async (token, file) => (await fetch((await shared('POST', '/api/shared/file-link', token, { body: { file } })).url)).blob(),
     quota: () => fresh('GET', '/api/quota'),
-    getShared: (token) => call('GET', '/api/shared', { headers: { 'X-Share-Token': token }, anonymous: true }),
-    saveShared: (token, content, revision) => call('PATCH', '/api/shared', { body: { content }, headers: { 'X-Share-Token': token, 'X-Note-Rev': revision }, anonymous: true }),
-    sharedFileLink: (token, file) => call('POST', '/api/shared/file-link', { body: { file }, headers: { 'X-Share-Token': token }, anonymous: true })
+    getShared: (token) => shared('GET', '/api/shared', token),
+    saveShared: (token, content, revision) => shared('PATCH', '/api/shared', token, { body: { content }, headers: { 'X-Note-Rev': revision } }),
+    sharedFileLink: (token, file) => shared('POST', '/api/shared/file-link', token, { body: { file } })
   }
 }

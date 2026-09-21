@@ -1,8 +1,11 @@
-export function svgIcon(path, size) {
+const EDGE = 8
+
+export function svgIcon(path, size, className = '') {
   const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg')
   svg.setAttribute('viewBox', '0 0 32 32')
   svg.setAttribute('width', String(size))
   svg.setAttribute('height', String(size))
+  if (className) svg.classList.add(className)
   const shape = document.createElementNS('http://www.w3.org/2000/svg', 'path')
   shape.setAttribute('d', path)
   svg.append(shape)
@@ -49,6 +52,13 @@ export function createToast(element) {
   }
 }
 
+function anchorRect(anchor) {
+  if (anchor && typeof anchor.x === 'number' && typeof anchor.y === 'number' && anchor.width === undefined) {
+    return { left: anchor.x, right: anchor.x, top: anchor.y, bottom: anchor.y, point: true }
+  }
+  return anchor
+}
+
 export function createPopover(element) {
   const close = () => {
     element.hidden = true
@@ -63,29 +73,71 @@ export function createPopover(element) {
     if (event.key === 'Escape') close()
   }
 
+  const entry = (action) => {
+    if (action.separator) {
+      const line = document.createElement('div')
+      line.className = 'divider'
+      return line
+    }
+    if (action.text !== undefined) {
+      const line = document.createElement('div')
+      line.className = 'menu-text'
+      const label = document.createElement('span')
+      label.textContent = action.label
+      const value = document.createElement('span')
+      value.textContent = action.text
+      line.append(label, value)
+      return line
+    }
+    if (action.swatches) {
+      const row = document.createElement('div')
+      row.className = 'swatches'
+      for (const value of action.swatches) {
+        const dot = document.createElement('button')
+        dot.type = 'button'
+        dot.className = `swatch ${value || 'none'}`
+        dot.setAttribute('aria-label', action.labelOf(value))
+        dot.setAttribute('aria-pressed', String(value === action.current))
+        dot.addEventListener('click', () => {
+          close()
+          action.pick(value)
+        })
+        row.append(dot)
+      }
+      return row
+    }
+    const item = document.createElement('button')
+    item.type = 'button'
+    item.className = action.danger ? 'menu-item danger' : 'menu-item'
+    item.textContent = action.label
+    item.addEventListener('click', () => {
+      close()
+      action.run()
+    })
+    return item
+  }
+
   const open = (actions, anchor) => {
     close()
-    for (const action of actions) {
-      const item = document.createElement('button')
-      item.type = 'button'
-      item.className = action.danger ? 'menu-item danger' : 'menu-item'
-      item.textContent = action.label
-      item.addEventListener('click', () => {
-        close()
-        action.run()
-      })
-      element.append(item)
-    }
+    for (const action of actions) element.append(entry(action))
     const parent = element.offsetParent || element.parentElement
     const box = parent.getBoundingClientRect()
+    const rect = anchorRect(anchor)
     element.hidden = false
-    element.style.top = `${anchor.bottom - box.top + 4}px`
-    element.style.left = `${Math.max(8, Math.min(anchor.right - box.left - element.offsetWidth, parent.clientWidth - element.offsetWidth - 8))}px`
+    const width = element.offsetWidth
+    const height = element.offsetHeight
+    const maxLeft = parent.clientWidth - width - EDGE
+    const maxTop = parent.clientHeight - height - EDGE
+    const left = rect.point ? rect.left - box.left : rect.right - box.left - width
+    let top = rect.bottom - box.top + (rect.point ? 0 : 4)
+    if (top > maxTop) top = rect.point ? rect.top - box.top - height : Math.max(EDGE, maxTop)
+    element.style.left = `${Math.max(EDGE, Math.min(left, maxLeft))}px`
+    element.style.top = `${Math.max(EDGE, top)}px`
     document.addEventListener('pointerdown', closeIfOutside, true)
     document.addEventListener('keydown', closeOnEscape)
   }
 
-  return { open, close }
+  return { open, close, isOpen: () => !element.hidden }
 }
 
 export function createChooser(element) {

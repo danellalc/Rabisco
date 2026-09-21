@@ -103,6 +103,36 @@ export function snapshotCaret(root) {
   return currentRange(root).cloneRange()
 }
 
+export function caretPathOf(root) {
+  const selection = document.getSelection()
+  if (selection.rangeCount === 0 || !root.contains(selection.focusNode)) return null
+  const path = []
+  let node = selection.focusNode
+  while (node !== root) {
+    path.unshift([...node.parentNode.childNodes].indexOf(node))
+    node = node.parentNode
+  }
+  return { path, offset: selection.focusOffset }
+}
+
+export function placeCaretByPath(root, caret) {
+  let node = root
+  for (const index of caret ? caret.path : []) {
+    node = node.childNodes[index]
+    if (!node) {
+      placeCaretAtEnd(root)
+      return
+    }
+  }
+  if (!caret) {
+    placeCaretAtEnd(root)
+    return
+  }
+  root.focus({ preventScroll: true })
+  const limit = node.nodeType === Node.TEXT_NODE ? node.length : node.childNodes.length
+  placeCaret(node, Math.min(caret.offset, limit))
+}
+
 export function restoreCaret(root, range) {
   root.focus({ preventScroll: true })
   const selection = document.getSelection()

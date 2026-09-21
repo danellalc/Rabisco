@@ -30,14 +30,22 @@ async function copyFile(api, token, item, boardId) {
 
 export async function duplicateShared(api, token) {
   const shared = await api.getShared(token)
-  const record = await api.createBoard()
+  const record = await api.createBoard({ name: shared.title || '' })
+  if (shared.kind === 'doc') {
+    await api.createDoc(record.id, shared.title, await copyInlineImages(api, shared.content, record.id))
+    return record.id
+  }
+  if (shared.kind === 'file') {
+    await copyFile(api, token, shared.file, record.id)
+    return record.id
+  }
   const items = []
   for (const item of parseContent(shared.content) || []) {
     try {
       if (item.type === 'text') items.push({ ...item, html: await copyInlineImages(api, item.html, record.id) })
       else if (item.type === 'image') items.push({ ...item, src: await copyImage(api, item.src, record.id) })
       else if (item.type === 'file') items.push(await copyFile(api, token, item, record.id))
-      else items.push(item)
+      else if (item.type === 'link') items.push(item)
     } catch {
       continue
     }

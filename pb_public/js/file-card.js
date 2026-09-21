@@ -8,6 +8,7 @@ const PAUSE = '❚❚'
 export const FILE_ICON_PATHS = {
   pdf: SHEET,
   generic: SHEET,
+  image: `${SHEET} M11.5 22l3.5-4.5 2.5 3 2-2.5 3 4Z M13.5 13.5a1.25 1.25 0 1 0 0 .01`,
   doc: `${SHEET} M11.5 15h9 M11.5 18.5h6`,
   sheet: `${SHEET} M11.5 14h9v6.5h-9Z M16 14v6.5 M11.5 17.25h9`,
   slides: `${SHEET} M11.5 14h9v5.5h-9Z M14.5 22h3`,
@@ -17,18 +18,26 @@ export const FILE_ICON_PATHS = {
   code: `${SHEET} M13.5 14l-2.5 3 2.5 3 M18.5 14l2.5 3-2.5 3`
 }
 
+export const KIND_ICONS = {
+  folder: 'M4 9.5A2.5 2.5 0 0 1 6.5 7h6l3 3h10a2.5 2.5 0 0 1 2.5 2.5v11A2.5 2.5 0 0 1 25.5 26h-19A2.5 2.5 0 0 1 4 23.5Z',
+  doc: `${SHEET} M11.5 14h9 M11.5 17.5h9 M11.5 21h5`
+}
+
 export function createFileCards({ elements, itemOf, translate, language, onMediaLink, onRenameFile, onChange }) {
   let playing = null
 
   const fill = (element, item) => {
-    element.dataset.kind = item.kind
-    if (item.file) delete element.dataset.pending
+    element.dataset.kind = item.kind || item.type
+    if (item.type !== 'file' || item.file) delete element.dataset.pending
     else element.dataset.pending = ''
-    element.querySelector('.file-icon path').setAttribute('d', FILE_ICON_PATHS[item.kind] || SHEET)
-    element.querySelector('.ext').textContent = extensionOf(item.name).toUpperCase().slice(0, 4)
+    const iconPath = item.type === 'file' ? FILE_ICON_PATHS[item.kind] || SHEET : KIND_ICONS[item.type]
+    element.querySelector('.file-icon path').setAttribute('d', iconPath)
+    element.querySelector('.ext').textContent = item.type === 'file' ? extensionOf(item.name).toUpperCase().slice(0, 4) : ''
     element.querySelector('.file-name').textContent = item.name
-    element.querySelector('.file-meta').textContent = item.file ? formatSize(item.size, language) : translate('uploading')
-    element.querySelector('.play').hidden = !(item.file && isMedia(item.kind))
+    const meta = element.querySelector('.file-meta')
+    if (item.type === 'file') meta.textContent = item.file ? formatSize(item.size, language) : translate('uploading')
+    else meta.textContent = translate(item.type === 'doc' ? 'kindDoc' : 'kindFolder')
+    element.querySelector('.play').hidden = !(item.type === 'file' && item.file && isMedia(item.kind))
   }
 
   const refresh = (item) => {
@@ -133,7 +142,7 @@ export function createFileCards({ elements, itemOf, translate, language, onMedia
   const rename = (id) => {
     const item = itemOf(id)
     const element = elements.get(id)
-    if (!item || !element || !item.file) return
+    if (!item || !element || (item.type === 'file' && !item.file)) return
     const name = element.querySelector('.file-name')
     const input = document.createElement('input')
     input.className = 'rename'
@@ -146,9 +155,7 @@ export function createFileCards({ elements, itemOf, translate, language, onMedia
       input.replaceWith(name)
       if (!commit || !next || next === item.name) return
       try {
-        const record = await onRenameFile(item, next)
-        setRecord(id, record)
-        onChange()
+        await onRenameFile(item, next)
       } catch {
         refresh(item)
       }
@@ -161,7 +168,8 @@ export function createFileCards({ elements, itemOf, translate, language, onMedia
     input.addEventListener('blur', () => finish(true))
     name.replaceWith(input)
     input.focus()
-    input.select()
+    const dot = item.type === 'file' ? item.name.lastIndexOf('.') : -1
+    input.setSelectionRange(0, dot > 0 ? dot : item.name.length)
   }
 
   return { build, refresh, stopPlaying, playingId: () => (playing ? playing.item.id : null), setProgress, setRecord, rename }

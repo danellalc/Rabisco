@@ -1,36 +1,40 @@
 import { createApi } from './api.js'
 import { initAuth, readAuth, writeAuth } from './auth.js'
 import { createBoard, parseClipboard } from './board.js'
-import { createBoards, writeLast } from './boards.js'
+import { createBoards } from './boards.js'
 import { ZOOM_STEP, zoomLabel } from './camera.js'
+import { createDocument } from './document.js'
 import { createChooser, createPopover, createToast } from './dom.js'
+import { initDrive, transferResources } from './drive.js'
 import { duplicateShared } from './duplicate.js'
 import { clearIfBlank, createInsertImage, insertText, removeImageBlock } from './editor.js'
-import { fileName, toMarkdown, toText, treeOfBoard } from './export.js'
+import { fileName, toMarkdown, toText, treeOf, treeOfBoard } from './export.js'
 import { FILE_ICON_PATHS } from './file-card.js'
 import { createFormatter, initChecklist } from './format.js'
 import { bindHistoryKeys, createHistory } from './history.js'
 import { applyTranslations, createTranslator, pickLanguage } from './i18n.js'
 import { compressImage, copyImage, downloadBlob, fileExtension } from './images.js'
-import { FILE_MAX_BYTES, formatSize, isBlockedName, parseContent, textOfItems } from './items.js'
+import { FILE_MAX_BYTES, TEXT_COLORS, formatSize, isBlockedName, parseContent, previewable } from './items.js'
 import { createLightbox } from './lightbox.js'
 import { initLinks, isUrl, linkSelection, toHref } from './links.js'
-import { initList } from './list.js'
+import { parseDate, relativeTime } from './list.js'
 import { initMenu } from './menu.js'
 import { initMove } from './move.js'
 import { imageFiles, initPaste, otherFiles } from './paste.js'
+import { createFolderPicker } from './picker.js'
 import { initResize } from './resize.js'
+import { createResources, labelOf, readCachedListing, readLast, writeCachedListing, writeLast } from './resources.js'
 import { serviceWorkerUrl, textOf } from './sanitize.js'
+import { buildIndex, initSearch } from './search.js'
 import { applySettings, readSettings, writeSettings } from './settings.js'
 import { SHARE_HASH, clearShareTarget, readShareTarget } from './share-target.js'
-import { initShare, tokenFromHash } from './share.js'
-import { initSearch, buildIndex } from './search.js'
-import { buildZip, uniqueName } from './zip.js'
+import { initShare, matchesTarget, shareTarget, shareUrl, tokenFromHash } from './share.js'
 import { initShortcuts } from './shortcuts.js'
 import { migrateStorage, store } from './store.js'
 import { createInsertTable } from './table.js'
 import { initToolbar } from './toolbar.js'
 import { createVisitor } from './visitor.js'
+import { buildZip, uniqueName } from './zip.js'
 
 migrateStorage(localStorage)
 store.settings = readSettings(localStorage)
@@ -63,8 +67,21 @@ const api = createApi({
     writeAuth(localStorage, store.auth)
   }
 })
-const setState = (state) => { saveState.textContent = translate(state) }
-const sync = { markDirty: () => {}, rememberCamera: () => {}, imageInserted: () => {}, fileInserted: () => {}, fileCopy: () => {}, shareItems: () => {}, boardId: () => '', mediaLink: () => Promise.reject(new Error('no link')), renameFile: () => Promise.reject(new Error('no rename')) }
+const setState = (state) => { saveState.textContent = state ? translate(state) : '' }
+const sync = {
+  markDirty: () => {},
+  rememberCamera: () => {},
+  imageInserted: () => {},
+  fileInserted: () => {},
+  fileCopy: () => {},
+  shareItems: () => {},
+  boardId: () => '',
+  mediaLink: () => Promise.reject(new Error('no link')),
+  fileBlob: () => Promise.reject(new Error('no file')),
+  renameFile: () => Promise.reject(new Error('no rename')),
+  openItem: () => {},
+  contextMenu: () => {}
+}
 const formatBytes = (bytes) => formatSize(bytes, language)
 const isPhone = () => matchMedia('(max-width:719px)').matches
 const showNote = () => { document.body.dataset.view = 'note' }
@@ -94,8 +111,31 @@ const copySelectedImage = async (img) => {
   }
 }
 
+const copyText = async (text) => {
+  try {
+    await navigator.clipboard.writeText(text)
+    showToast(translate('copied'))
+  } catch {
+    showToast(translate('copyFailed'))
+  }
+}
+
+const openInTab = async (resolveUrl) => {
+  const tab = window.open('about:blank', '_blank')
+  try {
+    const url = await resolveUrl()
+    if (tab) {
+      tab.opener = null
+      tab.location.href = url
+    } else window.open(url, '_blank', 'noopener')
+  } catch {
+    if (tab) tab.close()
+    showToast(translate('downloadFailed'))
+  }
+}
+
 const beforeChange = () => {
-  history.capture()
+  activeHistory().capture()
   sync.markDirty()
 }
 const recorded = (action) => (...args) => {
@@ -103,34 +143,48 @@ const recorded = (action) => (...args) => {
   return action(...args)
 }
 
-const downloadFile = async (item) => {
+const downloadFile = async (file) => {
   try {
-    const url = await sync.mediaLink(item)
+    const url = await sync.mediaLink({ file: file.id })
     const link = document.createElement('a')
     link.href = url
-    link.download = item.name
+    link.download = file.name
     link.click()
   } catch {
     showToast(translate('downloadFailed'))
   }
 }
 
-const showItemMenu = (id, anchor) => {
-  const element = layer.querySelector(`.item[data-id="${id}"]`)
-  const item = board.itemOf(id)
-  const actions = []
-  if (element && element.dataset.type === 'image') actions.push({ label: translate('download'), run: () => downloadImage(element.querySelector('img')) })
-  if (item && item.type === 'file' && item.file) {
-    if (!sharedPage) actions.push({ label: translate('rename'), run: () => board.renameFile(id) })
-    actions.push({ label: translate('download'), run: () => downloadFile(item) })
-    if (!sharedPage) actions.push({ label: translate('shareFile'), run: () => sync.shareItems([id]) })
+const fileOf = (item) => ({ id: item.file, name: item.name, kind: item.kind, size: item.size })
+
+const showDetails = (target, anchor) => {
+  const lines = [{ label: translate('nameLabel'), text: target.name }]
+  const kindText = target.kind === 'file' ? (target.fileKind === 'generic' ? translate('kindFile') : target.fileKind) : translate(target.kind === 'doc' ? 'kindDoc' : 'kindFolder')
+  lines.push({ label: translate('typeLabel'), text: kindText })
+  if (target.kind === 'file') lines.push({ label: translate('sizeLabel'), text: formatBytes(target.size) })
+  if (target.location) lines.push({ label: translate('locationLabel'), text: target.location })
+  if (target.updated) lines.push({ label: translate('modifiedLabel'), text: relativeTime(parseDate(target.updated).getTime(), Date.now(), translate, language) })
+  if (target.dimensions) lines.push({ label: translate('dimensionsLabel'), text: target.dimensions })
+  const actions = [...lines]
+  if (target.kind === 'file') actions.push({ separator: true }, { label: translate('download'), run: () => downloadFile({ id: target.id, name: target.name }) })
+  itemMenu.open(actions, anchor)
+}
+
+const openFile = async (file, anchor) => {
+  if (file.kind === 'image') {
+    try {
+      const blob = await sync.fileBlob(file.id)
+      openLightbox(URL.createObjectURL(blob), () => downloadBlob(blob, file.name))
+    } catch {
+      showToast(translate('downloadFailed'))
+    }
+    return
   }
-  actions.push(
-    { label: translate('duplicate'), run: () => board.duplicate([id]) },
-    { label: translate('bringToFront'), run: () => board.bringToFront([id]) },
-    { label: translate('delete'), danger: true, run: () => board.remove([id]) }
-  )
-  itemMenu.open(actions, anchor.getBoundingClientRect())
+  if (previewable(file.kind)) {
+    openInTab(() => sync.mediaLink({ file: file.id }))
+    return
+  }
+  showDetails({ kind: 'file', id: file.id, name: file.name, fileKind: file.kind, size: file.size, updated: file.updated, location: file.location }, anchor || { x: window.innerWidth / 2 - 100, y: window.innerHeight / 3 })
 }
 
 const board = createBoard({
@@ -149,8 +203,9 @@ const board = createBoard({
     sync.rememberCamera(camera)
   },
   onOpenImage: (img) => openLightbox(img.src, () => downloadImage(img)),
-  onOpenFile: (item) => downloadFile(item),
-  onItemMenu: showItemMenu,
+  onOpenItem: (item) => sync.openItem(item),
+  onItemMenu: (id, anchor) => sync.contextMenu({ kind: 'items', ids: board.selected().includes(id) ? board.selected() : [id], item: board.itemOf(id), point: anchor.getBoundingClientRect() }),
+  onContextMenu: (request) => sync.contextMenu(request),
   onImageInserted: (img, file) => sync.imageInserted(img, file),
   onFileInserted: (item, file) => sync.fileInserted(item, file),
   onFileCopy: (item, source) => sync.fileCopy(item, source),
@@ -160,6 +215,20 @@ const board = createBoard({
 const host = board.host
 const formatter = createFormatter(host)
 const history = createHistory({ snapshot: board.snapshot, restore: (entry) => { imageSelection.clear(); board.restore(entry) } })
+const docEditor = createDocument({
+  section: document.getElementById('doc'),
+  nameField: document.getElementById('doc-name'),
+  note: document.getElementById('doc-note'),
+  host,
+  translate,
+  setState,
+  showToast,
+  chooser,
+  onNameChanged: (doc) => sync.docRenamed(doc),
+  onClosed: () => { if (store.board) setState(store.dirty ? 'saving' : 'saved') }
+})
+const activeHistory = () => (docEditor.isOpen() ? docEditor.history : history)
+document.getElementById('doc-close').addEventListener('click', () => docEditor.close())
 
 const imageSelection = initResize({
   host,
@@ -173,7 +242,7 @@ const imageSelection = initResize({
   onDownload: downloadImage
 })
 
-layer.addEventListener('beforeinput', () => chooser.settle())
+area.addEventListener('beforeinput', () => chooser.settle())
 initShortcuts({
   host,
   apply: formatter.apply,
@@ -181,8 +250,12 @@ initShortcuts({
   insertDate: () => recorded(insertText)(new Intl.DateTimeFormat(language, { dateStyle: 'short' }).format(new Date()))
 })
 initLinks({ host, beforeChange })
-bindHistoryKeys(host, history)
-layer.addEventListener('input', (event) => {
+bindHistoryKeys(host, {
+  undo: () => activeHistory().undo(),
+  redo: () => activeHistory().redo(),
+  captureTyping: (type) => activeHistory().captureTyping(type)
+})
+area.addEventListener('input', (event) => {
   const root = host.active()
   if (!root || !root.contains(event.target)) return
   clearIfBlank(root)
@@ -206,7 +279,27 @@ const choose = (question, options) => {
   chooser.open(translate(question), options.map((option) => ({ label: translate(option.label), run: option.run })))
 }
 
-const wireEditor = ({ insertImageInText, addImageOnBoard, addFilesOnBoard }) => {
+const wireEditor = ({ insertImageInText, addImageOnBoard, addFilesOnBoard, addResourcesOnBoard }) => {
+  const pasteOnBoard = ({ images, others, text }, origin) => {
+    if (others.length > 0) addFilesOnBoard(origin, others)
+    if (images.length > 0) {
+      images.forEach((file, index) => addImageOnBoard({ x: origin.x + index * 24, y: origin.y + index * 24 }, file))
+      return
+    }
+    if (others.length > 0) return
+    const resources = transferResources({ getData: () => text })
+    if (resources) {
+      addResourcesOnBoard(origin, resources)
+      return
+    }
+    const copied = parseClipboard(text)
+    if (copied) board.pasteItems(copied, origin)
+    else if (isUrl(text)) board.addLink(origin, toHref(text))
+    else if (text.trim() !== '') {
+      board.addText(origin)
+      recorded(insertText)(text)
+    }
+  }
   initMove({ host, area, marker: document.getElementById('drop-marker'), beforeChange, onMoved: () => imageSelection.clear() })
   initPaste({ host, area }, {
     insertImage: insertImageInText,
@@ -216,32 +309,107 @@ const wireEditor = ({ insertImageInText, addImageOnBoard, addFilesOnBoard }) => 
     choose,
     addFiles: (files) => addFilesOnBoard(board.center(), files),
     boardPaste: (transfer, point) => {
-      const origin = point ? board.worldPoint(point) : board.center()
-      const files = imageFiles(transfer)
-      const others = otherFiles(transfer)
-      if (others.length > 0) addFilesOnBoard(origin, others)
-      if (files.length > 0) {
-        files.forEach((file, index) => addImageOnBoard({ x: origin.x + index * 24, y: origin.y + index * 24 }, file))
-        return
-      }
-      if (others.length > 0) return
-      const text = transfer.getData('text/plain')
-      const copied = parseClipboard(text)
-      if (copied) board.pasteItems(copied, origin)
-      else if (isUrl(text)) board.addLink(origin, toHref(text))
-      else if (text.trim() !== '') {
-        board.addText(origin)
-        recorded(insertText)(text)
-      }
+      if (!store.board) return
+      pasteOnBoard({ images: imageFiles(transfer), others: otherFiles(transfer), text: transfer.getData('text/plain') }, point ? board.worldPoint(point) : board.center())
     }
   })
   initToolbar({ host, area, bar: document.getElementById('toolbar'), apply: formatter.apply, active: formatter.active, beforeChange })
   initChecklist(host, beforeChange)
+  return pasteOnBoard
+}
+
+const readClipboard = async () => {
+  const entries = await navigator.clipboard.read()
+  const images = []
+  let text = ''
+  for (const entry of entries) {
+    const imageType = entry.types.find((type) => type.startsWith('image/'))
+    if (imageType) images.push(new File([await entry.getType(imageType)], `image.${fileExtension(imageType)}`, { type: imageType }))
+    else if (entry.types.includes('text/plain')) text = await (await entry.getType('text/plain')).text()
+  }
+  return { images, others: [], text }
 }
 
 const duplicate = async (token) => {
   const id = await duplicateShared(api, token)
   writeLast(localStorage, id)
+}
+
+const uploadError = (error) => {
+  if (error && error.status === 415) return translate('fileTypeBlocked')
+  if (error && error.status === 413) {
+    const data = error.data || {}
+    return translate('storageFull').replace('{used}', formatBytes(data.used || 0)).replace('{quota}', formatBytes(data.quota || 0))
+  }
+  return translate('fileUploadFailed')
+}
+
+const canvasMenu = (ids, item, point, { owner }) => {
+  const single = ids.length === 1 ? item : null
+  const front = { label: translate('bringToFront'), run: () => board.bringToFront(ids) }
+  const back = { label: translate('sendToBack'), run: () => board.sendToBack(ids) }
+  const duplicateAction = { label: translate('duplicate'), run: () => board.duplicate(ids) }
+  const removeAction = { label: translate(single && single.type !== 'text' && single.type !== 'image' && single.type !== 'link' ? 'removeFromBoard' : 'delete'), danger: !single || ['text', 'image', 'link'].includes(single.type), run: () => board.remove(ids) }
+  if (!single) return [duplicateAction, front, back, { separator: true }, removeAction]
+  const actions = []
+  if (single.type === 'text') {
+    actions.push(
+      { label: translate('edit'), run: () => board.startEditing(single.id) },
+      duplicateAction,
+      { label: translate('copyItems'), run: () => copyText(board.clipboardText(ids)) },
+      { swatches: ['', ...TEXT_COLORS], current: single.color || '', labelOf: (value) => translate(value ? `noteColor_${value}` : 'noteColorNone'), pick: (value) => board.setColor(ids, value) },
+      front, back, { separator: true }, removeAction
+    )
+    return actions
+  }
+  if (single.type === 'image') {
+    const img = board.elementOf(single.id).querySelector('img')
+    actions.push(
+      { label: translate('open'), run: () => openLightbox(img.src, () => downloadImage(img)) },
+      { label: translate('download'), run: () => downloadImage(img) }
+    )
+    if (owner) actions.push({ label: translate('saveToDrive'), run: () => owner.imageToFile(single) })
+    actions.push(duplicateAction, front, back, { separator: true }, removeAction)
+    return actions
+  }
+  if (single.type === 'link') {
+    actions.push(
+      { label: translate('openLink'), run: () => window.open(single.url, '_blank', 'noopener') },
+      { label: translate('copyUrl'), run: () => copyText(single.url) },
+      duplicateAction, front, back, { separator: true }, removeAction
+    )
+    return actions
+  }
+  if (single.type === 'file') {
+    actions.push({ label: translate('open'), run: () => openFile(fileOf(single), point) })
+    if (single.file) actions.push({ label: translate('download'), run: () => downloadFile(fileOf(single)) })
+    if (owner && single.file) {
+      actions.push({ label: translate('rename'), run: () => board.renameFile(single.id) })
+      if (single.kind === 'image') actions.push({ label: translate('showAsImage'), run: () => owner.fileToImage(single) })
+      actions.push(
+        { label: translate('moveTo'), run: () => owner.moveWithPicker([owner.refOf(single)]) },
+        duplicateAction,
+        { label: translate('shareFile'), run: () => sync.shareItems([single.id]) },
+        { label: translate('copyLink'), run: () => owner.copyLinkFor(owner.refOf(single)) },
+        { label: translate('details'), run: () => showDetails({ ...owner.refOf(single), location: owner.folderLabel() }, point) }
+      )
+    }
+    actions.push(front, back, { separator: true }, removeAction)
+    if (owner && single.file) actions.push({ label: translate('deleteFile'), danger: true, run: () => owner.removeEntries([owner.refOf(single)]) })
+    return actions
+  }
+  if (!owner) return [removeAction]
+  actions.push({ label: translate('open'), run: () => sync.openItem(single) })
+  actions.push({ label: translate('rename'), run: () => board.renameFile(single.id) })
+  actions.push({ label: translate('moveTo'), run: () => owner.moveWithPicker([owner.refOf(single)]) })
+  if (single.type === 'doc') actions.push(duplicateAction)
+  actions.push(
+    { label: translate('share'), run: () => sync.shareItems([single.id]) },
+    { label: translate('copyLink'), run: () => owner.copyLinkFor(owner.refOf(single)) }
+  )
+  if (single.type === 'doc') actions.push({ label: translate('details'), run: () => showDetails({ ...owner.refOf(single), location: owner.folderLabel() }, point) })
+  actions.push(front, back, { separator: true }, removeAction, { label: translate(single.type === 'doc' ? 'deleteDoc' : 'deleteFolder'), danger: true, run: () => owner.removeEntries([owner.refOf(single)]) })
+  return actions
 }
 
 document.execCommand('styleWithCSS', false, 'false')
@@ -262,23 +430,51 @@ if (sharedPage) {
     translate,
     setState,
     showToast,
-    onReady: (mode, file) => {
-      document.body.dataset.mode = mode
+    onReady: (mode, payload) => {
+      document.body.dataset.mode = mode === 'doc' ? payload.mode : mode
       document.getElementById('shared-foot').hidden = false
+      if (mode === 'doc') {
+        docEditor.open({
+          id: '',
+          name: payload.title,
+          content: payload.content,
+          revision: payload.revision,
+          editable: payload.mode === 'edit',
+          rename: null,
+          save: (content, revision) => api.saveShared(sharedToken, content, revision),
+          reload: () => api.getShared(sharedToken)
+        })
+        return
+      }
       if (mode !== 'download') return
       const page = document.getElementById('download-page')
-      page.querySelector('path').setAttribute('d', FILE_ICON_PATHS[file.kind] || FILE_ICON_PATHS.generic)
-      document.getElementById('download-ext').textContent = file.name.split('.').pop().toUpperCase().slice(0, 4)
-      document.getElementById('download-name').textContent = file.name
-      document.getElementById('download-size').textContent = formatBytes(file.size)
-      document.getElementById('download-button').addEventListener('click', () => downloadFile(file))
+      page.querySelector('path').setAttribute('d', FILE_ICON_PATHS[payload.kind] || FILE_ICON_PATHS.generic)
+      document.getElementById('download-ext').textContent = payload.name.split('.').pop().toUpperCase().slice(0, 4)
+      document.getElementById('download-name').textContent = payload.name
+      document.getElementById('download-size').textContent = formatBytes(payload.size)
+      document.getElementById('download-button').addEventListener('click', () => downloadFile({ id: payload.file || payload.id, name: payload.name }))
       page.hidden = false
     }
   })
-  sync.markDirty = visitor.markDirty
+  sync.markDirty = () => (docEditor.isOpen() ? docEditor.markDirty() : visitor.markDirty())
   sync.mediaLink = async (item) => (await api.sharedFileLink(sharedToken, item.file)).url
+  sync.fileBlob = (id) => api.downloadShared(sharedToken, id)
+  sync.openItem = (item) => {
+    if (item.type === 'file') openFile(fileOf(item))
+    else showToast(translate('notShared'))
+  }
+  sync.contextMenu = (request) => {
+    if (request.kind === 'items') itemMenu.open(canvasMenu(request.ids, request.item, request.point, { owner: null }), request.point)
+    else if (request.kind === 'board') {
+      itemMenu.open([
+        { label: translate('addText'), run: () => board.addText(request.world) },
+        { label: translate('addNote'), run: () => board.addText(request.world, '', 'hl1') },
+        { label: translate('selectAll'), run: () => board.select(board.items().map((item) => item.id)) }
+      ], request.point)
+    }
+  }
   const refuse = () => showToast(translate('imagesOwnerOnly'))
-  wireEditor({ insertImageInText: refuse, addImageOnBoard: refuse, addFilesOnBoard: refuse })
+  wireEditor({ insertImageInText: refuse, addImageOnBoard: refuse, addFilesOnBoard: refuse, addResourcesOnBoard: refuse })
   document.getElementById('duplicate').addEventListener('click', async () => {
     try {
       if (!store.auth) throw Object.assign(new Error('sign in first'), { status: 401 })
@@ -295,25 +491,355 @@ if (sharedPage) {
   })
   visitor.load()
 } else {
-  const list = initList({
+  const resources = createResources({ api, translate, showToast })
+  const picker = createFolderPicker({ element: document.getElementById('picker'), resources, translate })
+  const quotaLine = document.getElementById('quota')
+  const fileInput = document.getElementById('file-input')
+  const imageInput = document.getElementById('image-input')
+  const newMenu = createPopover(document.getElementById('new-menu'))
+  let folderId = ''
+  let uploadTarget = 'board'
+  let dropPoint = null
+  let lastHint = null
+
+  const folderEntry = () => {
+    const listing = drive.listing()
+    return listing && listing.folder ? listing.folder : null
+  }
+  const folderLabel = () => {
+    const folder = folderEntry()
+    return folder ? labelOf(folder) || translate('untitled') : translate('myDrive')
+  }
+  const refOf = (item) => ({ kind: item.type, id: item[item.type], name: item.name, size: item.size, fileKind: item.kind })
+
+  const updateHints = () => {
+    const hint = folderId && store.board && board.items().length === 0 ? translate('boardHints') : folderId ? '' : translate('rootHint')
+    if (hint === lastHint) return
+    lastHint = hint
+    board.setMessage(hint)
+  }
+
+  const refreshFolder = async (id = folderId) => {
+    try {
+      const listing = await resources.listing(id, { fresh: true })
+      if (id !== folderId) return
+      drive.set(listing)
+      writeCachedListing(localStorage, id, listing)
+    } catch {
+      return
+    }
+  }
+
+  const openFolder = async (id) => {
+    await docEditor.close()
+    let listing
+    try {
+      listing = await resources.listing(id)
+    } catch (error) {
+      if (error && error.status === 404 && id) {
+        showToast(translate('loadFailed'))
+        return openFolder('')
+      }
+      throw error
+    }
+    folderId = id
+    drive.set(listing)
+    writeLast(localStorage, id)
+    writeCachedListing(localStorage, id, listing)
+    if (id) await boards.open(id)
+    else await boards.close()
+    lastHint = null
+    updateHints()
+  }
+
+  const openDoc = async (id, folder) => {
+    if (folder !== folderId) await openFolder(folder)
+    const doc = await api.getDoc(id)
+    await docEditor.open({
+      id,
+      name: doc.name,
+      content: doc.content,
+      revision: doc.revision,
+      editable: true,
+      save: (content, revision) => api.saveDoc(id, content, revision),
+      reload: () => api.getDoc(id),
+      rename: (name) => api.updateDoc(id, { name })
+    })
+    showNote()
+  }
+
+  const openEntry = async (entry) => {
+    try {
+      if (entry.kind === 'folder') await openFolder(entry.id)
+      else if (entry.kind === 'doc') await openDoc(entry.id, folderId)
+      else await openFile({ id: entry.id, name: entry.name, kind: entry.fileKind, size: entry.size, updated: entry.updated, location: folderLabel() })
+    } catch {
+      showToast(translate('loadFailed'))
+    }
+  }
+
+  const renameEntry = async (entry, name) => {
+    try {
+      await resources.rename(entry, folderId, name)
+      board.renameReferences(entry.kind, entry.id, name)
+      if (board.referenceIds(entry.kind, entry.id).length > 0) boards.markDirty()
+      await refreshFolder()
+    } catch {
+      showToast(translate('saveFailed'))
+      await refreshFolder()
+    }
+  }
+
+  const moveEntries = async (entries, from, target) => {
+    try {
+      for (const entry of entries) {
+        await resources.move(entry, from, target)
+        if (from === folderId && entry.kind !== 'folder') board.remove(board.referenceIds(entry.kind, entry.id))
+      }
+      showToast(translate('moved'))
+    } catch {
+      showToast(translate('saveFailed'))
+    }
+    resources.invalidate(from, target, folderId)
+    await refreshFolder()
+  }
+
+  const moveWithPicker = async (entries) => {
+    const target = await picker.pick(folderId, entries.filter((entry) => entry.kind === 'folder').map((entry) => entry.id))
+    if (target === null || target === folderId) return
+    await moveEntries(entries, folderId, target)
+  }
+
+  const removeEntries = (entries) => {
+    for (const entry of entries) {
+      if (docEditor.isOpen() && docEditor.current().id === entry.id) docEditor.close()
+      drive.remove(entry.id)
+      resources.remove(entry, folderId, {
+        onUndo: () => refreshFolder(),
+        onCommit: () => {
+          const ids = board.referenceIds(entry.kind, entry.id)
+          if (ids.length > 0 && store.board && store.board.id === folderId) board.remove(ids)
+          boards.refreshQuota()
+        }
+      })
+    }
+  }
+
+  const uploadInto = async (target, files) => {
+    let sent = 0
+    for (const file of files) {
+      if (isBlockedName(file.name)) {
+        showToast(translate('fileTypeBlocked'))
+        continue
+      }
+      if (file.size > FILE_MAX_BYTES) {
+        showToast(translate('fileTooBig'))
+        continue
+      }
+      showToast(translate('uploadingFile').replace('{name}', file.name))
+      try {
+        await resources.upload(target, file)
+        sent++
+      } catch (error) {
+        showToast(uploadError(error))
+      }
+    }
+    if (sent > 0) showToast(translate('uploaded'))
+    if (target === folderId) await refreshFolder()
+    else resources.invalidate(target)
+    boards.refreshQuota()
+  }
+
+  const shareFor = async (target) => {
+    const boardId = target.kind === 'folder' ? target.id : folderId
+    const shape = { kind: target.kind, ids: [], doc: target.kind === 'doc' ? target.id : '', file: target.kind === 'file' ? target.id : '' }
+    if (boardId === folderId && store.board) {
+      const existing = boards.getShares().find((share) => matchesTarget(share, shape))
+      return existing || boards.createShare(shape, 'view', '')
+    }
+    const shares = (await api.listShares(boardId)).items
+    const existing = shares.find((share) => matchesTarget(share, shape) && (!share.expires || parseDate(share.expires).getTime() > Date.now()))
+    return existing || api.createShare({ board: boardId, mode: 'view', doc: shape.doc, file: shape.file })
+  }
+
+  const copyLinkFor = async (target) => {
+    try {
+      const share = await shareFor(target)
+      await navigator.clipboard.writeText(shareUrl(location.origin, share.token))
+      showToast(translate('linkCopied'))
+    } catch {
+      showToast(translate('copyFailed'))
+    }
+  }
+
+  const shareEntry = async (entry) => {
+    if (entry.kind === 'folder') {
+      await openFolder(entry.id)
+      share.open(null)
+      return
+    }
+    share.open({ kind: entry.kind, ids: [], [entry.kind]: entry.id, name: entry.name })
+  }
+
+  const placeOnBoard = (entry) => {
+    if (!store.board) return
+    const extra = entry.kind === 'file' ? { size: entry.size, kind: entry.fileKind } : {}
+    board.addReference(board.center(), entry.kind, entry.id, entry.name, extra)
+    showNote()
+  }
+
+  const newFolder = async () => {
+    try {
+      const record = await resources.createFolder(folderId, translate('newFolderName'))
+      await refreshFolder()
+      drive.select([record.id])
+      drive.focusRow(record.id)
+      drive.startRename(record.id)
+    } catch {
+      showToast(translate('saveFailed'))
+    }
+  }
+
+  const newDoc = async () => {
+    if (!folderId) {
+      showToast(translate('pickFolderFirst'))
+      return
+    }
+    try {
+      const record = await resources.createDoc(folderId, translate('newDocName'))
+      await refreshFolder()
+      await openDoc(record.id, folderId)
+    } catch {
+      showToast(translate('saveFailed'))
+    }
+  }
+
+  const uploadFiles = () => {
+    if (!folderId) {
+      showToast(translate('pickFolderFirst'))
+      return
+    }
+    uploadTarget = 'folder'
+    fileInput.click()
+  }
+
+  const createDocHere = async (world) => {
+    try {
+      const record = await resources.createDoc(folderId, translate('newDocName'))
+      board.addReference(world, 'doc', record.id, record.name)
+      await refreshFolder()
+      await openDoc(record.id, folderId)
+    } catch {
+      showToast(translate('saveFailed'))
+    }
+  }
+
+  const createFolderHere = async (world) => {
+    try {
+      const record = await resources.createFolder(folderId, translate('newFolderName'))
+      const item = board.addReference(world, 'folder', record.id, record.name)
+      await refreshFolder()
+      board.renameFile(item.id)
+    } catch {
+      showToast(translate('saveFailed'))
+    }
+  }
+
+  const imageToFile = async (item) => {
+    const img = board.elementOf(item.id).querySelector('img')
+    try {
+      const blob = await imageBlob(img)
+      const record = await resources.upload(folderId, new File([blob], `image-${Date.now()}.${fileExtension(blob.type)}`, { type: blob.type }))
+      board.remove([item.id])
+      board.addReference({ x: item.x, y: item.y }, 'file', record.id, record.name, { size: record.size, kind: record.kind })
+      await refreshFolder()
+      boards.refreshQuota()
+    } catch (error) {
+      showToast(uploadError(error))
+    }
+  }
+
+  const fileToImage = async (item) => {
+    try {
+      const blob = await api.downloadFile(item.file)
+      board.remove([item.id])
+      addImageOnBoard({ x: item.x, y: item.y }, new File([blob], item.name, { type: blob.type }))
+    } catch {
+      showToast(translate('downloadFailed'))
+    }
+  }
+
+  const owner = { refOf, folderLabel, moveWithPicker, removeEntries, copyLinkFor, imageToFile, fileToImage }
+
+  const entryMenu = (entries, point) => {
+    if (entries.length > 1) {
+      return [
+        { label: translate('moveTo'), run: () => moveWithPicker(entries) },
+        { separator: true },
+        { label: `${translate('delete')} (${entries.length})`, danger: true, run: () => removeEntries(entries) }
+      ]
+    }
+    const entry = entries[0]
+    const actions = [{ label: translate('open'), run: () => openEntry(entry) }]
+    if (entry.kind === 'file') actions.push({ label: translate('download'), run: () => downloadFile({ id: entry.id, name: entry.name }) })
+    actions.push({ label: translate('rename'), run: () => drive.startRename(entry.id) })
+    if (entry.kind === 'folder') actions.push({ label: translate(entry.pinned ? 'unpin' : 'pin'), run: () => resources.pin(entry, folderId).then(refreshFolder).catch(() => showToast(translate('saveFailed'))) })
+    actions.push({ label: translate('moveTo'), run: () => moveWithPicker([entry]) })
+    if (entry.kind !== 'folder') actions.push({ label: translate('duplicate'), run: () => resources.duplicate(entry, folderId).then(refreshFolder).catch((error) => showToast(uploadError(error))) })
+    if (folderId) actions.push({ label: translate('placeOnBoard'), run: () => placeOnBoard(entry) })
+    actions.push(
+      { label: translate(entry.kind === 'file' ? 'shareFile' : 'share'), run: () => shareEntry(entry) },
+      { label: translate('copyLink'), run: () => copyLinkFor(entry) }
+    )
+    if (entry.kind !== 'folder') actions.push({ label: translate('details'), run: () => showDetails({ ...entry, location: folderLabel() }, point) })
+    actions.push({ separator: true }, { label: translate(entry.kind === 'folder' ? 'deleteFolder' : entry.kind === 'doc' ? 'deleteDoc' : 'deleteFile'), danger: true, run: () => removeEntries([entry]) })
+    return actions
+  }
+
+  const folderMenu = () => [
+    { label: translate('newFolder'), run: newFolder },
+    { label: translate('newDoc'), run: newDoc },
+    { label: translate('uploadFiles'), run: uploadFiles },
+    { separator: true },
+    { label: translate(drive.order() === 'name' ? 'sortByDate' : 'sortByName'), run: () => drive.setOrder(drive.order() === 'name' ? 'updated' : 'name') }
+  ]
+
+  const drive = initDrive({
+    crumbs: document.getElementById('crumbs'),
     rows: document.getElementById('rows'),
     search: document.getElementById('search'),
     translate,
     language,
-    onOpen: (id) => boards.open(id).catch(() => showToast(translate('loadFailed'))),
-    onSearchContents: async () => {
-      const result = await api.listContents()
-      return new Map(result.items.map((item) => [item.id, textOfItems(parseContent(item.content) || [], textOf)]))
-    },
-    onSearchFailed: () => showToast(translate('searchFailed'))
+    formatBytes,
+    actions: {
+      open: openEntry,
+      menu: (entries, point) => itemMenu.open(entryMenu(entries, point), point),
+      folderMenu: (point) => itemMenu.open(folderMenu(), point),
+      rename: renameEntry,
+      renameCurrent: async (name) => {
+        try {
+          await api.updateBoard(folderId, { name })
+          if (store.board) store.board.name = name
+          const folder = folderEntry()
+          resources.invalidate(folderId, folder ? folder.parent : '')
+          await refreshFolder()
+        } catch {
+          showToast(translate('saveFailed'))
+        }
+      },
+      move: moveEntries,
+      remove: removeEntries,
+      upload: uploadInto,
+      crumb: (id) => openFolder(id).catch(() => showToast(translate('loadFailed')))
+    }
   })
-  const quotaLine = document.getElementById('quota')
+  document.getElementById('show-board').addEventListener('click', () => { if (folderId) showNote() })
+
   const boards = createBoards({
     api,
     store,
     board,
-    layer,
-    list,
+    root: area,
     history,
     chooser,
     translate,
@@ -321,19 +847,62 @@ if (sharedPage) {
     setState,
     onAuthLost: () => auth.signOut(),
     showToast,
-    onOpened: showNote,
+    onOpened: () => { if (!isPhone()) showNote() },
     onQuota: ({ used, quota }) => {
       quotaLine.textContent = translate('quotaLine').replace('{used}', formatBytes(used)).replace('{quota}', formatBytes(quota))
       quotaLine.classList.toggle('full', used >= quota)
-    }
+    },
+    onSummary: (summary) => {
+      if (summary.filesChanged) {
+        refreshFolder()
+        return
+      }
+      const listing = drive.listing()
+      if (!listing || !listing.folder || listing.folder.id !== summary.id) return
+      resources.invalidate(summary.parent)
+      if (listing.folder.title === summary.title && listing.folder.cover === summary.cover) return
+      listing.folder.title = summary.title
+      listing.folder.cover = summary.cover
+      listing.path[listing.path.length - 1].title = summary.title
+      drive.set(listing)
+    },
+    onImageUploaded: () => { if (docEditor.isOpen()) docEditor.markDirty() }
   })
-  sync.markDirty = boards.markDirty
+  sync.markDirty = () => {
+    if (docEditor.isOpen()) docEditor.markDirty()
+    else {
+      boards.markDirty()
+      updateHints()
+    }
+  }
   sync.rememberCamera = boards.rememberCamera
   sync.fileInserted = (item, file) => boards.uploadFile(item.id, file.name, file)
   sync.fileCopy = (item, source) => boards.uploadFile(item.id, item.name, source)
   sync.boardId = boards.currentId
   sync.mediaLink = async (item) => (await api.fileLink(item.file)).url
-  sync.renameFile = (item, name) => api.renameFile(item.file, name)
+  sync.fileBlob = (id) => api.downloadFile(id)
+  sync.renameFile = async (item, name) => {
+    const kind = item.type
+    const id = item[kind]
+    if (kind === 'file') await api.updateFile(id, { name })
+    else if (kind === 'doc') await api.updateDoc(id, { name })
+    else await api.updateBoard(id, { name })
+    board.renameReferences(kind, id, name)
+    boards.markDirty()
+    resources.invalidate(folderId)
+    refreshFolder()
+  }
+  sync.docRenamed = (doc) => {
+    board.renameReferences('doc', doc.id, doc.name)
+    if (board.referenceIds('doc', doc.id).length > 0) boards.markDirty()
+    resources.invalidate(folderId)
+    refreshFolder()
+  }
+  sync.openItem = (item) => {
+    if (item.type === 'folder') openFolder(item.folder).catch(() => showToast(translate('loadFailed')))
+    else if (item.type === 'doc') openDoc(item.doc, folderId).catch(() => showToast(translate('loadFailed')))
+    else if (item.file) openFile({ ...fileOf(item), location: folderLabel() })
+  }
   sync.imageInserted = async (img, file) => {
     try {
       const blobUrl = img.src
@@ -360,52 +929,137 @@ if (sharedPage) {
       board.addFile({ x: point.x + index * 24, y: point.y + index * 72 }, file)
     })
   }
-  wireEditor({ insertImageInText, addImageOnBoard, addFilesOnBoard })
-  const fileInput = document.getElementById('file-input')
+  const addResourcesOnBoard = (point, resources) => {
+    resources.entries.forEach((entry, index) => {
+      const known = drive.entry(entry.id)
+      if (entry.kind !== 'folder' && resources.folder !== folderId) return
+      const extra = known && known.kind === 'file' ? { size: known.size, kind: known.fileKind } : {}
+      board.addReference({ x: point.x + index * 24, y: point.y + index * 72 }, entry.kind, entry.id, entry.name, extra)
+    })
+  }
+  const pasteOnBoard = wireEditor({ insertImageInText, addImageOnBoard, addFilesOnBoard, addResourcesOnBoard })
   fileInput.addEventListener('change', () => {
-    addFilesOnBoard(board.center(), [...fileInput.files])
+    const files = [...fileInput.files]
     fileInput.value = ''
+    if (uploadTarget === 'board') addFilesOnBoard(dropPoint || board.center(), files)
+    else uploadInto(folderId, files)
+    dropPoint = null
   })
+  imageInput.addEventListener('change', () => {
+    const origin = dropPoint || board.center()
+    ;[...imageInput.files].forEach((file, index) => addImageOnBoard({ x: origin.x + index * 24, y: origin.y + index * 24 }, file))
+    imageInput.value = ''
+    dropPoint = null
+  })
+
+  sync.contextMenu = (request) => {
+    if (request.kind === 'items') {
+      itemMenu.open(canvasMenu(request.ids, request.item, request.point, { owner }), request.point)
+      return
+    }
+    if (request.kind === 'dropOnFolder') {
+      const entries = request.ids.map(board.itemOf).filter((item) => item && ['file', 'doc'].includes(item.type)).map(refOf)
+      if (entries.length === 0) return
+      moveEntries(entries, folderId, request.folder.folder)
+      return
+    }
+    const world = request.world
+    itemMenu.open([
+      { label: translate('addText'), run: () => board.addText(world) },
+      { label: translate('addNote'), run: () => board.addText(world, '', 'hl1') },
+      { label: translate('newDoc'), run: () => createDocHere(world) },
+      { label: translate('newFolder'), run: () => createFolderHere(world) },
+      { label: translate('uploadFiles'), run: () => { dropPoint = world; uploadTarget = 'board'; fileInput.click() } },
+      { label: translate('addImage'), run: () => { dropPoint = world; imageInput.click() } },
+      { label: translate('addLink'), run: async () => {
+        try {
+          const text = await navigator.clipboard.readText()
+          if (isUrl(text)) board.addLink(world, toHref(text))
+          else showToast(translate('copyUrlFirst'))
+        } catch {
+          showToast(translate('clipboardBlocked'))
+        }
+      } },
+      { label: translate('paste'), run: async () => {
+        try {
+          pasteOnBoard(await readClipboard(), world)
+        } catch {
+          showToast(translate('clipboardBlocked'))
+        }
+      } },
+      { separator: true },
+      { label: translate('selectAll'), run: () => board.select(board.items().map((item) => item.id)) }
+    ], request.point)
+  }
+
+  const currentTree = () => (docEditor.isOpen() ? { tag: 'div', attrs: {}, children: treeOf(docEditor.note).children } : treeOfBoard(board.elementsInReadingOrder()))
+  const currentTitle = () => (docEditor.isOpen() ? docEditor.current().name : folderLabel())
 
   const exportBoard = (extension, convert, type) => {
     board.stopEditing()
-    const content = convert(treeOfBoard(board.elementsInReadingOrder()), location.origin)
-    downloadBlob(new Blob([content], { type }), fileName(boards.title() || content.slice(0, 60), extension))
+    const content = convert(currentTree(), location.origin)
+    downloadBlob(new Blob([content], { type }), fileName(currentTitle() || content.slice(0, 60), extension))
   }
 
   const exportZip = async () => {
     board.stopEditing()
     try {
       const taken = new Set()
-      const entries = [{ name: uniqueName('board.md', taken), data: new TextEncoder().encode(toMarkdown(treeOfBoard(board.elementsInReadingOrder()), location.origin)) }]
+      const entries = [{ name: uniqueName('board.md', taken), data: new TextEncoder().encode(toMarkdown(currentTree(), location.origin)) }]
       for (const item of parseContent(board.serialize()) || []) {
         if (item.type === 'file' && item.file) {
           const blob = await api.downloadFile(item.file)
           entries.push({ name: uniqueName(item.name, taken), data: new Uint8Array(await blob.arrayBuffer()) })
         }
       }
-      for (const img of layer.querySelectorAll('img[src^="/api/files/images/"]')) {
+      for (const img of area.querySelectorAll('img[src^="/api/files/images/"]')) {
         const blob = await (await fetch(img.getAttribute('src'))).blob()
         entries.push({ name: uniqueName(img.getAttribute('src').split('/').pop(), taken), data: new Uint8Array(await blob.arrayBuffer()) })
       }
-      downloadBlob(buildZip(entries), fileName(boards.title() || 'board', 'zip'))
+      downloadBlob(buildZip(entries), fileName(currentTitle() || 'board', 'zip'))
     } catch {
       showToast(translate('zipFailed'))
     }
   }
+
+  const removeCurrentFolder = async () => {
+    const folder = folderEntry()
+    if (!folder) return
+    const entry = { kind: 'folder', id: folder.id, name: labelOf(folder) }
+    const parent = folder.parent
+    try {
+      await openFolder(parent)
+    } catch {
+      showToast(translate('loadFailed'))
+      return
+    }
+    drive.remove(entry.id)
+    resources.remove(entry, parent, { onUndo: () => refreshFolder(), onCommit: () => refreshFolder() })
+  }
+
   initMenu({
     button: document.getElementById('menu'),
     menu: document.getElementById('menu-panel'),
     translate,
     settings: store.settings,
     actions: [
-      { label: () => translate(boards.isPinned() ? 'unpin' : 'pin'), run: () => boards.pin().catch(() => showToast(translate('saveFailed'))) },
-      { label: () => translate('addFile'), run: () => fileInput.click() },
+      { label: () => translate(folderEntry() && folderEntry().pinned ? 'unpin' : 'pin'), run: async () => {
+        const folder = folderEntry()
+        if (!folder) return
+        try {
+          await resources.pin({ id: folder.id, pinned: folder.pinned }, folder.parent)
+          folder.pinned = !folder.pinned
+        } catch {
+          showToast(translate('saveFailed'))
+        }
+      } },
+      { label: () => translate('renameFolder'), run: () => drive.renameCurrent() },
+      { label: () => translate('addFile'), run: () => { uploadTarget = 'board'; fileInput.click() } },
       { label: () => translate('downloadTxt'), run: () => exportBoard('txt', toText, 'text/plain') },
       { label: () => translate('downloadMd'), run: () => exportBoard('md', toMarkdown, 'text/markdown') },
       { label: () => translate('downloadZip'), run: exportZip },
       { label: () => translate('print'), run: () => window.print() },
-      { label: () => translate('delete'), danger: true, run: () => boards.remove().catch(() => showToast(translate('saveFailed'))) }
+      { label: () => translate('deleteFolder'), danger: true, run: removeCurrentFolder }
     ],
     onChange: saveSettings
   })
@@ -413,13 +1067,35 @@ if (sharedPage) {
     button: document.getElementById('share'),
     panel: document.getElementById('share-panel'),
     translate,
-    getState: () => ({ selected: board.selected(), items: parseContent(board.serialize()) || [], shares: boards.getShares() }),
+    getState: () => ({
+      selected: board.selected(),
+      items: parseContent(board.serialize()) || [],
+      shares: boards.getShares(),
+      doc: docEditor.isOpen() ? { id: docEditor.current().id, name: docEditor.current().name } : null,
+      nameOf: (kind, id) => {
+        const entry = drive.entry(id)
+        return entry ? entry.name : translate(kind === 'doc' ? 'kindDoc' : 'kindFile')
+      }
+    }),
     createShare: boards.createShare,
     updateShare: boards.updateShare,
     deleteShare: boards.deleteShare,
-    showToast
+    showToast,
+    onFolderTarget: (target) => openFolder(target.folder).then(() => share.open(null)).catch(() => showToast(translate('loadFailed')))
   })
-  sync.shareItems = (ids) => share.open(ids)
+  sync.shareItems = (ids) => share.open(shareTarget(ids, parseContent(board.serialize()) || []))
+
+  document.getElementById('new').addEventListener('click', (event) => {
+    if (newMenu.isOpen()) {
+      newMenu.close()
+      return
+    }
+    newMenu.open([
+      { label: translate('newFolder'), run: newFolder },
+      { label: translate('newDoc'), run: newDoc },
+      { label: translate('uploadFiles'), run: uploadFiles }
+    ], event.currentTarget.getBoundingClientRect())
+  })
 
   initSearch({
     palette: document.getElementById('palette'),
@@ -427,29 +1103,33 @@ if (sharedPage) {
     rows: document.getElementById('palette-rows'),
     translate,
     language,
-    loadIndex: async () => {
-      const result = await api.listContents()
-      return buildIndex(list.get(), new Map(result.items.map((item) => [item.id, item.content])), textOf)
-    },
+    commands: () => [
+      { label: translate('newFolder'), run: newFolder },
+      { label: translate('newDoc'), run: newDoc },
+      { label: translate('uploadFiles'), run: uploadFiles }
+    ],
+    loadIndex: async () => buildIndex(await api.searchIndex(), translate),
     onOpen: async (row) => {
       try {
-        await boards.open(row.boardId)
-        if (row.itemId) board.focusItem(row.itemId)
+        if (row.kind === 'folder') await openFolder(row.id)
+        else if (row.kind === 'doc') await openDoc(row.id, row.folder)
+        else {
+          await openFolder(row.folder)
+          const placed = board.referenceIds('file', row.id)
+          if (placed.length > 0) board.focusItem(placed[0])
+          drive.select([row.id])
+          drive.focusRow(row.id)
+        }
       } catch {
         showToast(translate('loadFailed'))
       }
     }
   })
 
-  const createBoardNow = () => {
-    if (!signedIn()) return
-    boards.create().catch(() => showToast(translate('saveFailed')))
-  }
-  document.getElementById('new').addEventListener('click', createBoardNow)
   document.addEventListener('keydown', (event) => {
     if (!(event.ctrlKey || event.metaKey) || !event.altKey || event.key.toLowerCase() !== 'n') return
     event.preventDefault()
-    createBoardNow()
+    if (signedIn()) newFolder()
   })
   document.getElementById('back').addEventListener('click', () => {
     if (isPhone()) {
@@ -461,7 +1141,9 @@ if (sharedPage) {
     saveSettings()
   })
   document.getElementById('sign-out').addEventListener('click', async () => {
+    await docEditor.close()
     await boards.flush()
+    await resources.commitDeletes()
     auth.signOut()
   })
 
@@ -482,11 +1164,16 @@ if (sharedPage) {
     },
     onSignedIn: () => {
       document.getElementById('me').textContent = store.auth.email
-      showNote()
-      loadBoards()
+      if (isPhone()) showList()
+      else showNote()
+      loadDrive()
     },
     onSignedOut: () => {
+      docEditor.close()
       boards.reset()
+      resources.reset()
+      drive.reset()
+      folderId = ''
       clearShareTarget()
       document.getElementById('me').textContent = ''
       saveState.textContent = ''
@@ -528,16 +1215,30 @@ if (sharedPage) {
     window.history.replaceState(null, '', '/')
     const shared = await readShareTarget()
     if (!shared || (!shared.text && shared.files.length === 0)) return
+    if (!folderId) {
+      showToast(translate('pickFolderFirst'))
+      return
+    }
     chooser.open(translate('sharedAsk'), [
       { label: translate('discard'), run: () => {} },
       { label: translate('add'), run: () => addShared(shared) }
     ])
   }
 
-  async function loadBoards() {
+  async function loadDrive() {
     try {
+      const last = readLast(localStorage)
+      const cached = readCachedListing(localStorage, last)
+      if (cached) drive.set(cached)
       await duplicatePending()
-      await boards.load()
+      await openFolder(last)
+      const listing = drive.listing()
+      if (!folderId && listing && listing.folders.length === 0) {
+        const record = await resources.createFolder('', translate('firstFolderName'))
+        await openFolder(record.id)
+        if (!isPhone()) board.editFirstText()
+      }
+      boards.refreshQuota()
       await receiveShared()
     } catch (error) {
       if (error && error.status === 401) {
@@ -545,7 +1246,7 @@ if (sharedPage) {
         return
       }
       saveState.textContent = translate('loadFailed')
-      window.addEventListener('online', loadBoards, { once: true })
+      window.addEventListener('online', loadDrive, { once: true })
     }
   }
 
