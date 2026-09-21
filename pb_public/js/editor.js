@@ -1,6 +1,6 @@
 import { setImageWidth } from './widths.js'
 
-const INLINE_TAGS = new Set(['B', 'I', 'U', 'S', 'A', 'SPAN', 'MARK', 'BR'])
+const INLINE_TAGS = new Set(['B', 'I', 'U', 'S', 'A', 'SPAN', 'MARK', 'BR', 'CODE'])
 
 export function contentWidth(element) {
   const style = getComputedStyle(element)
@@ -61,7 +61,7 @@ export function isBlank(node) {
 
 export function clearIfBlank(root) {
   if (root.childNodes.length === 0 || !isBlank(root)) return
-  if (root.querySelector('h1,h2,ul,ol,hr')) return
+  if (root.querySelector('h1,h2,ul,ol,hr,blockquote,pre')) return
   root.replaceChildren()
 }
 

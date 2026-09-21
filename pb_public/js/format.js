@@ -4,6 +4,8 @@ const HIGHLIGHTS = ['hl1', 'hl2', 'hl3']
 const COLORS = ['c1', 'c2', 'c3']
 const COLOR_SELECTOR = COLORS.map((name) => `span.${name}`).join(',')
 const SENTINEL_COLOR = '#010203'
+const BLOCK_COMMANDS = { H1: 'heading1', H2: 'heading2', BLOCKQUOTE: 'quote', PRE: 'codeBlock' }
+const SPECIAL_BLOCKS = Object.keys(BLOCK_COMMANDS)
 
 function endOffsetOf(node) {
   return node.nodeType === Node.TEXT_NODE ? node.length : node.childNodes.length
@@ -117,7 +119,7 @@ function isolateItem(list, item) {
 }
 
 function toggleList(root, ordered, checklist) {
-  if (['H1', 'H2'].includes(currentBlockTag(root))) document.execCommand('formatBlock', false, '<div>')
+  if (SPECIAL_BLOCKS.includes(currentBlockTag(root))) document.execCommand('formatBlock', false, '<div>')
   const element = elementAtCaret(root)
   const item = element ? element.closest('li') : null
   const list = item ? item.parentElement : null
@@ -150,15 +152,23 @@ export function createFormatter(host) {
     },
     heading1: (root) => toggleBlock(root, 'h1'),
     heading2: (root) => toggleBlock(root, 'h2'),
+    quote: (root) => toggleBlock(root, 'blockquote'),
+    codeBlock: (root) => toggleBlock(root, 'pre'),
+    paragraph: () => document.execCommand('formatBlock', false, '<div>'),
+    code: (root) => {
+      const element = elementAtCaret(root)
+      if (element && element.closest('code')) keepingSelection(root, () => unwrapTouching(root, 'code'))
+      else paint(root, 'code', 'code', '')
+    },
     bulletList: (root) => toggleList(root, false, false),
     numberedList: (root) => toggleList(root, true, false),
     checklist: (root) => toggleList(root, false, true),
     hlNone: (root) => keepingSelection(root, () => unwrapTouching(root, 'mark')),
     cDefault: (root) => keepingSelection(root, () => unwrapTouching(root, COLOR_SELECTOR)),
     clear: (root) => {
-      keepingSelection(root, () => unwrapTouching(root, `mark,${COLOR_SELECTOR}`))
+      keepingSelection(root, () => unwrapTouching(root, `mark,code,${COLOR_SELECTOR}`))
       document.execCommand('removeFormat')
-      if (['H1', 'H2'].includes(currentBlockTag(root))) document.execCommand('formatBlock', false, '<div>')
+      if (SPECIAL_BLOCKS.includes(currentBlockTag(root))) document.execCommand('formatBlock', false, '<div>')
     }
   }
   for (const name of HIGHLIGHTS) commands[name] = (root) => paint(root, 'mark', 'mark', name)
@@ -181,12 +191,14 @@ export function createFormatter(host) {
     if (document.queryCommandState('underline')) set.add('underline')
     if (document.queryCommandState('strikeThrough')) set.add('strike')
     const tag = currentBlockTag(root)
-    if (tag === 'H1') set.add('heading1')
-    if (tag === 'H2') set.add('heading2')
+    if (BLOCK_COMMANDS[tag]) set.add(BLOCK_COMMANDS[tag])
     const element = elementAtCaret(root)
     if (!element) return set
     const list = element.closest('ul,ol')
     if (list) set.add(list.tagName === 'OL' ? 'numberedList' : list.classList.contains('ck') ? 'checklist' : 'bulletList')
+    if (element.closest('code')) set.add('code')
+    if (element.closest('blockquote')) set.add('quote')
+    if (element.closest('pre')) set.add('codeBlock')
     const mark = element.closest('mark')
     if (mark) set.add(mark.className)
     const colored = element.closest(COLORS.map((name) => `.${name}`).join(','))

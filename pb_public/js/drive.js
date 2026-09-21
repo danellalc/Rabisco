@@ -153,6 +153,7 @@ export function initDrive({ crumbs, rows, search, translate, language, formatByt
     const id = element.dataset.id
     if (event.shiftKey || event.ctrlKey || event.metaKey) select(selected.has(id) ? [...selected].filter((other) => other !== id) : [...selected, id])
     else select([id])
+    if (matchMedia('(hover: none)').matches) actions.open(entryOf(id))
   })
 
   rows.addEventListener('dblclick', (event) => {

@@ -63,6 +63,16 @@ test('file names come from the title and stay safe', () => {
   assert.equal(fileName('word '.repeat(30), 'md'), `${'word '.repeat(11)}word.md`)
 })
 
+test('quotes, inline code and code blocks keep their markdown shape', () => {
+  const tree = root(
+    h('blockquote', {}, h('div', {}, 'first'), h('div', {}, 'second')),
+    h('div', {}, 'run ', h('code', {}, 'npm test'), ' now'),
+    h('pre', {}, 'const a = 1\nconst b = 2\n')
+  )
+  assert.equal(toMarkdown(tree, origin), '> first\n> \n> second\n\nrun `npm test` now\n\n```\nconst a = 1\nconst b = 2\n```\n')
+  assert.equal(toText(tree, origin), 'first\nsecond\nrun npm test now\nconst a = 1\nconst b = 2\n')
+})
+
 test('a list nested inside a heading is exported as a list', () => {
   const tree = root(h('h1', {}, h('ul', {}, h('li', {}, 'task'))))
   assert.equal(toMarkdown(tree, origin), '- task\n')

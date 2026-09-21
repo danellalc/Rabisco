@@ -195,3 +195,38 @@ Igual ao Rabisco: construir em etapas, parar no fim de cada uma pra eu testar, m
 6. **Desenho**: o quadro vetorial (caneta, formas, texto) vira mais um tipo de item.
 
 No fim, README curto: subir na VPS do zero (Docker Compose, domínio, SMTP, R2, backup) e atualizar depois.
+
+---
+
+# Versão 3 (20/09/2026): Drive + Miro + editor
+
+Depois de testar a v2, a ideia cresceu: Trecos é um **Google Drive + editor de texto + Miro**. Meus arquivos, documentos, imagens e notas existem ao mesmo tempo numa estrutura de pastas e num espaço visual livre. O que está acima continua valendo onde não conflita com esta seção. Leveza continua sendo o requisito número 1: o teto passa a **72 KB gzip, 240 KB sem gzip, JS 192 KB, CSS 32 KB**, e cada função entra na versão mais barata que funciona de verdade.
+
+## Decisões de modelo
+
+- **Pasta e quadro são a mesma coisa.** Toda pasta tem um canvas; abrir uma pasta abre o quadro dela. `boards` ganha `parent` (pasta de cima, vazio = raiz "Meu Drive") e `name` (nome dado por mim; sem nome vale o título automático). A raiz é virtual: lista as pastas de cima, sem canvas. Apagar uma pasta apaga tudo dentro.
+- **Arquivo é recurso do Drive**, mora numa pasta (`files.board`) e só some quando eu apago. O item do quadro só referencia o arquivo; "tirar do quadro" não apaga o arquivo. Mover arquivo pra outra pasta tira ele do canvas de origem. Cota conta todo arquivo existente.
+- **Imagem tem dois jeitos**: solta no quadro (como hoje, `images`) ou arquivo no Drive. "Salvar no Drive" transforma a imagem solta em cartão de arquivo; "Mostrar como imagem" num arquivo de imagem cria a imagem solta e o arquivo continua na pasta.
+- **Documento** (`docs`): texto rico completo, o editor do Rabisco em página inteira, com pasta, nome, conteúdo e revisão. No quadro é um cartão; duplo clique abre o editor. Imagens dentro do documento ficam em `images` da mesma pasta.
+- **Cartão de pasta** no quadro referencia uma pasta minha; duplo clique abre.
+- **Compartilhar** ganha alvo documento além de quadro (pasta), seleção e arquivo. Acesso: privado ou qualquer um com o link; modos só ver e pode editar como hoje.
+- Sanitização ganha `blockquote`, `code` e `pre` nos dois lados, com export md.
+
+## O que muda na interface
+
+- Lateral vira **explorador**: breadcrumbs ("Meu Drive / Projetos / Cliente X"), criar pasta, documento e upload (vários), linhas de pasta, quadro, documento e arquivo com nome e meta; clique seleciona, duplo clique abre, botão direito abre menu, F2 renomeia, Enter abre, Delete apaga com desfazer; ordenar; busca na pasta e Ctrl + K em tudo. Um pedido por pasta, com cache.
+- **Menus de contexto** em tudo: quadro vazio (texto, nota, documento, pasta, arquivo, imagem, link, colar, selecionar tudo), e por tipo de item e de linha, na posição do clique, nunca cortados pela tela. Só opções que fazem sentido pro tipo.
+- **Clique em arquivo**: um clique seleciona, duplo clique abre pelo tipo (imagem abre em tela cheia, PDF, vídeo e áudio abrem pelo navegador com link assinado inline, documento abre o editor, o resto mostra detalhes com Baixar). Nunca baixa sozinho num clique.
+- **Redimensionar imagem** com oito alças: cantos proporcionais, Shift libera, lados só largura ou só altura; largura e altura salvas; sem salto com zoom.
+- **Texto**: texto rápido no quadro como hoje; nota adesiva (texto com cor de fundo); documento completo com citação, código, bloco de código, divisor, imagens, links, barra flutuante e menu `/`. Quadro vazio ensina: duplo clique pra escrever, solte arquivos aqui, botão direito pra mais.
+- **Arrastar e soltar**: do computador pro explorador (sobe na pasta) e pro quadro; do explorador pro quadro (cria referência, nunca duplica); do explorador pra uma pasta (move); do quadro pra um cartão de pasta (move o recurso). Vários de uma vez, com destaque no alvo.
+- **Detalhes** num popover pequeno: nome, tipo, tamanho, pasta, criado, modificado, dimensões de imagem.
+- **Ctrl + K** também executa comandos (nova pasta, novo documento, enviar arquivo, quadro recente) e navega pelas setas.
+
+## Fora do escopo (continua)
+
+Tags, templates, colaboração em tempo real, preview de site em link, visualizador de PDF próprio, comentários, versões, app nativo, integrações, login com Google ou senha, conectores, formas, agrupar, camadas, minimapa, OCR.
+
+## Como trabalhar na v3
+
+Dez fases (modelo, explorador, menus e interação desktop, quadro com recursos, redimensionar, texto, arrastar e soltar, abrir e compartilhar, busca e paleta, desfazer e polimento), cada uma com testes unitários, build, medida de peso e bateria de navegador. Decidido em 20/09/2026: tudo pronto antes de eu testar.

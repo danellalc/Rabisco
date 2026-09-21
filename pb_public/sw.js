@@ -41,6 +41,7 @@ const ASSETS = [
   '/js/share-target.js',
   '/js/share.js',
   '/js/shortcuts.js',
+  '/js/slash.js',
   '/js/snap.js',
   '/js/store.js',
   '/js/table.js',

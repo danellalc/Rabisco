@@ -30,6 +30,7 @@ import { applySettings, readSettings, writeSettings } from './settings.js'
 import { SHARE_HASH, clearShareTarget, readShareTarget } from './share-target.js'
 import { initShare, matchesTarget, shareTarget, shareUrl, tokenFromHash } from './share.js'
 import { initShortcuts } from './shortcuts.js'
+import { initSlash } from './slash.js'
 import { migrateStorage, store } from './store.js'
 import { createInsertTable } from './table.js'
 import { initToolbar } from './toolbar.js'
@@ -80,7 +81,8 @@ const sync = {
   fileBlob: () => Promise.reject(new Error('no file')),
   renameFile: () => Promise.reject(new Error('no rename')),
   openItem: () => {},
-  contextMenu: () => {}
+  contextMenu: () => {},
+  pickImage: () => {}
 }
 const formatBytes = (bytes) => formatSize(bytes, language)
 const isPhone = () => matchMedia('(max-width:719px)').matches
@@ -120,6 +122,14 @@ const copyText = async (text) => {
   }
 }
 
+const closeIfStillBlank = (tab) => {
+  try {
+    if (tab.location.href === 'about:blank') tab.close()
+  } catch {
+    return
+  }
+}
+
 const openInTab = async (resolveUrl) => {
   const tab = window.open('about:blank', '_blank')
   try {
@@ -127,6 +137,7 @@ const openInTab = async (resolveUrl) => {
     if (tab) {
       tab.opener = null
       tab.location.href = url
+      setTimeout(() => closeIfStillBlank(tab), 4000)
     } else window.open(url, '_blank', 'noopener')
   } catch {
     if (tab) tab.close()
@@ -159,7 +170,7 @@ const fileOf = (item) => ({ id: item.file, name: item.name, kind: item.kind, siz
 
 const showDetails = (target, anchor) => {
   const lines = [{ label: translate('nameLabel'), text: target.name }]
-  const kindText = target.kind === 'file' ? (target.fileKind === 'generic' ? translate('kindFile') : target.fileKind) : translate(target.kind === 'doc' ? 'kindDoc' : 'kindFolder')
+  const kindText = target.kind === 'file' ? (target.fileKind === 'generic' ? translate('kindFile') : target.fileKind) : target.kind === 'image' ? translate('asImage') : translate(target.kind === 'doc' ? 'kindDoc' : 'kindFolder')
   lines.push({ label: translate('typeLabel'), text: kindText })
   if (target.kind === 'file') lines.push({ label: translate('sizeLabel'), text: formatBytes(target.size) })
   if (target.location) lines.push({ label: translate('locationLabel'), text: target.location })
@@ -250,6 +261,7 @@ initShortcuts({
   insertDate: () => recorded(insertText)(new Intl.DateTimeFormat(language, { dateStyle: 'short' }).format(new Date()))
 })
 initLinks({ host, beforeChange })
+initSlash({ host, menu: document.getElementById('slash-menu'), translate, apply: formatter.apply, beforeChange, pickImage: () => sync.pickImage() })
 bindHistoryKeys(host, {
   undo: () => activeHistory().undo(),
   redo: () => activeHistory().redo(),
@@ -369,7 +381,10 @@ const canvasMenu = (ids, item, point, { owner }) => {
       { label: translate('download'), run: () => downloadImage(img) }
     )
     if (owner) actions.push({ label: translate('saveToDrive'), run: () => owner.imageToFile(single) })
-    actions.push(duplicateAction, front, back, { separator: true }, removeAction)
+    actions.push(
+      { label: translate('details'), run: () => showDetails({ kind: 'image', name: translate('asImage'), dimensions: `${img.naturalWidth} × ${img.naturalHeight}`, location: owner ? owner.folderLabel() : '' }, point) },
+      duplicateAction, front, back, { separator: true }, removeAction
+    )
     return actions
   }
   if (single.type === 'link') {
@@ -407,7 +422,7 @@ const canvasMenu = (ids, item, point, { owner }) => {
     { label: translate('share'), run: () => sync.shareItems([single.id]) },
     { label: translate('copyLink'), run: () => owner.copyLinkFor(owner.refOf(single)) }
   )
-  if (single.type === 'doc') actions.push({ label: translate('details'), run: () => showDetails({ ...owner.refOf(single), location: owner.folderLabel() }, point) })
+  actions.push({ label: translate('details'), run: () => showDetails({ ...owner.refOf(single), location: owner.folderLabel() }, point) })
   actions.push(front, back, { separator: true }, removeAction, { label: translate(single.type === 'doc' ? 'deleteDoc' : 'deleteFolder'), danger: true, run: () => owner.removeEntries([owner.refOf(single)]) })
   return actions
 }
@@ -474,6 +489,7 @@ if (sharedPage) {
     }
   }
   const refuse = () => showToast(translate('imagesOwnerOnly'))
+  sync.pickImage = refuse
   wireEditor({ insertImageInText: refuse, addImageOnBoard: refuse, addFilesOnBoard: refuse, addResourcesOnBoard: refuse })
   document.getElementById('duplicate').addEventListener('click', async () => {
     try {
@@ -499,6 +515,7 @@ if (sharedPage) {
   const newMenu = createPopover(document.getElementById('new-menu'))
   let folderId = ''
   let uploadTarget = 'board'
+  let imageTarget = 'board'
   let dropPoint = null
   let lastHint = null
 
@@ -791,7 +808,7 @@ if (sharedPage) {
       { label: translate(entry.kind === 'file' ? 'shareFile' : 'share'), run: () => shareEntry(entry) },
       { label: translate('copyLink'), run: () => copyLinkFor(entry) }
     )
-    if (entry.kind !== 'folder') actions.push({ label: translate('details'), run: () => showDetails({ ...entry, location: folderLabel() }, point) })
+    actions.push({ label: translate('details'), run: () => showDetails({ ...entry, location: folderLabel() }, point) })
     actions.push({ separator: true }, { label: translate(entry.kind === 'folder' ? 'deleteFolder' : entry.kind === 'doc' ? 'deleteDoc' : 'deleteFile'), danger: true, run: () => removeEntries([entry]) })
     return actions
   }
@@ -946,11 +963,23 @@ if (sharedPage) {
     dropPoint = null
   })
   imageInput.addEventListener('change', () => {
-    const origin = dropPoint || board.center()
-    ;[...imageInput.files].forEach((file, index) => addImageOnBoard({ x: origin.x + index * 24, y: origin.y + index * 24 }, file))
+    const files = [...imageInput.files]
     imageInput.value = ''
+    if (imageTarget === 'text') {
+      const root = host.active()
+      if (root) root.focus({ preventScroll: true })
+      files.forEach((file) => insertImageInText(file))
+    } else {
+      const origin = dropPoint || board.center()
+      files.forEach((file, index) => addImageOnBoard({ x: origin.x + index * 24, y: origin.y + index * 24 }, file))
+    }
+    imageTarget = 'board'
     dropPoint = null
   })
+  sync.pickImage = () => {
+    imageTarget = 'text'
+    imageInput.click()
+  }
 
   sync.contextMenu = (request) => {
     if (request.kind === 'items') {
@@ -970,7 +999,7 @@ if (sharedPage) {
       { label: translate('newDoc'), run: () => createDocHere(world) },
       { label: translate('newFolder'), run: () => createFolderHere(world) },
       { label: translate('uploadFiles'), run: () => { dropPoint = world; uploadTarget = 'board'; fileInput.click() } },
-      { label: translate('addImage'), run: () => { dropPoint = world; imageInput.click() } },
+      { label: translate('addImage'), run: () => { dropPoint = world; imageTarget = 'board'; imageInput.click() } },
       { label: translate('addLink'), run: async () => {
         try {
           const text = await navigator.clipboard.readText()
@@ -1207,6 +1236,15 @@ if (sharedPage) {
     }
   }
 
+  const openSomeFolder = async () => {
+    if (folderId) return true
+    const listing = drive.listing()
+    const recent = listing && listing.folders[0]
+    if (!recent) return false
+    await openFolder(recent.id)
+    return true
+  }
+
   const receiveShared = async () => {
     if (location.hash !== SHARE_HASH) {
       clearShareTarget()
@@ -1215,7 +1253,7 @@ if (sharedPage) {
     window.history.replaceState(null, '', '/')
     const shared = await readShareTarget()
     if (!shared || (!shared.text && shared.files.length === 0)) return
-    if (!folderId) {
+    if (!(await openSomeFolder())) {
       showToast(translate('pickFolderFirst'))
       return
     }
@@ -1228,10 +1266,11 @@ if (sharedPage) {
   async function loadDrive() {
     try {
       const last = readLast(localStorage)
-      const cached = readCachedListing(localStorage, last)
+      const cached = readCachedListing(localStorage, last || '')
       if (cached) drive.set(cached)
       await duplicatePending()
-      await openFolder(last)
+      await openFolder(last || '')
+      if (last === null) await openSomeFolder()
       const listing = drive.listing()
       if (!folderId && listing && listing.folders.length === 0) {
         const record = await resources.createFolder('', translate('firstFolderName'))

@@ -16,6 +16,7 @@ const EDGE = 40
 const EDGE_STEP = 16
 const LINK_ICON = 'M13.2 18.8l5.6-5.6M11.6 15.2l-2.4 2.4a3.7 3.7 0 1 0 5.2 5.2l2.4-2.4M20.4 16.8l2.4-2.4a3.7 3.7 0 1 0-5.2-5.2l-2.4 2.4'
 const CARDS = ['link', ...REFERENCE_TYPES]
+const HANDLE_EDGES = { text: ['e', 'w'], image: ['n', 'ne', 'e', 'se', 's', 'sw', 'w', 'nw'] }
 const TYPES = ['text', 'image', 'link', ...REFERENCE_TYPES]
 const CONTROLS = '.toolbar, .image-selection, .zoom, .menu, .chooser, .board-message, .play, .rename, video, .doc'
 export const CLIPBOARD_PREFIX = 'trecos-items:'
@@ -124,10 +125,10 @@ export function createBoard({ area, layer, lasso, guides, message, translate, la
 
   const decorate = (element) => {
     if (element.querySelector(':scope > .more')) return
-    const type = element.dataset.type
-    if (type === 'text' || type === 'image') {
+    for (const edge of HANDLE_EDGES[element.dataset.type] || []) {
       const handle = document.createElement('span')
-      handle.className = 'handle'
+      handle.className = `handle handle-${edge}`
+      handle.dataset.edge = edge
       element.append(handle)
     }
     const more = document.createElement('button')
@@ -545,13 +546,27 @@ export function createBoard({ area, layer, lasso, guides, message, translate, la
   const resizeUpdate = (event) => {
     const item = itemOf(gesture.id)
     const world = worldPoint(event)
-    const min = item.type === 'image' ? IMAGE_MIN_WIDTH : TEXT_MIN_WIDTH
+    const { edge, start, ratio } = gesture
+    const dx = world.x - start.world.x
+    const dy = world.y - start.world.y
     if (!gesture.moved) {
       gesture.moved = true
       beforeChange()
     }
-    item.w = Math.max(min, snapToGrid(world.x - item.x))
-    if (item.type === 'image' && item.h) item.h = Math.max(IMAGE_MIN_HEIGHT, snapToGrid(world.y - item.y))
+    let w = edge.includes('e') ? start.w + dx : edge.includes('w') ? start.w - dx : start.w
+    let h = edge.includes('s') ? start.h + dy : edge.includes('n') ? start.h - dy : start.h
+    const proportional = item.type === 'image' && edge.length === 2 && !event.shiftKey
+    if (proportional) {
+      if (Math.abs(dx) >= Math.abs(dy)) h = w / ratio
+      else w = h * ratio
+    }
+    w = Math.max(item.type === 'image' ? IMAGE_MIN_WIDTH : TEXT_MIN_WIDTH, snapToGrid(w))
+    h = Math.max(IMAGE_MIN_HEIGHT, snapToGrid(h))
+    if (proportional) h = Math.max(IMAGE_MIN_HEIGHT, Math.round(w / ratio))
+    if (edge.includes('w')) item.x = start.x + start.w - w
+    if (edge.includes('n')) item.y = start.y + start.h - h
+    item.w = w
+    if (item.type === 'image' && (item.h || !proportional)) item.h = h
     applyGeometry(item)
   }
 
@@ -602,9 +617,12 @@ export function createBoard({ area, layer, lasso, guides, message, translate, la
     const element = itemAt(event.target)
     const inEditing = editing && element && element.dataset.id === editing
     if (inEditing && event.target.closest('.note')) return
-    if (event.target.closest('.handle') && element && editable) {
+    const handle = event.target.closest('.handle')
+    if (handle && element && editable) {
       event.preventDefault()
-      beginGesture(event, { kind: 'resize', id: element.dataset.id })
+      const item = itemOf(element.dataset.id)
+      const box = rectOf(item)
+      beginGesture(event, { kind: 'resize', id: item.id, edge: handle.dataset.edge, start: { x: item.x, y: item.y, w: box.w, h: box.h, world: worldPoint(event) }, ratio: box.w / Math.max(1, box.h) })
       return
     }
     if (event.target.closest('.more')) return

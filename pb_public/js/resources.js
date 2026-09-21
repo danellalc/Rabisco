@@ -28,9 +28,9 @@ export function sortEntries(entries, order) {
 
 export function readLast(storage) {
   try {
-    return storage.getItem(lastKey) || ''
+    return storage.getItem(lastKey)
   } catch {
-    return ''
+    return null
   }
 }
 

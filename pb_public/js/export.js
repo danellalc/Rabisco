@@ -1,5 +1,5 @@
-const INLINE = new Set(['b', 'strong', 'i', 'em', 'u', 's', 'a', 'span', 'mark', 'br', 'img'])
-const WRAPPERS = { b: '**', strong: '**', i: '*', em: '*', s: '~~' }
+const INLINE = new Set(['b', 'strong', 'i', 'em', 'u', 's', 'a', 'span', 'mark', 'br', 'img', 'code'])
+const WRAPPERS = { b: '**', strong: '**', i: '*', em: '*', s: '~~', code: '`' }
 const FILE_NAME_LIMIT = 60
 
 export function treeOf(node) {
@@ -46,6 +46,7 @@ function inline(nodes, options) {
   return nodes.map((node) => {
     if (isText(node)) return node
     if (node.tag === 'br') return '\n'
+    if (node.tag === 'code' && !options.markdown) return inline(node.children, options)
     if (node.tag === 'img') {
       const url = imageUrl(node, options.origin)
       if (!url) return ''
@@ -99,6 +100,14 @@ function block(node, options, depth) {
   if (node.tag === 'hr') return '---'
   if (node.tag === 'ul' || node.tag === 'ol') return listItems(node, options, depth).join('\n')
   if (node.tag === 'table') return tableRows(node, options)
+  if (node.tag === 'pre') {
+    const code = inline(node.children, { ...options, markdown: false }).replace(/\n$/, '')
+    return options.markdown ? `\`\`\`\n${code}\n\`\`\`` : code
+  }
+  if (node.tag === 'blockquote') {
+    const inner = blocks(node.children, options, depth).join(options.markdown ? '\n\n' : '\n')
+    return options.markdown ? inner.split('\n').map((line) => `> ${line}`).join('\n') : inner
+  }
   if (isInline(node)) return inline([node], options)
   return blocks(node.children, options, depth).join(options.markdown ? '\n\n' : '\n')
 }
