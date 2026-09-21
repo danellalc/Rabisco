@@ -19,13 +19,13 @@
 <body>
 <section class="login" id="login">
 <form class="login-form" id="email-form">
-<p class="login-title">Trecos</p>
+<p class="login-title"><svg class="brand-mark" viewBox="92 156 376 204" width="44" height="24" aria-hidden="true"><path d="M112 344c44-112 82-172 116-166 36 6-36 148 6 160 40 12 66-138 108-140 40-2-8 118 30 130 32 10 60-44 76-64"/></svg>Trecos</p>
 <input class="field" id="email" type="email" required autocomplete="email" placeholder="you@example.com" data-i18n-input="emailPlaceholder">
 <p class="login-error" id="email-error" hidden></p>
 <button class="primary" type="submit" data-i18n="getCode">Get a code</button>
 </form>
 <form class="login-form" id="code-form" hidden>
-<p class="login-title">Trecos</p>
+<p class="login-title"><svg class="brand-mark" viewBox="92 156 376 204" width="44" height="24" aria-hidden="true"><path d="M112 344c44-112 82-172 116-166 36 6-36 148 6 160 40 12 66-138 108-140 40-2-8 118 30 130 32 10 60-44 76-64"/></svg>Trecos</p>
 <p class="login-note" id="code-note"></p>
 <input class="field" id="code" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="6" required placeholder="6-digit code" data-i18n-input="codePlaceholder">
 <p class="login-error" id="code-error" hidden></p>
@@ -36,19 +36,29 @@
 </section>
 <div class="app" id="app">
 <aside class="list" id="list">
-<div class="list-top">
-<nav class="crumbs" id="crumbs" aria-label="Folders"></nav>
-<button class="icon-button show-board" id="show-board" type="button" aria-label="Show board" data-i18n-label="showBoard"><svg width="20" height="20" viewBox="0 0 24 24"><path d="M4 5h16v14H4z M9 9h6v6H9z"/></svg></button>
-<button class="new" id="new" type="button" aria-label="New" data-i18n-label="newMenu" aria-controls="new-menu">+</button>
-<div class="menu new-menu" id="new-menu" hidden></div>
+<div class="brand">
+<svg class="brand-mark" viewBox="92 156 376 204" width="30" height="16" aria-hidden="true"><path d="M112 344c44-112 82-172 116-166 36 6-36 148 6 160 40 12 66-138 108-140 40-2-8 118 30 130 32 10 60-44 76-64"/></svg>
+<span class="brand-name">Trecos</span>
+<button class="search-open" id="search-open" type="button"><span data-i18n="searchAll">Search</span><kbd>Ctrl K</kbd></button>
 </div>
-<input class="search" id="search" type="search" placeholder="Search" aria-label="Search" data-i18n-input="search" data-i18n-label="search">
+<div class="place">
+<button class="up" id="up" type="button" aria-label="Up one level" data-i18n-label="upLevel" hidden><svg width="18" height="18" viewBox="0 0 24 24"><path d="M20 12H4M11 19l-7-7 7-7"/></svg></button>
+<nav class="crumbs" id="crumbs" aria-label="Folders"></nav>
+</div>
+<div class="actions">
+<button class="action" id="new-folder" type="button" data-i18n="newFolderShort">+ Folder</button>
+<button class="action" id="new-doc" type="button" data-i18n="newDocShort">+ Document</button>
+<button class="action" id="upload" type="button" data-i18n="uploadShort">Upload</button>
+</div>
+<input class="search" id="search" type="search" placeholder="Filter this folder" aria-label="Filter this folder" data-i18n-input="search" data-i18n-label="search">
 <div class="rows" id="rows"></div>
+<p class="list-hint" data-i18n="listHint">Double click opens · right click shows options</p>
 <div class="list-foot">
 <div class="list-foot-row">
 <span class="meta" id="me"></span>
 <button class="text-link" id="sign-out" type="button" data-i18n="signOut">Sign out</button>
 </div>
+<span class="quota-bar"><span class="quota-fill" id="quota-fill"></span></span>
 <span class="quota" id="quota"></span>
 </div>
 <input type="file" id="file-input" multiple hidden>
@@ -60,9 +70,13 @@
 <svg class="icon-back" width="20" height="20" viewBox="0 0 24 24"><path d="M20 12H4M11 19l-7-7 7-7"/></svg>
 <svg class="icon-sidebar" width="20" height="20" viewBox="0 0 24 24"><path d="M4 5h16v14H4z M9 5v14"/></svg>
 </button>
+<span class="pane-title" id="pane-title"></span>
+<span class="pane-kind" id="pane-kind"></span>
 <span class="save-state" id="save-state"></span>
+<button class="text-button" id="add" type="button" data-i18n="addMenu" aria-controls="add-menu">Add</button>
 <button class="text-button" id="share" type="button" data-i18n="share" aria-controls="share-panel">Share</button>
 <button class="icon-button more-button" id="menu" type="button" aria-label="More" data-i18n-label="more" aria-controls="menu-panel">⋯</button>
+<div class="menu" id="add-menu" hidden></div>
 <div class="menu" id="share-panel" hidden></div>
 <div class="menu" id="menu-panel" hidden></div>
 </header>

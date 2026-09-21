@@ -6,6 +6,9 @@ const MAX_URL_LENGTH = 2000
 const TEXT_MIN_WIDTH = 160
 const IMAGE_MIN_WIDTH = 60
 const IMAGE_MIN_HEIGHT = 40
+const FRAME_MIN = 40
+const FRAME_MAX = 20000
+const FRAME_NAME_LIMIT = 80
 const ID_PATTERN = /^[A-Za-z0-9_-]{4,16}$/
 const TEXT_COLORS = ['hl1', 'hl2', 'hl3']
 
@@ -69,6 +72,14 @@ const SHAPES = {
     const url = safeUrl(raw.url)
     if (url === null) return null
     item.url = url
+    return item
+  },
+  frame: (item, raw, tools) => {
+    item.w = finiteNumber(raw.w, FRAME_MIN, FRAME_MAX)
+    item.h = finiteNumber(raw.h, FRAME_MIN, FRAME_MAX)
+    if (item.w === null || item.h === null) return null
+    const name = tools.cleanLabel(String(raw.name || '')).slice(0, FRAME_NAME_LIMIT)
+    if (name !== '') item.name = name
     return item
   },
   file: (item, raw, tools) => withReference(item, raw, 'file', tools.fileInfo(String(raw.file || ''))),
@@ -135,13 +146,14 @@ function referenceInfo(app, collection, boardId, userId) {
 function boardTools(app, record) {
   const { sanitizeHtml, safeImageSource } = require(`${__hooks}/sanitize.js`)
   const { titleOf, coverOf } = require(`${__hooks}/summary.js`)
-  const { ownBoard } = require(`${__hooks}/drive.js`)
+  const { ownBoard, cleanLabel } = require(`${__hooks}/drive.js`)
   const userId = record.getString('user')
   return {
     sanitizeHtml,
     safeImageSource,
     titleOf,
     coverOf,
+    cleanLabel,
     fileInfo: referenceInfo(app, 'files', record.id, userId),
     docInfo: (id) => {
       const info = referenceInfo(app, 'docs', record.id, userId)(id)

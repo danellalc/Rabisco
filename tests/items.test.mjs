@@ -12,7 +12,8 @@ globalThis.BadRequestError = class BadRequestError extends Error {}
 const known = { file0001: { name: 'report.pdf', size: 2400000, kind: 'pdf' } }
 const docs = { doc00001: { name: 'Meeting notes' } }
 const folders = { fold0001: { name: 'Projects' } }
-const tools = { sanitizeHtml, safeImageSource, titleOf, coverOf, fileInfo: (id) => known[id] || null, docInfo: (id) => docs[id] || null, folderInfo: (id) => folders[id] || null }
+const { cleanLabel } = require('../pb_hooks/drive.js')
+const tools = { sanitizeHtml, safeImageSource, titleOf, coverOf, cleanLabel, fileInfo: (id) => known[id] || null, docInfo: (id) => docs[id] || null, folderInfo: (id) => folders[id] || null }
 const normalize = (items) => normalizeBoard(JSON.stringify(items), tools)
 
 test('text items are sanitized and clamped, junk is dropped', () => {
@@ -49,6 +50,18 @@ test('an image keeps a free height when one is given, and a text block keeps a k
   assert.equal(items[1].h, undefined)
   assert.equal(items[2].color, 'hl2')
   assert.equal(items[3].color, undefined)
+})
+
+test('frame items keep a clamped size and a clean short name', () => {
+  const board = normalize([
+    { id: 'frm1', type: 'frame', x: 10, y: 20, z: 0, w: 5, h: 99999, name: '  Sprint\u0000 1  ' },
+    { id: 'frm2', type: 'frame', x: 0, y: 0, z: 0, w: 300, h: 'tall' },
+    { id: 'frm3', type: 'frame', x: 0, y: 0, z: 0, w: 300, h: 200, name: 'x'.repeat(200) }
+  ])
+  const items = JSON.parse(board.content)
+  assert.deepEqual(items[0], { id: 'frm1', type: 'frame', x: 10, y: 20, z: 0, w: 40, h: 20000, name: 'Sprint 1' })
+  assert.equal(items.length, 2)
+  assert.equal(items[1].name.length, 80)
 })
 
 test('document and folder items only survive when they belong to the user, and carry the stored name', () => {

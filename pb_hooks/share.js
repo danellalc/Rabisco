@@ -35,6 +35,22 @@ function sharedItemIds(items, requested) {
   return Array.from(kept)
 }
 
+function isInsideFrame(item, frame) {
+  if (item.id === frame.id || item.type === 'frame') return false
+  return item.x >= frame.x && item.y >= frame.y && item.x <= frame.x + frame.w && item.y <= frame.y + frame.h
+}
+
+function expandFrames(items, ids) {
+  const wanted = new Set(ids)
+  const frames = items.filter((item) => item.type === 'frame' && wanted.has(item.id))
+  for (let index = 0; index < frames.length; index++) {
+    for (let other = 0; other < items.length; other++) {
+      if (isInsideFrame(items[other], frames[index])) wanted.add(items[other].id)
+    }
+  }
+  return Array.from(wanted)
+}
+
 function isScoped(requested) {
   return parseIds(requested).length > 0
 }
@@ -87,7 +103,7 @@ function findShared(e) {
   const content = board.getString('content')
   const items = parseBoard(content)
   const scoped = isScoped(share.getString('items'))
-  const itemIds = sharedItemIds(items, share.getString('items'))
+  const itemIds = expandFrames(items, sharedItemIds(items, share.getString('items')))
   if (scoped && itemIds.length === 0) throw new NotFoundError('Link not active.')
   return { kind: 'board', share, board, scoped, itemIds, mode: shareMode(share.getString('mode'), scoped), content: filterContent(content, items, itemIds) }
 }
@@ -97,4 +113,4 @@ function expireShares(app) {
   for (let index = 0; index < records.length; index++) app.delete(records[index])
 }
 
-module.exports = { findShared, isExpired, parseIds, parseBoard, sharedItemIds, isScoped, shareMode, filterContent, expireShares }
+module.exports = { findShared, isExpired, parseIds, parseBoard, sharedItemIds, expandFrames, isScoped, shareMode, filterContent, expireShares }

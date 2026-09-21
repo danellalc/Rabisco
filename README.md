@@ -15,7 +15,7 @@ Version 3 is built: the explorer with breadcrumbs, folders, documents and files,
 1. Board: done. Pan, zoom, text blocks as items, image and link items, drag with snapping to the grid and to neighbours, lasso, tidy, undo and redo of everything, autosave of the whole board.
 2. Files and quota: done. Any file as a card with an icon, upload progress, blocked executable types, 500 MB per file, 2 GB per user (100 GB on the pro plan, both adjustable per user in the dashboard), signed short lived download links, rename, video and audio playing in the card. Storage goes wherever PocketBase points (local disk or an S3 bucket such as Cloudflare R2, set in the dashboard).
 3. Sharing: done. A link for a folder (view or edit), a selection (view), a document (view or edit) or a single file (download page), several active links per folder, expiry, revoke, duplicate with files.
-4. Drive: done. Every folder is a board; files and documents live in exactly one folder and the canvas shows the ones you placed; move by dragging or through the folder picker; delete with undo; sort; search in the folder and everywhere.
+4. Drive: done. Every folder is a board; files and documents live in exactly one folder and the canvas shows the ones you placed; move by dragging or through the folder picker; delete with undo; sort; search in the folder and everywhere. Frames are thin rectangles that group a region of the board: they carry their contents when dragged and can be shared as a live, view only piece of the board.
 5. Direct upload to the bucket for big files and paid plans.
 6. Drawing: a vector sketch item.
 

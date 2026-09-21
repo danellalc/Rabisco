@@ -19,6 +19,7 @@ export const FILE_ICON_PATHS = {
 }
 
 export const KIND_ICONS = {
+  board: 'M5 7.5A2.5 2.5 0 0 1 7.5 5h17A2.5 2.5 0 0 1 27 7.5v17a2.5 2.5 0 0 1-2.5 2.5h-17A2.5 2.5 0 0 1 5 24.5Z M9.5 10h6v5h-6Z M18.5 11h4 M18.5 14h4 M9.5 19h13v3.5h-13Z',
   folder: 'M4 9.5A2.5 2.5 0 0 1 6.5 7h6l3 3h10a2.5 2.5 0 0 1 2.5 2.5v11A2.5 2.5 0 0 1 25.5 26h-19A2.5 2.5 0 0 1 4 23.5Z',
   doc: `${SHEET} M11.5 14h9 M11.5 17.5h9 M11.5 21h5`
 }

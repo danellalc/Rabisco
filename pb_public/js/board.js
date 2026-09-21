@@ -2,7 +2,7 @@ import { WHEEL_STEP, ZOOM_STEP, fitCamera, panBy, toScreen, toWorld, zoomAt } fr
 import { svgIcon } from './dom.js'
 import { caretPathOf, isBlank, placeCaretAtEnd, placeCaretAtPoint, placeCaretByPath } from './editor.js'
 import { createFileCards } from './file-card.js'
-import { CARD_HEIGHT, IMAGE_MIN_HEIGHT, IMAGE_MIN_WIDTH, REFERENCE_TYPES, TEXT_COLORS, TEXT_MIN_WIDTH, boundsOf, kindOf, linkLabel, newId, nextZ, overlaps, parseContent, readingOrder } from './items.js'
+import { CARD_HEIGHT, FRAME_MIN, IMAGE_MIN_HEIGHT, IMAGE_MIN_WIDTH, REFERENCE_TYPES, TEXT_COLORS, TEXT_MIN_WIDTH, boundsOf, frameAround, frameMembers, kindOf, linkLabel, newId, nextZ, overlaps, parseContent, readingOrder } from './items.js'
 import { render, safeHref, safeImageSource, serialize } from './sanitize.js'
 import { GRID, SNAP_DISTANCE, snapMove, snapToGrid, tidy } from './snap.js'
 
@@ -16,8 +16,11 @@ const EDGE = 40
 const EDGE_STEP = 16
 const LINK_ICON = 'M13.2 18.8l5.6-5.6M11.6 15.2l-2.4 2.4a3.7 3.7 0 1 0 5.2 5.2l2.4-2.4M20.4 16.8l2.4-2.4a3.7 3.7 0 1 0-5.2-5.2l-2.4 2.4'
 const CARDS = ['link', ...REFERENCE_TYPES]
-const HANDLE_EDGES = { text: ['e', 'w'], image: ['n', 'ne', 'e', 'se', 's', 'sw', 'w', 'nw'] }
-const TYPES = ['text', 'image', 'link', ...REFERENCE_TYPES]
+const ALL_EDGES = ['n', 'ne', 'e', 'se', 's', 'sw', 'w', 'nw']
+const HANDLE_EDGES = { text: ['e', 'w'], image: ALL_EDGES, frame: ALL_EDGES }
+const TYPES = ['text', 'image', 'link', 'frame', ...REFERENCE_TYPES]
+const FRAME_SIZE = { w: 320, h: 240 }
+const MIN_SIZE = { image: { w: IMAGE_MIN_WIDTH, h: IMAGE_MIN_HEIGHT }, frame: { w: FRAME_MIN, h: FRAME_MIN }, text: { w: TEXT_MIN_WIDTH, h: 0 } }
 const CONTROLS = '.toolbar, .image-selection, .zoom, .menu, .chooser, .board-message, .play, .rename, video, .doc'
 export const CLIPBOARD_PREFIX = 'trecos-items:'
 
@@ -36,6 +39,10 @@ export function cleanItems(raw) {
       if (!TEXT_COLORS.includes(clean.color)) delete clean.color
     }
     if (REFERENCE_TYPES.includes(clean.type)) clean.name = String(clean.name || '')
+    if (clean.type === 'frame') {
+      clean.h = Number(clean.h) || FRAME_SIZE.h
+      clean.name = String(clean.name || '')
+    }
     if (!TYPES.includes(clean.type) || clean.url === null || clean.src === null) continue
     kept.push(clean)
   }
@@ -115,8 +122,10 @@ export function createBoard({ area, layer, lasso, guides, message, translate, la
     element.style.transform = `translate(${item.x}px, ${item.y}px)`
     element.style.zIndex = String(item.z)
     if (!CARDS.includes(item.type)) element.style.width = `${item.w}px`
-    if (item.type === 'image') element.style.height = item.h ? `${item.h}px` : ''
+    if (item.type === 'image' || item.type === 'frame') element.style.height = item.h ? `${item.h}px` : ''
   }
+
+  const frameLabel = (item) => item.name || translate('frame')
 
   const applyColor = (item) => {
     const element = elements.get(item.id)
@@ -189,6 +198,15 @@ export function createBoard({ area, layer, lasso, guides, message, translate, la
       const label = document.createElement('span')
       label.textContent = linkLabel(item.url)
       element.append(svgIcon(LINK_ICON, 24), label)
+    } else if (item.type === 'frame') {
+      const label = document.createElement('span')
+      label.className = 'frame-label'
+      label.textContent = frameLabel(item)
+      element.append(label, ...['top', 'right', 'bottom', 'left'].map((side) => {
+        const edge = document.createElement('span')
+        edge.className = `frame-edge frame-${side}`
+        return edge
+      }))
     } else {
       cards.build(element, item)
     }
@@ -303,6 +321,57 @@ export function createBoard({ area, layer, lasso, guides, message, translate, la
     onChange()
     onFileInserted(item, file)
     return item
+  }
+
+  const addFrame = (rect) => {
+    beforeChange()
+    const item = addItem({ id: newId(), type: 'frame', x: snapToGrid(rect.x), y: snapToGrid(rect.y), z: 0, w: Math.max(FRAME_MIN, snapToGrid(rect.w)), h: Math.max(FRAME_MIN, snapToGrid(rect.h)), name: '' })
+    onChange()
+    setSelection([item.id])
+    return item
+  }
+
+  const frameSelection = (ids) => {
+    const bounds = boundsOf(ids.map(itemOf).filter((item) => item && item.type !== 'frame').map(rectOf))
+    return bounds ? addFrame(frameAround(bounds)) : null
+  }
+
+  const renameFrame = (id) => {
+    const item = itemOf(id)
+    const element = elements.get(id)
+    if (!item || !element || !editable) return
+    const label = element.querySelector('.frame-label')
+    const input = document.createElement('input')
+    input.className = 'rename frame-rename'
+    input.value = item.name
+    input.placeholder = translate('frame')
+    let done = false
+    const finish = (commit) => {
+      if (done) return
+      done = true
+      const next = input.value.trim().slice(0, 80)
+      input.replaceWith(label)
+      if (!commit || next === item.name) return
+      beforeChange()
+      item.name = next
+      label.textContent = frameLabel(item)
+      onChange()
+    }
+    input.addEventListener('keydown', (event) => {
+      event.stopPropagation()
+      if (event.key === 'Enter') finish(true)
+      if (event.key === 'Escape') finish(false)
+    })
+    input.addEventListener('blur', () => finish(true))
+    label.replaceWith(input)
+    input.focus()
+    input.select()
+  }
+
+  const renameItem = (id) => {
+    const item = itemOf(id)
+    if (item && item.type === 'frame') renameFrame(id)
+    else cards.rename(id)
   }
 
   const addReference = (point, kind, id, name, extra = {}) => {
@@ -539,7 +608,9 @@ export function createBoard({ area, layer, lasso, guides, message, translate, la
     lasso.hidden = false
     const from = toWorld(camera, { x: box.x0, y: box.y0 })
     const to = toWorld(camera, { x: box.x1, y: box.y1 })
-    const hit = items.filter((item) => overlaps(rectOf(item), { x0: from.x, y0: from.y, x1: to.x, y1: to.y })).map((item) => item.id)
+    const region = { x0: from.x, y0: from.y, x1: to.x, y1: to.y }
+    const encloses = (rect) => rect.x >= region.x0 && rect.y >= region.y0 && rect.x + rect.w <= region.x1 && rect.y + rect.h <= region.y1
+    const hit = items.filter((item) => (item.type === 'frame' ? encloses(rectOf(item)) : overlaps(rectOf(item), region))).map((item) => item.id)
     setSelection([...new Set([...gesture.keep, ...hit])])
   }
 
@@ -560,13 +631,14 @@ export function createBoard({ area, layer, lasso, guides, message, translate, la
       if (Math.abs(dx) >= Math.abs(dy)) h = w / ratio
       else w = h * ratio
     }
-    w = Math.max(item.type === 'image' ? IMAGE_MIN_WIDTH : TEXT_MIN_WIDTH, snapToGrid(w))
-    h = Math.max(IMAGE_MIN_HEIGHT, snapToGrid(h))
-    if (proportional) h = Math.max(IMAGE_MIN_HEIGHT, Math.round(w / ratio))
+    const min = MIN_SIZE[item.type]
+    w = Math.max(min.w, snapToGrid(w))
+    h = Math.max(min.h, snapToGrid(h))
+    if (proportional) h = Math.max(min.h, Math.round(w / ratio))
     if (edge.includes('w')) item.x = start.x + start.w - w
     if (edge.includes('n')) item.y = start.y + start.h - h
     item.w = w
-    if (item.type === 'image' && (item.h || !proportional)) item.h = h
+    if (item.type === 'frame' || (item.type === 'image' && (item.h || !proportional))) item.h = h
     applyGeometry(item)
   }
 
@@ -639,14 +711,19 @@ export function createBoard({ area, layer, lasso, guides, message, translate, la
       if (event.shiftKey) setSelection(wasSelected ? [...selection].filter((other) => other !== id) : [...selection, id])
       else if (!wasSelected) setSelection([id])
       const grabbed = itemOf(id)
-      if (grabbed && grabbed.z !== nextZ(items) - 1) {
+      if (grabbed && grabbed.type !== 'frame' && grabbed.z !== nextZ(items) - 1) {
         grabbed.z = nextZ(items)
         applyGeometry(grabbed)
         onChange()
       }
       if (element.dataset.type !== 'link' || event.pointerType === 'mouse') event.preventDefault()
-      const chosen = [...selection]
-      if (chosen.length === 0) return
+      if (selection.size === 0) return
+      const carried = new Set(selection)
+      for (const chosenId of selection) {
+        const chosenItem = itemOf(chosenId)
+        if (chosenItem.type === 'frame') frameMembers(items, chosenItem).forEach((member) => carried.add(member.id))
+      }
+      const chosen = [...carried]
       const origins = chosen.map((chosenId) => ({ id: chosenId, x: itemOf(chosenId).x, y: itemOf(chosenId).y }))
       const primary = origins.find((origin) => origin.id === id) || origins[0]
       const world = worldPoint(event)
@@ -655,7 +732,7 @@ export function createBoard({ area, layer, lasso, guides, message, translate, la
         origins: [primary, ...origins.filter((origin) => origin !== primary)],
         grab: { x: world.x - primary.x, y: world.y - primary.y },
         bounds: boundsOf(chosen.map((chosenId) => rectOf(itemOf(chosenId)))),
-        others: items.filter((item) => !selection.has(item.id)).map(rectOf),
+        others: items.filter((item) => !carried.has(item.id) && item.type !== 'frame').map(rectOf),
         tap: event.pointerType === 'touch' && element.dataset.type === 'text',
         wasSelected
       })
@@ -731,6 +808,7 @@ export function createBoard({ area, layer, lasso, guides, message, translate, la
     }
     if (type === 'text') startEditing(element.dataset.id, { x: event.clientX, y: event.clientY })
     else if (type === 'image') onOpenImage(element.querySelector('img'))
+    else if (type === 'frame') renameFrame(element.dataset.id)
     else if (REFERENCE_TYPES.includes(type)) onOpenItem(itemOf(element.dataset.id))
   })
 
@@ -799,10 +877,11 @@ export function createBoard({ area, layer, lasso, guides, message, translate, la
       event.preventDefault()
       if (item.type === 'text') startEditing(item.id)
       else if (item.type === 'image') onOpenImage(elements.get(item.id).querySelector('img'))
+      else if (item.type === 'frame') renameFrame(item.id)
       else if (REFERENCE_TYPES.includes(item.type)) onOpenItem(item)
     } else if (event.key === 'F2' && selection.size === 1) {
       event.preventDefault()
-      cards.rename([...selection][0])
+      renameItem([...selection][0])
     } else if (event.key.startsWith('Arrow') && selection.size > 0) {
       event.preventDefault()
       const step = event.shiftKey ? NUDGE_LARGE : NUDGE
@@ -932,12 +1011,15 @@ export function createBoard({ area, layer, lasso, guides, message, translate, la
     addLink,
     addFile,
     addReference,
+    addFrame,
+    frameSelection,
+    frameSize: FRAME_SIZE,
     referenceIds,
     renameReferences,
     setColor,
     setFileProgress: cards.setProgress,
     setFileRecord: cards.setRecord,
-    renameFile: cards.rename,
+    renameFile: renameItem,
     refreshCard: cards.refresh,
     pendingFileIds: () => [...layer.querySelectorAll('.item.file[data-pending]')].map((element) => element.dataset.id),
     duplicate: duplicateItems,

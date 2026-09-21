@@ -82,7 +82,8 @@ const sync = {
   renameFile: () => Promise.reject(new Error('no rename')),
   openItem: () => {},
   contextMenu: () => {},
-  pickImage: () => {}
+  pickImage: () => {},
+  docClosed: () => {}
 }
 const formatBytes = (bytes) => formatSize(bytes, language)
 const isPhone = () => matchMedia('(max-width:719px)').matches
@@ -236,7 +237,10 @@ const docEditor = createDocument({
   showToast,
   chooser,
   onNameChanged: (doc) => sync.docRenamed(doc),
-  onClosed: () => { if (store.board) setState(store.dirty ? 'saving' : 'saved') }
+  onClosed: () => {
+    if (store.board) setState(store.dirty ? 'saving' : 'saved')
+    sync.docClosed()
+  }
 })
 const activeHistory = () => (docEditor.isOpen() ? docEditor.history : history)
 document.getElementById('doc-close').addEventListener('click', () => docEditor.close())
@@ -362,8 +366,14 @@ const canvasMenu = (ids, item, point, { owner }) => {
   const back = { label: translate('sendToBack'), run: () => board.sendToBack(ids) }
   const duplicateAction = { label: translate('duplicate'), run: () => board.duplicate(ids) }
   const removeAction = { label: translate(single && single.type !== 'text' && single.type !== 'image' && single.type !== 'link' ? 'removeFromBoard' : 'delete'), danger: !single || ['text', 'image', 'link'].includes(single.type), run: () => board.remove(ids) }
-  if (!single) return [duplicateAction, front, back, { separator: true }, removeAction]
+  if (!single) return [{ label: translate('frameSelection'), run: () => board.frameSelection(ids) }, duplicateAction, front, back, { separator: true }, removeAction]
   const actions = []
+  if (single.type === 'frame') {
+    actions.push({ label: translate('rename'), run: () => board.renameFile(single.id) })
+    if (owner) actions.push({ label: translate('shareFrame'), run: () => sync.shareItems([single.id]) })
+    actions.push(duplicateAction, { separator: true }, { label: translate('delete'), danger: true, run: () => board.remove(ids) })
+    return actions
+  }
   if (single.type === 'text') {
     actions.push(
       { label: translate('edit'), run: () => board.startEditing(single.id) },
@@ -484,6 +494,7 @@ if (sharedPage) {
       itemMenu.open([
         { label: translate('addText'), run: () => board.addText(request.world) },
         { label: translate('addNote'), run: () => board.addText(request.world, '', 'hl1') },
+        { label: translate('addFrame'), run: () => board.addFrame({ ...request.world, ...board.frameSize }) },
         { label: translate('selectAll'), run: () => board.select(board.items().map((item) => item.id)) }
       ], request.point)
     }
@@ -512,7 +523,11 @@ if (sharedPage) {
   const quotaLine = document.getElementById('quota')
   const fileInput = document.getElementById('file-input')
   const imageInput = document.getElementById('image-input')
-  const newMenu = createPopover(document.getElementById('new-menu'))
+  const addMenu = createPopover(document.getElementById('add-menu'))
+  const upButton = document.getElementById('up')
+  const newDocButton = document.getElementById('new-doc')
+  const uploadButton = document.getElementById('upload')
+  const quotaFill = document.getElementById('quota-fill')
   let folderId = ''
   let uploadTarget = 'board'
   let imageTarget = 'board'
@@ -529,6 +544,20 @@ if (sharedPage) {
   }
   const refOf = (item) => ({ kind: item.type, id: item[item.type], name: item.name, size: item.size, fileKind: item.kind })
 
+  const paneTitle = document.getElementById('pane-title')
+  const paneKind = document.getElementById('pane-kind')
+  const updateTitle = () => {
+    const doc = docEditor.isOpen() ? docEditor.current() : null
+    paneTitle.textContent = doc ? doc.name : folderId ? folderLabel() : translate('myDrive')
+    paneKind.textContent = doc ? translate('kindDoc') : folderId ? translate('kindBoard') : ''
+    drive.setActive(doc ? doc.id : folderId ? 'board' : '')
+    upButton.hidden = !folderId
+    newDocButton.disabled = !folderId
+    uploadButton.disabled = !folderId
+    if (folderId) delete document.body.dataset.root
+    else document.body.dataset.root = ''
+  }
+
   const updateHints = () => {
     const hint = folderId && store.board && board.items().length === 0 ? translate('boardHints') : folderId ? '' : translate('rootHint')
     if (hint === lastHint) return
@@ -541,6 +570,7 @@ if (sharedPage) {
       const listing = await resources.listing(id, { fresh: true })
       if (id !== folderId) return
       drive.set(listing)
+      updateTitle()
       writeCachedListing(localStorage, id, listing)
     } catch {
       return
@@ -563,6 +593,7 @@ if (sharedPage) {
     drive.set(listing)
     writeLast(localStorage, id)
     writeCachedListing(localStorage, id, listing)
+    updateTitle()
     if (id) await boards.open(id)
     else await boards.close()
     lastHint = null
@@ -582,6 +613,7 @@ if (sharedPage) {
       reload: () => api.getDoc(id),
       rename: (name) => api.updateDoc(id, { name })
     })
+    updateTitle()
     showNote()
   }
 
@@ -847,10 +879,14 @@ if (sharedPage) {
       move: moveEntries,
       remove: removeEntries,
       upload: uploadInto,
-      crumb: (id) => openFolder(id).catch(() => showToast(translate('loadFailed')))
+      crumb: (id) => openFolder(id).catch(() => showToast(translate('loadFailed'))),
+      showBoard: async () => {
+        await docEditor.close()
+        showNote()
+      }
     }
   })
-  document.getElementById('show-board').addEventListener('click', () => { if (folderId) showNote() })
+  sync.docClosed = () => updateTitle()
 
   const boards = createBoards({
     api,
@@ -868,6 +904,8 @@ if (sharedPage) {
     onQuota: ({ used, quota }) => {
       quotaLine.textContent = translate('quotaLine').replace('{used}', formatBytes(used)).replace('{quota}', formatBytes(quota))
       quotaLine.classList.toggle('full', used >= quota)
+      quotaFill.parentElement.classList.toggle('full', used >= quota)
+      quotaFill.style.width = `${Math.min(100, quota > 0 ? (used / quota) * 100 : 0)}%`
     },
     onSummary: (summary) => {
       if (summary.filesChanged) {
@@ -910,6 +948,7 @@ if (sharedPage) {
     refreshFolder()
   }
   sync.docRenamed = (doc) => {
+    updateTitle()
     board.renameReferences('doc', doc.id, doc.name)
     if (board.referenceIds('doc', doc.id).length > 0) boards.markDirty()
     resources.invalidate(folderId)
@@ -992,34 +1031,36 @@ if (sharedPage) {
       moveEntries(entries, folderId, request.folder.folder)
       return
     }
-    const world = request.world
-    itemMenu.open([
-      { label: translate('addText'), run: () => board.addText(world) },
-      { label: translate('addNote'), run: () => board.addText(world, '', 'hl1') },
-      { label: translate('newDoc'), run: () => createDocHere(world) },
-      { label: translate('newFolder'), run: () => createFolderHere(world) },
-      { label: translate('uploadFiles'), run: () => { dropPoint = world; uploadTarget = 'board'; fileInput.click() } },
-      { label: translate('addImage'), run: () => { dropPoint = world; imageTarget = 'board'; imageInput.click() } },
-      { label: translate('addLink'), run: async () => {
-        try {
-          const text = await navigator.clipboard.readText()
-          if (isUrl(text)) board.addLink(world, toHref(text))
-          else showToast(translate('copyUrlFirst'))
-        } catch {
-          showToast(translate('clipboardBlocked'))
-        }
-      } },
-      { label: translate('paste'), run: async () => {
-        try {
-          pasteOnBoard(await readClipboard(), world)
-        } catch {
-          showToast(translate('clipboardBlocked'))
-        }
-      } },
-      { separator: true },
-      { label: translate('selectAll'), run: () => board.select(board.items().map((item) => item.id)) }
-    ], request.point)
+    itemMenu.open(boardActions(request.world), request.point)
   }
+
+  const boardActions = (world) => [
+    { label: translate('addText'), run: () => board.addText(world) },
+    { label: translate('addNote'), run: () => board.addText(world, '', 'hl1') },
+    { label: translate('addFrame'), run: () => board.addFrame({ ...world, ...board.frameSize }) },
+    { label: translate('newDoc'), run: () => createDocHere(world) },
+    { label: translate('newFolder'), run: () => createFolderHere(world) },
+    { label: translate('uploadFiles'), run: () => { dropPoint = world; uploadTarget = 'board'; fileInput.click() } },
+    { label: translate('addImage'), run: () => { dropPoint = world; imageTarget = 'board'; imageInput.click() } },
+    { label: translate('addLink'), run: async () => {
+      try {
+        const text = await navigator.clipboard.readText()
+        if (isUrl(text)) board.addLink(world, toHref(text))
+        else showToast(translate('copyUrlFirst'))
+      } catch {
+        showToast(translate('clipboardBlocked'))
+      }
+    } },
+    { label: translate('paste'), run: async () => {
+      try {
+        pasteOnBoard(await readClipboard(), world)
+      } catch {
+        showToast(translate('clipboardBlocked'))
+      }
+    } },
+    { separator: true },
+    { label: translate('selectAll'), run: () => board.select(board.items().map((item) => item.id)) }
+  ]
 
   const currentTree = () => (docEditor.isOpen() ? { tag: 'div', attrs: {}, children: treeOf(docEditor.note).children } : treeOfBoard(board.elementsInReadingOrder()))
   const currentTitle = () => (docEditor.isOpen() ? docEditor.current().name : folderLabel())
@@ -1114,19 +1155,26 @@ if (sharedPage) {
   })
   sync.shareItems = (ids) => share.open(shareTarget(ids, parseContent(board.serialize()) || []))
 
-  document.getElementById('new').addEventListener('click', (event) => {
-    if (newMenu.isOpen()) {
-      newMenu.close()
+  document.getElementById('new-folder').addEventListener('click', newFolder)
+  newDocButton.addEventListener('click', newDoc)
+  uploadButton.addEventListener('click', uploadFiles)
+  upButton.addEventListener('click', () => {
+    const folder = folderEntry()
+    if (folder) openFolder(folder.parent).catch(() => showToast(translate('loadFailed')))
+  })
+  document.getElementById('add').addEventListener('click', (event) => {
+    if (addMenu.isOpen()) {
+      addMenu.close()
       return
     }
-    newMenu.open([
-      { label: translate('newFolder'), run: newFolder },
-      { label: translate('newDoc'), run: newDoc },
-      { label: translate('uploadFiles'), run: uploadFiles }
-    ], event.currentTarget.getBoundingClientRect())
+    if (!store.board) {
+      showToast(translate('pickFolderFirst'))
+      return
+    }
+    addMenu.open(boardActions(board.center()), event.currentTarget.getBoundingClientRect())
   })
 
-  initSearch({
+  const palette = initSearch({
     palette: document.getElementById('palette'),
     input: document.getElementById('palette-input'),
     rows: document.getElementById('palette-rows'),
@@ -1154,6 +1202,8 @@ if (sharedPage) {
       }
     }
   })
+
+  document.getElementById('search-open').addEventListener('click', () => palette.open())
 
   document.addEventListener('keydown', (event) => {
     if (!(event.ctrlKey || event.metaKey) || !event.altKey || event.key.toLowerCase() !== 'n') return

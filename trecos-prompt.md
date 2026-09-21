@@ -223,6 +223,12 @@ Depois de testar a v2, a ideia cresceu: Trecos é um **Google Drive + editor de 
 - **Detalhes** num popover pequeno: nome, tipo, tamanho, pasta, criado, modificado, dimensões de imagem.
 - **Ctrl + K** também executa comandos (nova pasta, novo documento, enviar arquivo, quadro recente) e navega pelas setas.
 
+## Ajustes depois do primeiro teste da v3 (21/09/2026)
+
+- **Lateral com identidade e sem mistério**: marca Trecos com o rabisco do ícone, botão "Buscar Ctrl K", seta pra subir um nível ao lado do caminho, ações com nome ("+ Pasta", "+ Documento", "Enviar arquivos") no lugar de um "+" sozinho, campo "Filtrar nesta pasta", linha fixa "Quadro desta pasta" no topo, seções PASTAS, DOCUMENTOS e ARQUIVOS com contagem, extensão e tamanho no arquivo, destaque no que está aberto à direita, dica "Duplo clique abre · botão direito mostra opções" e barra fina de cota.
+- **Cabeçalho do painel** mostra o nome do que estou vendo com a etiqueta "quadro" ou "documento", e um botão "Adicionar" com o mesmo menu do botão direito. Na raiz, sem quadro, esses botões somem.
+- **Moldura**: retângulo de borda fina que fica no quadro. Crio a partir da seleção (botão direito, "Criar moldura da seleção") ou solta ("Adicionar moldura"). Tem nome (duplo clique ou F2), oito alças, fica atrás dos itens e o miolo não pega clique. Arrastar a moldura leva junto o que tem o canto dentro dela. Compartilhar a moldura é um link só ver que mostra o que estiver dentro no momento em que a pessoa abre; o servidor decide pelo canto superior esquerdo de cada item.
+
 ## Fora do escopo (continua)
 
 Tags, templates, colaboração em tempo real, preview de site em link, visualizador de PDF próprio, comentários, versões, app nativo, integrações, login com Google ou senha, conectores, formas, agrupar, camadas, minimapa, OCR.

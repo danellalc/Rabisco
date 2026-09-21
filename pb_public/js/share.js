@@ -33,6 +33,7 @@ export function shareTarget(selectedIds, items) {
   if (ids.length === 1 && only.type === 'file' && only.file) return { kind: 'file', ids: [], file: only.file, name: only.name }
   if (ids.length === 1 && only.type === 'doc') return { kind: 'doc', ids: [], doc: only.doc, name: only.name }
   if (ids.length === 1 && only.type === 'folder') return { kind: 'folder', ids: [], folder: only.folder, name: only.name }
+  if (ids.length === 1 && only.type === 'frame') return { kind: 'frame', ids, name: only.name || '' }
   return { kind: 'selection', ids }
 }
 
@@ -108,12 +109,14 @@ export function initShare({ button, panel, translate, getState, createShare, upd
     if (ids.length === 0) return translate('targetBoard')
     const kind = shareTarget(ids, state.items)
     if (kind.kind === 'file' || kind.kind === 'doc') return kind.name
+    if (kind.kind === 'frame') return kind.name || translate('frame')
     return translate('targetSelection').replace('{n}', String(ids.length))
   }
 
   const titleOf = (state) => {
     if (target.kind === 'board') return state.doc ? state.doc.name : translate('thisBoard')
     if (target.kind === 'selection') return translate('selectionOf').replace('{n}', String(target.ids.length))
+    if (target.kind === 'frame') return target.name || translate('frame')
     return target.name
   }
 
@@ -140,10 +143,10 @@ export function initShare({ button, panel, translate, getState, createShare, upd
     title.className = 'menu-title'
     title.textContent = titleOf(state)
     panel.append(title)
-    if (target.kind === 'selection') {
+    if (target.kind === 'selection' || target.kind === 'frame') {
       const hint = document.createElement('p')
       hint.className = 'menu-hint'
-      hint.textContent = translate('selectionHint')
+      hint.textContent = translate(target.kind === 'frame' ? 'frameHint' : 'selectionHint')
       panel.append(hint)
     }
     const modes = document.createElement('div')

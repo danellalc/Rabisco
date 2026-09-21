@@ -29,6 +29,21 @@ test('shared item ids are validated against the board and deduplicated', () => {
   assert.deepEqual(parseBoard('{broken'), [])
 })
 
+test('a shared frame carries whatever sits inside it when the link is opened', () => {
+  const { expandFrames } = require('../pb_hooks/share.js')
+  const board = [
+    { id: 'frm00001', type: 'frame', x: 100, y: 100, w: 400, h: 300 },
+    { id: 'in000001', type: 'text', x: 120, y: 140, w: 200 },
+    { id: 'in000002', type: 'file', x: 500, y: 400 },
+    { id: 'out00001', type: 'text', x: 90, y: 140, w: 200 },
+    { id: 'out00002', type: 'image', x: 120, y: 401, w: 100 },
+    { id: 'frm00002', type: 'frame', x: 110, y: 110, w: 50, h: 50 }
+  ]
+  assert.deepEqual(expandFrames(board, ['frm00001']).sort(), ['frm00001', 'in000001', 'in000002'])
+  assert.deepEqual(expandFrames(board, ['out00001']), ['out00001'])
+  assert.deepEqual(expandFrames(board, []), [])
+})
+
 test('a scoped share whose items vanished never widens to the whole board', () => {
   assert.equal(isScoped('["ghost001"]'), true)
   assert.equal(isScoped('[]'), false)

@@ -2,7 +2,14 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { MAX_ZOOM, MIN_ZOOM, clampZoom, fitCamera, panBy, toScreen, toWorld, zoomAt, zoomLabel } from '../pb_public/js/camera.js'
 import { GAP, GRID, snapMove, snapToGrid, tidy } from '../pb_public/js/snap.js'
-import { boundsOf, formatSize, formatTime, isBlockedName, isMedia, kindOf, linkLabel, newId, nextZ, overlaps, parseContent, readingOrder, textOfItems } from '../pb_public/js/items.js'
+import { boundsOf, formatSize, formatTime, frameAround, frameMembers, isBlockedName, isMedia, kindOf, linkLabel, newId, nextZ, overlaps, parseContent, readingOrder, textOfItems } from '../pb_public/js/items.js'
+
+test('a frame owns the items whose corner is inside it, and wraps a selection with padding', () => {
+  const frame = { id: 'f', type: 'frame', x: 100, y: 100, w: 400, h: 300 }
+  const items = [frame, { id: 'a', type: 'text', x: 120, y: 120 }, { id: 'b', type: 'file', x: 90, y: 120 }, { id: 'c', type: 'frame', x: 150, y: 150, w: 40, h: 40 }]
+  assert.deepEqual(frameMembers(items, frame).map((item) => item.id), ['a'])
+  assert.deepEqual(frameAround({ x0: 100, y0: 50, x1: 300, y1: 250 }), { x: 76, y: 26, w: 248, h: 248 })
+})
 
 test('file helpers on the client mirror the server: kinds, blocked names, sizes and times', () => {
   assert.equal(kindOf('Relatorio.PDF'), 'pdf')

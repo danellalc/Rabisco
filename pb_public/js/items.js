@@ -2,6 +2,8 @@ export const TEXT_WIDTH = 640
 export const TEXT_MIN_WIDTH = 160
 export const IMAGE_MIN_WIDTH = 60
 export const IMAGE_MIN_HEIGHT = 40
+export const FRAME_MIN = 40
+export const FRAME_PADDING = 24
 export const CARD_WIDTH = 230
 export const CARD_HEIGHT = 64
 export const FILE_MAX_BYTES = 500 * 1024 * 1024
@@ -38,6 +40,14 @@ export function isBlockedName(name) {
 
 export function isReference(item) {
   return REFERENCE_TYPES.includes(item.type)
+}
+
+export function frameMembers(items, frame) {
+  return items.filter((item) => item.id !== frame.id && item.type !== 'frame' && item.x >= frame.x && item.y >= frame.y && item.x <= frame.x + frame.w && item.y <= frame.y + frame.h)
+}
+
+export function frameAround(bounds, padding = FRAME_PADDING) {
+  return { x: bounds.x0 - padding, y: bounds.y0 - padding, w: bounds.x1 - bounds.x0 + padding * 2, h: bounds.y1 - bounds.y0 + padding * 2 }
 }
 
 export function previewable(kind) {

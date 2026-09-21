@@ -1,9 +1,12 @@
 import { svgIcon } from './dom.js'
 import { FILE_ICON_PATHS, KIND_ICONS } from './file-card.js'
+import { extensionOf } from './items.js'
 import { normalize, parseDate, relativeTime } from './list.js'
 import { entriesOf, sortEntries } from './resources.js'
 
 export const RESOURCE_PREFIX = 'trecos-resources:'
+export const BOARD_ROW = 'board'
+const GROUPS = [['folder', 'groupFolders'], ['doc', 'groupDocs'], ['file', 'groupFiles']]
 
 export function resourceText(entries, folder) {
   return `${RESOURCE_PREFIX}${JSON.stringify({ folder, entries: entries.map((entry) => ({ kind: entry.kind, id: entry.id, name: entry.name })) })}`
@@ -35,6 +38,7 @@ export function initDrive({ crumbs, rows, search, translate, language, formatByt
   let order = 'updated'
   let selected = new Set()
   let dragging = false
+  let activeId = ''
 
   const folderId = () => (listing && listing.folder ? listing.folder.id : '')
   const entryOf = (id) => entries.find((entry) => entry.id === id)
@@ -62,8 +66,33 @@ export function initDrive({ crumbs, rows, search, translate, language, formatByt
   }
 
   const metaOf = (entry) => {
-    if (entry.kind === 'file') return formatBytes(entry.size)
-    return relativeTime(parseDate(entry.updated).getTime(), Date.now(), translate, language)
+    if (entry.kind !== 'file') return relativeTime(parseDate(entry.updated).getTime(), Date.now(), translate, language)
+    const extension = extensionOf(entry.name).toUpperCase().slice(0, 4)
+    return extension ? `${extension} · ${formatBytes(entry.size)}` : formatBytes(entry.size)
+  }
+
+  const boardRow = () => {
+    const element = document.createElement('div')
+    element.className = 'row board-row'
+    element.tabIndex = 0
+    element.dataset.kind = BOARD_ROW
+    element.classList.toggle('active', activeId === BOARD_ROW)
+    const icon = svgIcon(KIND_ICONS.board, 20)
+    icon.classList.add('row-icon')
+    const name = document.createElement('span')
+    name.className = 'title'
+    name.textContent = translate('boardOfFolder')
+    element.append(icon, name)
+    return element
+  }
+
+  const groupLabel = (key, count) => {
+    const label = document.createElement('p')
+    label.className = 'group-label'
+    const total = document.createElement('span')
+    total.textContent = String(count)
+    label.append(translate(key), total)
+    return label
   }
 
   const row = (entry) => {
@@ -74,6 +103,7 @@ export function initDrive({ crumbs, rows, search, translate, language, formatByt
     element.dataset.id = entry.id
     element.dataset.kind = entry.kind
     element.classList.toggle('selected', selected.has(entry.id))
+    element.classList.toggle('active', entry.id === activeId)
     const icon = svgIcon(iconPathOf(entry), 20)
     icon.classList.add('row-icon')
     const name = document.createElement('span')
@@ -91,12 +121,20 @@ export function initDrive({ crumbs, rows, search, translate, language, formatByt
     const query = normalize(search.value).trim()
     const visible = sortEntries(entries, order).filter((entry) => !query || normalize(entry.name).includes(query))
     const focused = document.activeElement && document.activeElement.closest('.row') ? document.activeElement.dataset.id : ''
-    rows.replaceChildren(...visible.map(row))
+    const children = listing && listing.folder && !query ? [boardRow()] : []
+    for (const [kind, label] of GROUPS) {
+      const members = visible.filter((entry) => entry.kind === kind)
+      if (members.length > 0) children.push(groupLabel(label, members.length), ...members.map(row))
+    }
+    rows.replaceChildren(...children)
     if (visible.length === 0) {
+      const title = document.createElement('p')
+      title.className = 'empty-title'
+      title.textContent = translate(query ? 'noResults' : listing && listing.folder ? 'emptyFolderTitle' : 'emptyDriveTitle')
       const empty = document.createElement('p')
       empty.className = 'empty'
-      empty.textContent = translate(query ? 'noResults' : listing && listing.folder ? 'emptyFolder' : 'emptyDrive')
-      rows.append(empty)
+      empty.textContent = query ? '' : translate(listing && listing.folder ? 'emptyFolder' : 'emptyDrive')
+      rows.append(title, empty)
     }
     if (focused) {
       const again = rows.querySelector(`.row[data-id="${focused}"]`)
@@ -114,7 +152,17 @@ export function initDrive({ crumbs, rows, search, translate, language, formatByt
     for (const element of rows.querySelectorAll('.row')) element.classList.toggle('selected', selected.has(element.dataset.id))
   }
 
-  const rowAt = (target) => (target instanceof Element ? target.closest('.row') : null)
+  const anyRowAt = (target) => (target instanceof Element ? target.closest('.row') : null)
+  const isBoardRow = (element) => Boolean(element) && element.dataset.kind === BOARD_ROW
+  const rowAt = (target) => {
+    const element = anyRowAt(target)
+    return isBoardRow(element) ? null : element
+  }
+  const siblingRow = (element, forward) => {
+    let next = forward ? element.nextElementSibling : element.previousElementSibling
+    while (next && !next.classList.contains('row')) next = forward ? next.nextElementSibling : next.previousElementSibling
+    return next
+  }
 
   const startRename = (id) => {
     const element = rows.querySelector(`.row[data-id="${id}"]`)
@@ -148,6 +196,10 @@ export function initDrive({ crumbs, rows, search, translate, language, formatByt
   }
 
   rows.addEventListener('click', (event) => {
+    if (isBoardRow(anyRowAt(event.target))) {
+      actions.showBoard()
+      return
+    }
     const element = rowAt(event.target)
     if (!element || event.target.matches('input')) return
     const id = element.dataset.id
@@ -174,6 +226,16 @@ export function initDrive({ crumbs, rows, search, translate, language, formatByt
   })
 
   rows.addEventListener('keydown', (event) => {
+    const board = anyRowAt(event.target)
+    if (isBoardRow(board) && ['Enter', ' ', 'ArrowDown'].includes(event.key)) {
+      event.preventDefault()
+      event.stopPropagation()
+      if (event.key === 'ArrowDown') {
+        const next = siblingRow(board, true)
+        if (next) next.focus()
+      } else actions.showBoard()
+      return
+    }
     const element = rowAt(event.target)
     if (!element || event.target.matches('input')) return
     const entry = entryOf(element.dataset.id)
@@ -189,8 +251,8 @@ export function initDrive({ crumbs, rows, search, translate, language, formatByt
       actions.remove(selectedEntries())
     } else if (event.key === ' ') select([entry.id])
     else {
-      const sibling = event.key === 'ArrowDown' ? element.nextElementSibling : element.previousElementSibling
-      if (sibling && sibling.classList.contains('row')) sibling.focus()
+      const sibling = siblingRow(element, event.key === 'ArrowDown')
+      if (sibling) sibling.focus()
     }
   })
 
@@ -311,6 +373,10 @@ export function initDrive({ crumbs, rows, search, translate, language, formatByt
       renderRows()
     },
     select,
+    setActive(id) {
+      activeId = id
+      for (const element of rows.querySelectorAll('.row')) element.classList.toggle('active', (element.dataset.id || element.dataset.kind) === id)
+    },
     selected: selectedEntries,
     entry: entryOf,
     entries: () => entries,
