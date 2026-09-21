@@ -50,7 +50,7 @@ function filterContent(content, items, itemIds) {
   return JSON.stringify(items.filter((item) => wanted.has(item.id)))
 }
 
-function findShared(e) {
+function loadShare(e) {
   const token = String(e.requestInfo().headers.x_share_token || '')
   if (token.length < MIN_TOKEN_LENGTH) throw new NotFoundError('Link not active.')
   let share
@@ -61,6 +61,21 @@ function findShared(e) {
   }
   const stored = share.getString('token')
   if (stored === '' || !$security.equal(stored, token) || isExpired(share)) throw new NotFoundError('Link not active.')
+  return share
+}
+
+function findShared(e) {
+  const share = loadShare(e)
+  const docId = share.getString('doc')
+  if (docId !== '') {
+    let doc
+    try {
+      doc = e.app.findRecordById('docs', docId)
+    } catch (error) {
+      throw new NotFoundError('Link not active.')
+    }
+    return { kind: 'doc', share, doc, mode: shareMode(share.getString('mode'), false) }
+  }
   let board
   try {
     board = e.app.findRecordById('boards', share.getString('board'))
@@ -72,7 +87,7 @@ function findShared(e) {
   const scoped = isScoped(share.getString('items'))
   const itemIds = sharedItemIds(items, share.getString('items'))
   if (scoped && itemIds.length === 0) throw new NotFoundError('Link not active.')
-  return { share, board, scoped, itemIds, mode: shareMode(share.getString('mode'), scoped), content: filterContent(content, items, itemIds) }
+  return { kind: 'board', share, board, scoped, itemIds, mode: shareMode(share.getString('mode'), scoped), content: filterContent(content, items, itemIds) }
 }
 
 function expireShares(app) {

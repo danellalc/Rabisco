@@ -69,6 +69,10 @@ test('good content survives the server sanitizer unchanged in meaning', () => {
   assert.equal(output, '<div>Hello <b>bold</b> <mark class="hl1">hi</mark> <span class="c2">blue</span></div><ul class="ck"><li class="on">done</li></ul><div><img src="/api/files/images/abc123/pic_x1y2.webp" width="800" height="600" data-width="45"></div><hr><div><a href="https://x.test/a?b=1" rel="noopener noreferrer" target="_blank">link</a></div>')
 })
 
+test('quotes, inline code and code blocks survive without attributes', () => {
+  assert.equal(sanitizeHtml('<blockquote class="x" onclick="1">quoted</blockquote><pre style="a"><code>let a = 1</code></pre><p>use <code>npm</code></p>'), '<blockquote>quoted</blockquote><pre><code>let a = 1</code></pre><p>use <code>npm</code></p>')
+})
+
 test('a legacy style width becomes data-width on the server', () => {
   assert.equal(sanitizeHtml('<img src="/api/files/images/a/b.webp" style="width: 45%">'), '<img src="/api/files/images/a/b.webp" data-width="45">')
 })

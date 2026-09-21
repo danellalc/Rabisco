@@ -1,4 +1,4 @@
-const ALLOWED_TAGS = ['div', 'p', 'br', 'b', 'strong', 'i', 'em', 'u', 's', 'h1', 'h2', 'ul', 'ol', 'li', 'mark', 'a', 'img', 'span', 'table', 'tbody', 'tr', 'td', 'hr']
+const ALLOWED_TAGS = ['div', 'p', 'br', 'b', 'strong', 'i', 'em', 'u', 's', 'h1', 'h2', 'ul', 'ol', 'li', 'mark', 'a', 'img', 'span', 'table', 'tbody', 'tr', 'td', 'hr', 'blockquote', 'pre', 'code']
 const VOID_TAGS = ['br', 'hr', 'img']
 const DROP_WITH_CONTENT = ['script', 'style', 'iframe', 'object', 'embed', 'template', 'noscript', 'svg', 'math', 'textarea', 'title', 'select']
 const CLASS_TOKENS = { ul: ['ck'], li: ['on'], mark: ['hl1', 'hl2', 'hl3'], span: ['c1', 'c2', 'c3'] }

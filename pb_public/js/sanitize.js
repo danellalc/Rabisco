@@ -1,6 +1,6 @@
 import { ensureImageWidths, widthValue } from './widths.js'
 
-export const ALLOWED_TAGS = ['div', 'p', 'br', 'b', 'strong', 'i', 'em', 'u', 's', 'h1', 'h2', 'ul', 'ol', 'li', 'mark', 'a', 'img', 'span', 'table', 'tbody', 'tr', 'td', 'hr']
+export const ALLOWED_TAGS = ['div', 'p', 'br', 'b', 'strong', 'i', 'em', 'u', 's', 'h1', 'h2', 'ul', 'ol', 'li', 'mark', 'a', 'img', 'span', 'table', 'tbody', 'tr', 'td', 'hr', 'blockquote', 'pre', 'code']
 export const CLASS_TOKENS = { ul: ['ck'], li: ['on'], mark: ['hl1', 'hl2', 'hl3'], span: ['c1', 'c2', 'c3'] }
 const DROP_WITH_CONTENT = new Set(['SCRIPT', 'STYLE', 'IFRAME', 'OBJECT', 'EMBED', 'TEMPLATE', 'NOSCRIPT', 'SVG', 'MATH', 'TEXTAREA', 'TITLE', 'SELECT', 'svg', 'math'])
 const ALLOWED = new Set(ALLOWED_TAGS.map((tag) => tag.toUpperCase()))

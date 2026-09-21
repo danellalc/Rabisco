@@ -5,7 +5,9 @@ const MAX_WIDTH = 4000
 const MAX_URL_LENGTH = 2000
 const TEXT_MIN_WIDTH = 160
 const IMAGE_MIN_WIDTH = 60
+const IMAGE_MIN_HEIGHT = 40
 const ID_PATTERN = /^[A-Za-z0-9_-]{4,16}$/
+const TEXT_COLORS = ['hl1', 'hl2', 'hl3']
 
 function has(list, value) {
   return list.indexOf(value) >= 0
@@ -31,24 +33,30 @@ function parseItems(content) {
   }
 }
 
-function normalizeItem(raw, tools) {
-  if (!raw || typeof raw !== 'object' || !ID_PATTERN.test(String(raw.id || ''))) return null
-  const x = finiteNumber(raw.x, -MAX_COORDINATE, MAX_COORDINATE)
-  const y = finiteNumber(raw.y, -MAX_COORDINATE, MAX_COORDINATE)
-  const z = finiteNumber(raw.z, 0, MAX_COORDINATE)
-  if (x === null || y === null || z === null) return null
-  const item = { id: String(raw.id), type: String(raw.type || ''), x, y, z }
-  if (item.type === 'text') {
+function withReference(item, raw, key, info) {
+  if (info === null) return null
+  item[key] = String(raw[key])
+  item.name = info.name
+  if (info.size !== undefined) item.size = info.size
+  if (info.kind !== undefined) item.kind = info.kind
+  return item
+}
+
+const SHAPES = {
+  text: (item, raw, tools) => {
     item.w = finiteNumber(raw.w, TEXT_MIN_WIDTH, MAX_WIDTH)
     if (item.w === null) return null
     item.html = tools.sanitizeHtml(String(raw.html || ''))
+    if (has(TEXT_COLORS, raw.color)) item.color = raw.color
     return item
-  }
-  if (item.type === 'image') {
+  },
+  image: (item, raw, tools) => {
     item.w = finiteNumber(raw.w, IMAGE_MIN_WIDTH, MAX_WIDTH)
     const src = tools.safeImageSource(String(raw.src || ''))
     if (item.w === null || src === null) return null
     item.src = src
+    const h = finiteNumber(raw.h, IMAGE_MIN_HEIGHT, MAX_WIDTH)
+    if (raw.h !== undefined && h !== null) item.h = h
     const width = finiteNumber(raw.width, 1, 10000)
     const height = finiteNumber(raw.height, 1, 10000)
     if (width !== null && height !== null) {
@@ -56,23 +64,27 @@ function normalizeItem(raw, tools) {
       item.height = height
     }
     return item
-  }
-  if (item.type === 'link') {
+  },
+  link: (item, raw) => {
     const url = safeUrl(raw.url)
     if (url === null) return null
     item.url = url
     return item
-  }
-  if (item.type === 'file') {
-    const info = tools.fileInfo(String(raw.file || ''))
-    if (info === null) return null
-    item.file = String(raw.file)
-    item.name = info.name
-    item.size = info.size
-    item.kind = info.kind
-    return item
-  }
-  return null
+  },
+  file: (item, raw, tools) => withReference(item, raw, 'file', tools.fileInfo(String(raw.file || ''))),
+  doc: (item, raw, tools) => withReference(item, raw, 'doc', tools.docInfo(String(raw.doc || ''))),
+  folder: (item, raw, tools) => withReference(item, raw, 'folder', tools.folderInfo(String(raw.folder || '')))
+}
+
+function normalizeItem(raw, tools) {
+  if (!raw || typeof raw !== 'object' || !ID_PATTERN.test(String(raw.id || ''))) return null
+  const shape = SHAPES[String(raw.type || '')]
+  if (!shape) return null
+  const x = finiteNumber(raw.x, -MAX_COORDINATE, MAX_COORDINATE)
+  const y = finiteNumber(raw.y, -MAX_COORDINATE, MAX_COORDINATE)
+  const z = finiteNumber(raw.z, 0, MAX_COORDINATE)
+  if (x === null || y === null || z === null) return null
+  return shape({ id: String(raw.id), type: String(raw.type), x, y, z }, raw, tools)
 }
 
 function readingOrder(items) {
@@ -102,17 +114,44 @@ function normalizeBoard(content, tools) {
     if (cover === '' && item.type === 'text') cover = tools.coverOf(item.html)
   }
   if (title === '') {
-    const firstFile = ordered.find((item) => item.type === 'file')
-    if (firstFile) title = firstFile.name
+    const named = ordered.find((item) => typeof item.name === 'string' && item.name !== '')
+    if (named) title = named.name
   }
   return { content: JSON.stringify(items), title, cover }
+}
+
+function referenceInfo(app, collection, boardId, userId) {
+  return (id) => {
+    try {
+      const record = app.findRecordById(collection, id)
+      if (record.getString('board') !== boardId || record.getString('user') !== userId) return null
+      return { name: record.getString('name'), size: Number(record.get('size')) || 0, kind: record.getString('kind') }
+    } catch (error) {
+      return null
+    }
+  }
 }
 
 function boardTools(app, record) {
   const { sanitizeHtml, safeImageSource } = require(`${__hooks}/sanitize.js`)
   const { titleOf, coverOf } = require(`${__hooks}/summary.js`)
-  const { fileItemInfo } = require(`${__hooks}/files.js`)
-  return { sanitizeHtml, safeImageSource, titleOf, coverOf, fileInfo: fileItemInfo(app, record.id, record.getString('user')) }
+  const { ownBoard } = require(`${__hooks}/drive.js`)
+  const userId = record.getString('user')
+  return {
+    sanitizeHtml,
+    safeImageSource,
+    titleOf,
+    coverOf,
+    fileInfo: referenceInfo(app, 'files', record.id, userId),
+    docInfo: (id) => {
+      const info = referenceInfo(app, 'docs', record.id, userId)(id)
+      return info === null ? null : { name: info.name }
+    },
+    folderInfo: (id) => {
+      const folder = id === record.id ? null : ownBoard(app, userId, id)
+      return folder === null ? null : { name: folder.getString('name') || folder.getString('title') }
+    }
+  }
 }
 
 function applyBoard(app, record, content) {

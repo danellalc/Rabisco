@@ -5,6 +5,7 @@ const LINK_SECONDS = 600
 const BLOCKED = ['exe', 'msi', 'bat', 'cmd', 'com', 'scr', 'pif', 'vbs', 'js', 'jse', 'wsf', 'ps1', 'jar', 'hta', 'dll', 'lnk']
 const KINDS = {
   pdf: ['pdf'],
+  image: ['png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp', 'heic', 'avif'],
   doc: ['doc', 'docx', 'odt', 'rtf', 'txt', 'md', 'pages'],
   sheet: ['xls', 'xlsx', 'ods', 'csv', 'numbers'],
   slides: ['ppt', 'pptx', 'odp', 'key'],
@@ -13,6 +14,7 @@ const KINDS = {
   audio: ['mp3', 'm4a', 'wav', 'ogg', 'aac', 'flac'],
   code: ['json', 'xml', 'html', 'css', 'py', 'go', 'ts', 'sql', 'sh', 'yml', 'yaml', 'toml']
 }
+const IMAGE_PATTERN = /\/api\/files\/images\/([a-z0-9]{15})\//g
 
 function extensionOf(name) {
   const match = /\.([A-Za-z0-9]{1,10})$/.exec(String(name || ''))
@@ -46,35 +48,38 @@ function quotaOf(user) {
 function usedBytes(app, userId) {
   const result = new DynamicModel({ total: 0 })
   app.db()
-    .newQuery("SELECT COALESCE((SELECT SUM(size) FROM files WHERE user = {:user} AND orphaned = ''), 0) + COALESCE((SELECT SUM(size) FROM images WHERE user = {:user} AND orphaned = ''), 0) AS total")
+    .newQuery("SELECT COALESCE((SELECT SUM(size) FROM files WHERE user = {:user}), 0) + COALESCE((SELECT SUM(size) FROM images WHERE user = {:user} AND orphaned = ''), 0) AS total")
     .bind({ user: userId })
     .one(result)
   return Number(result.total) || 0
 }
 
-function storageIds(content) {
-  const files = []
-  const images = []
-  let items = []
-  try {
-    items = JSON.parse(String(content || '[]'))
-  } catch (error) {
-    items = []
-  }
-  for (let index = 0; index < items.length; index++) {
-    const item = items[index]
-    if (item && item.type === 'file' && typeof item.file === 'string' && files.indexOf(item.file) < 0) files.push(item.file)
-  }
-  const pattern = /\/api\/files\/images\/([a-z0-9]{15})\//g
-  let match = pattern.exec(String(content || ''))
+function imageIds(html) {
+  const ids = []
+  const source = String(html || '')
+  const pattern = new RegExp(IMAGE_PATTERN.source, 'g')
+  let match = pattern.exec(source)
   while (match !== null) {
-    if (images.indexOf(match[1]) < 0) images.push(match[1])
-    match = pattern.exec(String(content || ''))
+    if (ids.indexOf(match[1]) < 0) ids.push(match[1])
+    match = pattern.exec(source)
   }
-  return { files, images }
+  return ids
 }
 
-function markCollection(app, name, boardId, ids) {
+function referencedImageIds(app, boardId) {
+  const sources = []
+  try {
+    sources.push(app.findRecordById('boards', boardId).getString('content'))
+  } catch (error) {
+    return []
+  }
+  const docs = app.findRecordsByFilter('docs', 'board = {:board}', '', 2000, 0, { board: boardId })
+  for (let index = 0; index < docs.length; index++) sources.push(docs[index].getString('content'))
+  return imageIds(sources.join('\n'))
+}
+
+function markImages(app, boardId) {
+  const ids = referencedImageIds(app, boardId)
   const params = { board: boardId }
   const placeholders = []
   for (let index = 0; index < ids.length; index++) {
@@ -83,20 +88,14 @@ function markCollection(app, name, boardId, ids) {
   }
   const list = placeholders.join(',')
   app.db()
-    .newQuery('UPDATE ' + name + " SET orphaned = strftime('%Y-%m-%d %H:%M:%fZ', 'now') WHERE board = {:board} AND orphaned = ''" + (list ? ' AND id NOT IN (' + list + ')' : ''))
+    .newQuery("UPDATE images SET orphaned = strftime('%Y-%m-%d %H:%M:%fZ', 'now') WHERE board = {:board} AND orphaned = ''" + (list ? ' AND id NOT IN (' + list + ')' : ''))
     .bind(params)
     .execute()
   if (!list) return
   app.db()
-    .newQuery('UPDATE ' + name + " SET orphaned = '' WHERE board = {:board} AND orphaned != '' AND id IN (" + list + ')')
+    .newQuery("UPDATE images SET orphaned = '' WHERE board = {:board} AND orphaned != '' AND id IN (" + list + ')')
     .bind(params)
     .execute()
-}
-
-function markStorage(app, boardId, content) {
-  const ids = storageIds(content)
-  markCollection(app, 'files', boardId, ids.files)
-  markCollection(app, 'images', boardId, ids.images)
 }
 
 function assertQuota(app, user, incoming) {
@@ -131,8 +130,6 @@ function serveDownload(e) {
   }
   const name = collection === 'files' ? record.getString('name') : record.getString('file')
   const header = e.response.header()
-  header.set('Content-Disposition', 'attachment; filename="' + name.replace(/["\\]/g, '_').replace(/[^\x20-\x7e]/g, '_') + '"; filename*=UTF-8\'\'' + encodeURIComponent(name))
-  header.set('Content-Security-Policy', 'sandbox')
   header.set('X-Content-Type-Options', 'nosniff')
   header.set('Cache-Control', 'private, max-age=600')
   const fsys = e.app.newFilesystem()
@@ -143,45 +140,26 @@ function serveDownload(e) {
   }
 }
 
-function fileItemInfo(app, boardId, userId) {
-  return (id) => {
+function deleteUnreferencedImages(app, condition) {
+  const rows = arrayOf(new DynamicModel({ id: '' }))
+  app.db()
+    .newQuery('SELECT id FROM images WHERE ' + condition + " AND NOT EXISTS (SELECT 1 FROM boards WHERE boards.content LIKE '%/api/files/images/' || images.id || '%') AND NOT EXISTS (SELECT 1 FROM docs WHERE docs.content LIKE '%/api/files/images/' || images.id || '%')")
+    .all(rows)
+  for (let row = 0; row < rows.length; row++) {
     try {
-      const record = app.findRecordById('files', id)
-      if (record.getString('board') !== boardId || record.getString('user') !== userId) return null
-      return { name: record.getString('name'), size: Number(record.get('size')) || 0, kind: record.getString('kind') }
+      app.delete(app.findRecordById('images', rows[row].id))
     } catch (error) {
-      return null
-    }
-  }
-}
-
-function deleteUnreferenced(app, condition) {
-  const collections = { files: '%"file":"', images: '%/api/files/images/' }
-  const names = Object.keys(collections)
-  for (let index = 0; index < names.length; index++) {
-    const name = names[index]
-    const prefix = collections[name]
-    const rows = arrayOf(new DynamicModel({ id: '' }))
-    app.db()
-      .newQuery('SELECT id FROM ' + name + ' WHERE ' + condition + ' AND NOT EXISTS (SELECT 1 FROM boards WHERE boards.content LIKE {:prefix} || ' + name + ".id || '%')")
-      .bind({ prefix })
-      .all(rows)
-    for (let row = 0; row < rows.length; row++) {
-      try {
-        app.delete(app.findRecordById(name, rows[row].id))
-      } catch (error) {
-        continue
-      }
+      continue
     }
   }
 }
 
 function deleteNeverPlaced(app) {
-  deleteUnreferenced(app, "orphaned = '' AND created < datetime('now', '-1 day')")
+  deleteUnreferencedImages(app, "orphaned = '' AND created < datetime('now', '-1 day')")
 }
 
 function deleteOrphans(app) {
-  deleteUnreferenced(app, "orphaned != '' AND orphaned < datetime('now', '-1 hour')")
+  deleteUnreferencedImages(app, "orphaned != '' AND orphaned < datetime('now', '-1 hour')")
 }
 
-module.exports = { BLOCKED, KINDS, extensionOf, kindOf, isBlocked, cleanName, quotaOf, usedBytes, assertQuota, downloadLink, serveDownload, fileItemInfo, storageIds, markStorage, deleteNeverPlaced, deleteOrphans }
+module.exports = { BLOCKED, KINDS, extensionOf, kindOf, isBlocked, cleanName, quotaOf, usedBytes, assertQuota, downloadLink, serveDownload, imageIds, markImages, deleteNeverPlaced, deleteOrphans }

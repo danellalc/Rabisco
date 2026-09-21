@@ -10,7 +10,9 @@ const { titleOf, coverOf } = require('../pb_hooks/summary.js')
 globalThis.BadRequestError = class BadRequestError extends Error {}
 
 const known = { file0001: { name: 'report.pdf', size: 2400000, kind: 'pdf' } }
-const tools = { sanitizeHtml, safeImageSource, titleOf, coverOf, fileInfo: (id) => known[id] || null }
+const docs = { doc00001: { name: 'Meeting notes' } }
+const folders = { fold0001: { name: 'Projects' } }
+const tools = { sanitizeHtml, safeImageSource, titleOf, coverOf, fileInfo: (id) => known[id] || null, docInfo: (id) => docs[id] || null, folderInfo: (id) => folders[id] || null }
 const normalize = (items) => normalizeBoard(JSON.stringify(items), tools)
 
 test('text items are sanitized and clamped, junk is dropped', () => {
@@ -33,6 +35,34 @@ test('image items need our own file url and keep their natural size', () => {
   ])
   assert.deepEqual(JSON.parse(board.content), [{ id: 'img1', type: 'image', x: 0, y: 0, z: 2, w: 320, src: '/api/files/images/abc/pic.webp', width: 1600, height: 900 }])
   assert.equal(board.cover, '/api/files/images/abc/pic.webp')
+})
+
+test('an image keeps a free height when one is given, and a text block keeps a known color', () => {
+  const board = normalize([
+    { id: 'img1', type: 'image', x: 0, y: 0, z: 2, w: 320, h: 12, src: '/api/files/images/abc/pic.webp' },
+    { id: 'img2', type: 'image', x: 0, y: 0, z: 2, w: 320, h: 'tall', src: '/api/files/images/abc/pic.webp' },
+    { id: 'txt1', type: 'text', x: 0, y: 0, z: 1, w: 300, html: 'a', color: 'hl2' },
+    { id: 'txt2', type: 'text', x: 0, y: 0, z: 1, w: 300, html: 'b', color: 'red' }
+  ])
+  const items = JSON.parse(board.content)
+  assert.equal(items[0].h, 40)
+  assert.equal(items[1].h, undefined)
+  assert.equal(items[2].color, 'hl2')
+  assert.equal(items[3].color, undefined)
+})
+
+test('document and folder items only survive when they belong to the user, and carry the stored name', () => {
+  const board = normalize([
+    { id: 'doc1', type: 'doc', x: 0, y: 0, z: 1, doc: 'doc00001', name: 'spoofed' },
+    { id: 'doc2', type: 'doc', x: 0, y: 0, z: 1, doc: 'nope' },
+    { id: 'fol1', type: 'folder', x: 0, y: 100, z: 1, folder: 'fold0001', name: 'spoofed' },
+    { id: 'fol2', type: 'folder', x: 0, y: 100, z: 1, folder: 'nope' }
+  ])
+  assert.deepEqual(JSON.parse(board.content), [
+    { id: 'doc1', type: 'doc', x: 0, y: 0, z: 1, doc: 'doc00001', name: 'Meeting notes' },
+    { id: 'fol1', type: 'folder', x: 0, y: 100, z: 1, folder: 'fold0001', name: 'Projects' }
+  ])
+  assert.equal(board.title, 'Meeting notes')
 })
 
 test('link items accept http and https only', () => {
@@ -66,16 +96,15 @@ test('file items only survive when the file belongs to the board, and carry the 
 })
 
 test('file helpers classify names and block executables', () => {
-  const { cleanName, extensionOf, isBlocked, kindOf, storageIds } = require('../pb_hooks/files.js')
-  assert.deepEqual(storageIds(JSON.stringify([
-    { id: 'f1', type: 'file', file: 'abcdefghijklmno' },
-    { id: 'f2', type: 'file', file: 'abcdefghijklmno' },
+  const { cleanName, extensionOf, isBlocked, kindOf, imageIds } = require('../pb_hooks/files.js')
+  assert.deepEqual(imageIds(JSON.stringify([
     { id: 'i1', type: 'image', src: '/api/files/images/aaaaaaaaaaaaaaa/x_1234567890.webp' },
-    { id: 't1', type: 'text', html: '<div><img src="/api/files/images/bbbbbbbbbbbbbbb/y_1234567890.webp"><img src="/api/files/images/aaaaaaaaaaaaaaa/x_1234567890.webp"></div>' },
-    { id: 'l1', type: 'link', url: 'https://x.test/api/files/images/ccccccccccccccc/' }
-  ])), { files: ['abcdefghijklmno'], images: ['aaaaaaaaaaaaaaa', 'bbbbbbbbbbbbbbb', 'ccccccccccccccc'] })
-  assert.deepEqual(storageIds('{broken'), { files: [], images: [] })
+    { id: 't1', type: 'text', html: '<div><img src="/api/files/images/bbbbbbbbbbbbbbb/y_1234567890.webp"><img src="/api/files/images/aaaaaaaaaaaaaaa/x_1234567890.webp"></div>' }
+  ]) + '\n<img src="/api/files/images/ccccccccccccccc/z_1234567890.webp">'), ['aaaaaaaaaaaaaaa', 'bbbbbbbbbbbbbbb', 'ccccccccccccccc'])
+  assert.deepEqual(imageIds(''), [])
   assert.equal(kindOf('Relatorio.PDF'), 'pdf')
+  assert.equal(kindOf('foto.JPG'), 'image')
+  assert.equal(kindOf('print.webp'), 'image')
   assert.equal(kindOf('site-v2.zip'), 'zip')
   assert.equal(kindOf('teaser.mp4'), 'video')
   assert.equal(kindOf('trilha.mp3'), 'audio')

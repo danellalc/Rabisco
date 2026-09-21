@@ -28,7 +28,7 @@ onRecordRequestOTPRequest((e) => {
 onRecordCreateRequest((e) => {
   e.record.set('user', e.auth ? e.auth.id : '')
   e.next()
-}, 'boards', 'images', 'files', 'shares')
+}, 'boards', 'images', 'files', 'shares', 'docs')
 
 onRecordCreateRequest((e) => {
   const { assertQuota } = require(`${__hooks}/files.js`)
@@ -53,21 +53,39 @@ onRecordCreateRequest((e) => {
 }, 'files')
 
 onRecordUpdateRequest((e) => {
-  const { cleanName, isBlocked } = require(`${__hooks}/files.js`)
+  const { cleanName, isBlocked, kindOf } = require(`${__hooks}/files.js`)
+  const { ownBoard } = require(`${__hooks}/drive.js`)
   const name = cleanName(e.record.getString('name'))
   if (isBlocked(name)) throw new ApiError(415, 'That file type is not allowed.', {})
   e.record.set('name', name)
+  e.record.set('kind', kindOf(name))
+  const board = e.record.getString('board')
+  if (board !== e.record.original().getString('board') && !ownBoard(e.app, e.auth.id, board)) throw new BadRequestError('That folder does not exist.')
   e.next()
 }, 'files')
 
 onRecordCreateRequest((e) => {
   const { parseBoard, sharedItemIds, isScoped, shareMode } = require(`${__hooks}/share.js`)
-  const board = e.app.findRecordById('boards', e.record.getString('board'))
-  const requested = e.record.getString('items')
-  const itemIds = sharedItemIds(parseBoard(board.getString('content')), requested)
-  if (isScoped(requested) && itemIds.length === 0) throw new BadRequestError('Nothing to share.')
-  e.record.set('items', JSON.stringify(itemIds))
-  e.record.set('mode', shareMode(e.record.getString('mode'), itemIds.length > 0))
+  const docId = e.record.getString('doc')
+  if (docId !== '') {
+    let doc
+    try {
+      doc = e.app.findRecordById('docs', docId)
+    } catch (error) {
+      throw new BadRequestError('Nothing to share.')
+    }
+    if (doc.getString('user') !== e.auth.id) throw new BadRequestError('Nothing to share.')
+    e.record.set('board', doc.getString('board'))
+    e.record.set('items', '[]')
+    e.record.set('mode', shareMode(e.record.getString('mode'), false))
+  } else {
+    const board = e.app.findRecordById('boards', e.record.getString('board'))
+    const requested = e.record.getString('items')
+    const itemIds = sharedItemIds(parseBoard(board.getString('content')), requested)
+    if (isScoped(requested) && itemIds.length === 0) throw new BadRequestError('Nothing to share.')
+    e.record.set('items', JSON.stringify(itemIds))
+    e.record.set('mode', shareMode(e.record.getString('mode'), itemIds.length > 0))
+  }
   e.record.set('token', $security.randomString(22))
   e.next()
 }, 'shares')
@@ -81,15 +99,74 @@ onRecordUpdateRequest((e) => {
 onRecordCreateRequest((e) => {
   const { nextRevision } = require(`${__hooks}/revision.js`)
   const { applyBoard } = require(`${__hooks}/items.js`)
+  const { assertParent, cleanLabel } = require(`${__hooks}/drive.js`)
+  assertParent(e.app, e.record, e.record.getString('parent'))
+  e.record.set('name', cleanLabel(e.record.getString('name')))
   applyBoard(e.app, e.record, e.record.getString('content'))
   e.record.set('revision', nextRevision())
   e.next()
 }, 'boards')
 
+onRecordUpdateRequest((e) => {
+  const { applyRevision } = require(`${__hooks}/revision.js`)
+  const { applyBoard } = require(`${__hooks}/items.js`)
+  const { markImages } = require(`${__hooks}/files.js`)
+  const { assertParent, cleanLabel } = require(`${__hooks}/drive.js`)
+  const original = e.record.original()
+  if (e.record.getString('parent') !== original.getString('parent')) assertParent(e.app, e.record, e.record.getString('parent'))
+  e.record.set('name', cleanLabel(e.record.getString('name')))
+  const content = applyBoard(e.app, e.record, e.record.getString('content'))
+  const changed = content !== original.getString('content')
+  applyRevision(e.app, 'boards', e.record, String(e.requestInfo().headers.x_note_rev || ''), changed)
+  e.next()
+  if (changed) markImages(e.app, e.record.id)
+}, 'boards')
+
+onRecordCreateRequest((e) => {
+  const { nextRevision } = require(`${__hooks}/revision.js`)
+  const { cleanLabel } = require(`${__hooks}/drive.js`)
+  const { sanitizeDoc } = require(`${__hooks}/docs.js`)
+  e.record.set('name', cleanLabel(e.record.getString('name')))
+  e.record.set('content', sanitizeDoc(e.record.getString('content')))
+  e.record.set('revision', nextRevision())
+  e.next()
+}, 'docs')
+
+onRecordUpdateRequest((e) => {
+  const { applyRevision } = require(`${__hooks}/revision.js`)
+  const { markImages } = require(`${__hooks}/files.js`)
+  const { cleanLabel, ownBoard } = require(`${__hooks}/drive.js`)
+  const { sanitizeDoc } = require(`${__hooks}/docs.js`)
+  const original = e.record.original()
+  const board = e.record.getString('board')
+  if (board !== original.getString('board') && !ownBoard(e.app, e.auth.id, board)) throw new BadRequestError('That folder does not exist.')
+  e.record.set('name', cleanLabel(e.record.getString('name')))
+  const content = sanitizeDoc(e.record.getString('content'))
+  e.record.set('content', content)
+  const changed = content !== original.getString('content')
+  applyRevision(e.app, 'docs', e.record, String(e.requestInfo().headers.x_note_rev || ''), changed)
+  e.next()
+  if (changed) markImages(e.app, board)
+  if (board !== original.getString('board')) markImages(e.app, original.getString('board'))
+}, 'docs')
+
 routerAdd('GET', '/api/quota', (e) => {
   if (!e.auth) throw new UnauthorizedError()
   const { quotaOf, usedBytes } = require(`${__hooks}/files.js`)
   return e.json(200, { used: usedBytes(e.app, e.auth.id), quota: quotaOf(e.auth) })
+})
+
+routerAdd('GET', '/api/drive/{id}', (e) => {
+  if (!e.auth) throw new UnauthorizedError()
+  const { listFolder, ROOT } = require(`${__hooks}/drive.js`)
+  const id = e.request.pathValue('id')
+  return e.json(200, listFolder(e.app, e.auth.id, id === 'root' ? ROOT : id))
+})
+
+routerAdd('GET', '/api/search-index', (e) => {
+  if (!e.auth) throw new UnauthorizedError()
+  const { searchIndex } = require(`${__hooks}/drive.js`)
+  return e.json(200, searchIndex(e.app, e.auth.id))
 })
 
 routerAdd('POST', '/api/files/{id}/link', (e) => {
@@ -118,11 +195,22 @@ routerAdd('GET', '/api/dl/{token}', (e) => {
 routerAdd('GET', '/api/shared', (e) => {
   const { findShared } = require(`${__hooks}/share.js`)
   const shared = findShared(e)
+  if (shared.kind === 'doc') {
+    return e.json(200, {
+      kind: 'doc',
+      content: shared.doc.getString('content'),
+      revision: shared.mode === 'edit' ? shared.doc.getString('revision') : '',
+      mode: shared.mode,
+      title: shared.doc.getString('name'),
+      partial: false
+    })
+  }
   return e.json(200, {
+    kind: 'board',
     content: shared.content,
     revision: shared.mode === 'edit' ? shared.board.getString('revision') : '',
     mode: shared.mode,
-    title: shared.scoped ? '' : shared.board.getString('title'),
+    title: shared.scoped ? '' : shared.board.getString('name') || shared.board.getString('title'),
     partial: shared.scoped
   })
 })
@@ -131,6 +219,7 @@ routerAdd('POST', '/api/shared/file-link', (e) => {
   const { findShared } = require(`${__hooks}/share.js`)
   const { downloadLink } = require(`${__hooks}/files.js`)
   const shared = findShared(e)
+  if (shared.kind !== 'board') throw new NotFoundError('File not found.')
   const id = String(e.requestInfo().body.file || '')
   if (id === '' || shared.content.indexOf('"file":"' + id + '"') < 0) throw new NotFoundError('File not found.')
   let file
@@ -147,22 +236,24 @@ routerAdd('PATCH', '/api/shared', (e) => {
   const { findShared } = require(`${__hooks}/share.js`)
   const { claimRevision, nextRevision } = require(`${__hooks}/revision.js`)
   const { applyBoard } = require(`${__hooks}/items.js`)
-  const { markStorage } = require(`${__hooks}/files.js`)
+  const { markImages } = require(`${__hooks}/files.js`)
+  const { sanitizeDoc } = require(`${__hooks}/docs.js`)
   const shared = findShared(e)
   if (shared.mode !== 'edit') throw new ForbiddenError('This link is view only.')
-  const record = shared.board
+  const record = shared.kind === 'doc' ? shared.doc : shared.board
   const info = e.requestInfo()
   const expected = String(info.headers.x_note_rev || '')
   if (expected !== '' && expected !== record.getString('revision')) {
     throw new ApiError(409, 'The board changed elsewhere.', { revision: record.getString('revision') })
   }
   const previous = record.getString('content')
-  const content = applyBoard(e.app, record, String(info.body.content || '[]'))
+  const content = shared.kind === 'doc' ? sanitizeDoc(String(info.body.content || '')) : applyBoard(e.app, record, String(info.body.content || '[]'))
+  if (shared.kind === 'doc') record.set('content', content)
   if (content !== previous) {
-    record.set('revision', expected === '' ? nextRevision() : claimRevision(e.app, record.id, expected))
+    record.set('revision', expected === '' ? nextRevision() : claimRevision(e.app, shared.kind === 'doc' ? 'docs' : 'boards', record.id, expected))
   }
   e.app.save(record)
-  if (content !== previous) markStorage(e.app, record.id, content)
+  if (content !== previous) markImages(e.app, shared.kind === 'doc' ? record.getString('board') : record.id)
   return e.json(200, { revision: record.getString('revision') })
 })
 
@@ -182,21 +273,3 @@ cronAdd('free-storage', '*/15 * * * *', () => {
   const { deleteOrphans } = require(`${__hooks}/files.js`)
   deleteOrphans($app)
 })
-
-onRecordUpdateRequest((e) => {
-  const { claimRevision, nextRevision } = require(`${__hooks}/revision.js`)
-  const { applyBoard } = require(`${__hooks}/items.js`)
-  const { markStorage } = require(`${__hooks}/files.js`)
-  const info = e.requestInfo()
-  const original = e.record.original()
-  const expected = String(info.headers.x_note_rev || '')
-  if (expected !== '' && expected !== original.getString('revision')) {
-    throw new ApiError(409, 'The board changed elsewhere.', { revision: original.getString('revision') })
-  }
-  const content = applyBoard(e.app, e.record, e.record.getString('content'))
-  if (content !== original.getString('content')) {
-    e.record.set('revision', expected === '' ? nextRevision() : claimRevision(e.app, e.record.id, expected))
-  }
-  e.next()
-  if (content !== original.getString('content')) markStorage(e.app, e.record.id, content)
-}, 'boards')
