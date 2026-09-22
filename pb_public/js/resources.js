@@ -1,3 +1,4 @@
+import { countOf } from './i18n.js'
 import { normalize } from './list.js'
 
 const listingKey = 'trecos.listing'
@@ -128,7 +129,8 @@ export function createResources({ api, translate, showToast }) {
     }
     invalidate(folder)
     if (done.length === 0) return done
-    showToast(translate('movedToTrash'), {
+    const what = done.length === 1 ? done[0].name || translate('untitled') : countOf(translate, 'items', done.length)
+    showToast(translate('movedToTrash').replace('{name}', what), {
       label: translate('undo'),
       run: async () => {
         try {

@@ -400,12 +400,23 @@ const textExportMenu = (id, point) => {
   })
 }
 
+const removeKeyOf = (ids) => {
+  const types = ids.map(board.itemOf).filter(Boolean).map((item) => item.type)
+  const cards = types.filter((type) => REFERENCE_TYPES.includes(type)).length
+  if (cards === 0) return 'delete'
+  return cards === types.length ? 'removeFromBoard' : 'removeSelection'
+}
+
+const trashKeyOf = (type) => ({ file: 'deleteFileToo', doc: 'deleteDocToo', folder: 'deleteFolderToo' })[type]
+
 const canvasMenu = (ids, item, point, { owner }) => {
   const single = ids.length === 1 ? item : null
   const front = { label: translate('bringToFront'), run: () => board.bringToFront(ids) }
   const back = { label: translate('sendToBack'), run: () => board.sendToBack(ids) }
   const duplicateAction = { label: translate('duplicate'), run: () => board.duplicate(ids) }
-  const removeAction = { label: translate(single && single.type !== 'text' && single.type !== 'image' && single.type !== 'link' ? 'removeFromBoard' : 'delete'), danger: !single || ['text', 'image', 'link'].includes(single.type), run: () => board.remove(ids) }
+  const removeKey = removeKeyOf(ids)
+  const deletes = removeKey === 'delete'
+  const removeAction = { label: translate(removeKey), danger: deletes, hint: deletes ? '' : 'Del', run: () => board.remove(ids) }
   if (!single) return [{ label: translate('frameSelection'), run: () => board.frameSelection(ids) }, duplicateAction, front, back, { separator: true }, removeAction]
   const actions = []
   if (single.type === 'frame') {
@@ -462,7 +473,7 @@ const canvasMenu = (ids, item, point, { owner }) => {
       )
     }
     actions.push(front, back, { separator: true }, removeAction)
-    if (owner && single.file) actions.push({ label: translate('deleteFile'), danger: true, run: () => owner.removeEntries([owner.refOf(single)]) })
+    if (owner && single.file) actions.push({ label: translate(trashKeyOf(single.type)), danger: true, run: () => owner.removeEntries([owner.refOf(single)]) })
     return actions
   }
   if (!owner) return [removeAction]
@@ -475,7 +486,7 @@ const canvasMenu = (ids, item, point, { owner }) => {
     { label: translate('copyLink'), run: () => owner.copyLinkFor(owner.refOf(single)) }
   )
   actions.push({ label: translate('details'), run: () => showDetails({ ...owner.refOf(single), location: owner.folderLabel() }, point) })
-  actions.push(front, back, { separator: true }, removeAction, { label: translate(single.type === 'doc' ? 'deleteDoc' : 'deleteFolder'), danger: true, run: () => owner.removeEntries([owner.refOf(single)]) })
+  actions.push(front, back, { separator: true }, removeAction, { label: translate(trashKeyOf(single.type)), danger: true, run: () => owner.removeEntries([owner.refOf(single)]) })
   return actions
 }
 
@@ -757,7 +768,23 @@ if (sharedPage) {
     await moveEntries(entries, folderId, target)
   }
 
-  const removeEntries = async (entries) => {
+  const confirmTrash = (question) => new Promise((resolve) => {
+    chooser.open(question, [
+      { label: translate('cancel'), run: () => resolve(false) },
+      { label: translate('deleteAnyway'), run: () => resolve(true) }
+    ], { onDismiss: () => resolve(false) })
+  })
+
+  const onBoardQuestion = (entries) => {
+    const placed = entries.filter((entry) => board.referenceIds(entry.kind, entry.id).length > 0)
+    if (placed.length === 0) return null
+    if (placed.length === 1) return translate('deleteOnBoardAsk').replace('{name}', placed[0].name)
+    return translate('deleteManyOnBoardAsk').replace('{n}', String(placed.length))
+  }
+
+  const removeEntries = async (entries, { ask = true } = {}) => {
+    const question = ask ? onBoardQuestion(entries) : null
+    if (question && !(await confirmTrash(question))) return
     const cards = entries.flatMap((entry) => board.referenceIds(entry.kind, entry.id).map(board.itemOf).map((item) => ({ ...item })))
     for (const entry of entries) {
       if (docEditor.isOpen() && docEditor.current().id === entry.id) await docEditor.close()
@@ -1352,6 +1379,7 @@ if (sharedPage) {
     const folder = folderEntry()
     if (!folder) return
     const entry = { kind: 'folder', id: folder.id, name: labelOf(folder) }
+    if (!board.isBlank() && !(await confirmTrash(translate('deleteOnBoardAsk').replace('{name}', entry.name)))) return
     const parent = folder.parent
     try {
       await openFolder(parent)
@@ -1359,7 +1387,7 @@ if (sharedPage) {
       showToast(translate('loadFailed'))
       return
     }
-    await removeEntries([entry])
+    await removeEntries([entry], { ask: false })
   }
 
   initMenu({
