@@ -76,7 +76,12 @@ export function createApi({ getToken, getUserId, onSession = () => {} }) {
     return call(method, path, options)
   }
 
-  const uploadWithProgress = (path, form, onProgress) => new Promise((resolve, reject) => {
+  const uploadWithProgress = (path, form, onProgress, signal) => new Promise((resolve, reject) => {
+    const aborted = () => reject(new ApiError(0, 'Upload aborted', null))
+    if (signal && signal.aborted) {
+      aborted()
+      return
+    }
     const request = new XMLHttpRequest()
     request.open('POST', path)
     request.setRequestHeader('Authorization', getToken())
@@ -91,7 +96,8 @@ export function createApi({ getToken, getUserId, onSession = () => {} }) {
       }
     })
     request.addEventListener('error', () => reject(new ApiError(0, 'Network error', null)))
-    request.addEventListener('abort', () => reject(new ApiError(0, 'Upload aborted', null)))
+    request.addEventListener('abort', aborted)
+    if (signal) signal.addEventListener('abort', () => request.abort(), { once: true })
     request.send(form)
   })
 
@@ -130,13 +136,13 @@ export function createApi({ getToken, getUserId, onSession = () => {} }) {
     },
     imageUrl: (record) => `/api/files/images/${record.id}/${record.file}`,
     pictureUrl: (record) => (record.pic ? `/api/pic/${record.id}/${record.pic}` : ''),
-    uploadFile: async (boardId, file, name, onProgress) => {
+    uploadFile: async (boardId, file, name, onProgress, signal) => {
       const form = new FormData()
       form.append('board', boardId)
       form.append('user', getUserId())
       form.append('file', file, name)
       await fresh('GET', '/api/health').catch(() => null)
-      return uploadWithProgress(`/api/collections/files/records?fields=${FILE_FIELDS}`, form, onProgress)
+      return uploadWithProgress(`/api/collections/files/records?fields=${FILE_FIELDS}`, form, onProgress, signal)
     },
     updateFile: (id, patch) => fresh('PATCH', `/api/collections/files/records/${id}?fields=${FILE_FIELDS}`, { body: patch }),
     deleteFile: (id) => fresh('DELETE', `/api/collections/files/records/${id}`),

@@ -54,6 +54,7 @@ const ASSETS = [
   '/js/table.js',
   '/js/textstyle.js',
   '/js/toolbar.js',
+  '/js/uploads.js',
   '/js/visitor.js',
   '/js/widths.js',
   '/js/zip.js'

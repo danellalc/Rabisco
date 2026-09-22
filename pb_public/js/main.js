@@ -42,6 +42,7 @@ import { migrateStorage, store } from './store.js'
 import { createInsertTable } from './table.js'
 import { STYLE_COMMANDS, styleEntries } from './textstyle.js'
 import { initToolbar } from './toolbar.js'
+import { createQuotaAlerts, createUploads, initFolderDrop } from './uploads.js'
 import { createVisitor } from './visitor.js'
 import { buildZip, uniqueName } from './zip.js'
 
@@ -604,6 +605,7 @@ if (sharedPage) {
   const picker = createFolderPicker({ element: document.getElementById('picker'), resources, translate })
   const quotaLine = document.getElementById('quota')
   const quotaFill = document.getElementById('quota-fill')
+  const quotaAlerts = createQuotaAlerts((level, used, quota) => showToast(level === 'full' ? translate('storageFullWarn') : translate('storageWarn').replace('{used}', formatBytes(used)).replace('{quota}', formatBytes(quota))))
   const fileInput = document.getElementById('file-input')
   const imageInput = document.getElementById('image-input')
   const addMenu = createPopover(document.getElementById('add-menu'))
@@ -894,30 +896,35 @@ if (sharedPage) {
     boards.refreshQuota()
   }
 
-  const uploadInto = async (target, files) => {
-    let sent = 0
-    for (const file of files) {
-      if (isBlockedName(file.name)) {
-        showToast(translate('fileTypeBlocked'))
-        continue
-      }
-      if (file.size > FILE_MAX_BYTES) {
-        showToast(translate('fileTooBig'))
-        continue
-      }
-      showToast(translate('uploadingFile').replace('{name}', file.name))
-      try {
-        const record = await resources.upload(target, file)
-        if (target === folderId) rememberRecent({ kind: 'file', id: record.id, name: record.name, fileKind: record.kind })
-        sent++
-      } catch (error) {
-        showToast(uploadError(error))
-      }
+  const uploads = createUploads({
+    element: document.getElementById('uploads'),
+    translate,
+    formatBytes,
+    onSettled: (target) => {
+      resources.invalidate(target)
+      refreshFolder()
+      boards.refreshQuota()
     }
-    if (sent > 0) showToast(translate('uploaded'))
-    if (target === folderId) await refreshFolder()
-    else resources.invalidate(target)
-    boards.refreshQuota()
+  })
+
+  const acceptsUpload = (file) => {
+    if (isBlockedName(file.name)) showToast(translate('fileTypeBlocked'))
+    else if (file.size > FILE_MAX_BYTES) showToast(translate('fileTooBig'))
+    else return true
+    return false
+  }
+
+  const uploadInto = (target, files) => {
+    uploads.add(files.filter(acceptsUpload), target, async (file, onProgress, signal) => {
+      try {
+        const record = await resources.upload(target, file, onProgress, signal)
+        if (target === folderId) rememberRecent({ kind: 'file', id: record.id, name: record.name, fileKind: record.kind })
+        return record
+      } catch (error) {
+        if (!signal.aborted) showToast(uploadError(error))
+        throw error
+      }
+    })
   }
 
   const shareFor = async (target) => {
@@ -1159,7 +1166,7 @@ if (sharedPage) {
       },
       move: moveEntries,
       remove: removeEntries,
-      upload: uploadInto,
+      upload: (files, target) => uploadInto(target, files),
       crumb: (id) => openFolder(id).catch(() => showToast(translate('loadFailed'))),
       selectionChanged: (entries) => {
         selectButtons.share.disabled = entries.length !== 1
@@ -1276,9 +1283,12 @@ if (sharedPage) {
       showTips()
     },
     onQuota: ({ used, quota }) => {
+      const level = quotaAlerts(used, quota)
       quotaLine.textContent = translate('quotaLine').replace('{used}', formatBytes(used)).replace('{quota}', formatBytes(quota))
-      quotaLine.classList.toggle('full', used >= quota)
-      quotaFill.parentElement.classList.toggle('full', used >= quota)
+      for (const name of ['warn', 'full']) {
+        quotaLine.classList.toggle(name, level === name)
+        quotaFill.parentElement.classList.toggle(name, level === name)
+      }
       quotaFill.style.width = `${Math.min(100, quota > 0 ? (used / quota) * 100 : 0)}%`
     },
     onSummary: (summary) => {
@@ -1389,6 +1399,13 @@ if (sharedPage) {
     })
   }
   const pasteOnBoard = wireEditor({ insertImageInText, addImageOnBoard, addFilesOnBoard, addResourcesOnBoard })
+  initFolderDrop({
+    folderOf: () => folderId,
+    createFolder: resources.createFolder,
+    upload: uploadInto,
+    onFolders: () => refreshFolder(),
+    onError: () => showToast(translate('saveFailed'))
+  })
   fileInput.addEventListener('change', () => {
     const files = [...fileInput.files]
     fileInput.value = ''
