@@ -228,6 +228,18 @@ routerAdd('POST', '/api/files/{id}/link', (e) => {
   return e.json(200, downloadLink(e.app, record))
 })
 
+routerAdd('POST', '/api/folders/{id}/duplicate', (e) => {
+  if (!e.auth) throw new UnauthorizedError()
+  const { duplicateFolder } = require(`${__hooks}/copy.js`)
+  return e.json(200, duplicateFolder(e.app, e.auth, e.request.pathValue('id'), String(e.requestInfo().body.name || '')))
+})
+
+routerAdd('POST', '/api/files/{id}/replace', (e) => {
+  if (!e.auth) throw new UnauthorizedError()
+  const { replaceFile } = require(`${__hooks}/copy.js`)
+  return e.json(200, replaceFile(e.app, e.auth, e.request.pathValue('id'), e.findUploadedFiles('file')))
+})
+
 routerAdd('GET', '/api/pic/{id}/{key}', (e) => {
   const { servePicture } = require(`${__hooks}/files.js`)
   return servePicture(e)

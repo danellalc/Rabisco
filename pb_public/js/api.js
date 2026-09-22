@@ -144,6 +144,13 @@ export function createApi({ getToken, getUserId, onSession = () => {} }) {
       await fresh('GET', '/api/health').catch(() => null)
       return uploadWithProgress(`/api/collections/files/records?fields=${FILE_FIELDS}`, form, onProgress, signal)
     },
+    replaceFile: async (id, file, onProgress) => {
+      const form = new FormData()
+      form.append('file', file, file.name)
+      await fresh('GET', '/api/health').catch(() => null)
+      return uploadWithProgress(`/api/files/${id}/replace`, form, onProgress)
+    },
+    duplicateFolder: (id, name) => fresh('POST', `/api/folders/${id}/duplicate`, { body: { name } }),
     updateFile: (id, patch) => fresh('PATCH', `/api/collections/files/records/${id}?fields=${FILE_FIELDS}`, { body: patch }),
     deleteFile: (id) => fresh('DELETE', `/api/collections/files/records/${id}`),
     fileLink: (id) => fresh('POST', `/api/files/${id}/link`),
