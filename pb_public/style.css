@@ -47,10 +47,14 @@ body[data-view=note] .app,body[data-view=list] .app{display:flex}
 .panel-view{flex:1;min-height:0;flex-direction:column}
 .panel-view:not([hidden]){display:flex}
 .panel-head{position:relative;padding:14px 14px 12px;border-bottom:1px solid var(--line);flex-shrink:0}
-.crumb-line{display:flex;align-items:center;gap:2px;min-height:20px;margin:0;font-size:13px;color:var(--fg2)}
+.crumb-line{display:flex;align-items:center;gap:4px;min-height:20px;margin:0;font-size:13px;color:var(--fg2)}
 .crumb-line[hidden]{display:none}
+.crumb-line .crumbs{display:contents}
 .up{padding:0 2px;color:var(--fg2)}
 .crumb{max-width:100%;color:var(--fg2);text-decoration:underline;text-underline-offset:3px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.crumb-line .crumb{min-width:5ch}
+.crumb-line .crumb:first-child,.crumb-more{flex-shrink:0}
+.crumb-more{color:var(--fg2);cursor:help}
 .crumb-sep{color:var(--fg2)}
 .panel-title{margin:2px 0;font-size:24px;font-weight:700;line-height:1.3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .title-input{margin:2px 0;font-size:24px;font-weight:700;line-height:1.3}
