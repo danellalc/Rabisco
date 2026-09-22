@@ -67,9 +67,12 @@ const SHAPES = {
       item.width = width
       item.height = height
     }
-    const source = raw.file ? tools.fileInfo(String(raw.file)) : null
+    const picture = /^\/api\/pic\/([a-z0-9]{15})\/([A-Za-z0-9]{16})$/.exec(src)
+    const fileId = picture ? picture[1] : String(raw.file || '')
+    const source = fileId ? tools.fileInfo(fileId) : null
+    if (picture && (source === null || source.pic !== picture[2] || source.kind !== 'image')) return null
     if (source !== null && source.kind === 'image') {
-      item.file = String(raw.file)
+      item.file = fileId
       item.name = source.name
       item.size = source.size
     }
@@ -149,7 +152,7 @@ function referenceInfo(app, collection, boardId, userId) {
     try {
       const record = app.findRecordById(collection, id)
       if (record.getString('board') !== boardId || record.getString('user') !== userId || record.getString('trashed') !== '') return null
-      return { name: record.getString('name'), size: Number(record.get('size')) || 0, kind: record.getString('kind') }
+      return { name: record.getString('name'), size: Number(record.get('size')) || 0, kind: record.getString('kind'), pic: record.getString('pic') }
     } catch (error) {
       return null
     }

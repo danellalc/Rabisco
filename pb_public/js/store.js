@@ -6,6 +6,7 @@ const CARRIED = ['settings', 'auth', 'list', 'last']
 
 export const store = {
   pendingImages: new Map(),
+  pendingNames: new Map(),
   uploaded: new Map(),
   settings: { ...defaults },
   auth: null,

@@ -40,25 +40,30 @@ onRecordCreateRequest((e) => {
 }, 'images')
 
 onRecordCreateRequest((e) => {
-  const { assertQuota, cleanName, isBlocked, kindOf } = require(`${__hooks}/files.js`)
+  const { assertQuota, cleanName, isBlocked, kindOf, pictureKey } = require(`${__hooks}/files.js`)
   const uploaded = e.findUploadedFiles('file')
   if (uploaded.length === 0) throw new BadRequestError('Missing file.')
   const name = cleanName(uploaded[0].originalName)
   if (isBlocked(name)) throw new ApiError(415, 'That file type is not allowed.', {})
   assertQuota(e.app, e.auth, Number(uploaded[0].size))
+  const kind = kindOf(name)
   e.record.set('name', name)
   e.record.set('size', Number(uploaded[0].size))
-  e.record.set('kind', kindOf(name))
+  e.record.set('kind', kind)
+  e.record.set('pic', pictureKey(kind))
   e.next()
 }, 'files')
 
 onRecordUpdateRequest((e) => {
-  const { cleanName, isBlocked, kindOf } = require(`${__hooks}/files.js`)
+  const { cleanName, isBlocked, kindOf, pictureKey } = require(`${__hooks}/files.js`)
   const { openBoard } = require(`${__hooks}/drive.js`)
   const name = cleanName(e.record.getString('name'))
   if (isBlocked(name)) throw new ApiError(415, 'That file type is not allowed.', {})
+  const kind = kindOf(name)
   e.record.set('name', name)
-  e.record.set('kind', kindOf(name))
+  e.record.set('kind', kind)
+  if (kind !== 'image') e.record.set('pic', '')
+  else if (e.record.getString('pic') === '') e.record.set('pic', pictureKey(kind))
   const board = e.record.getString('board')
   if (board !== e.record.original().getString('board') && !openBoard(e.app, e.auth.id, board)) throw new BadRequestError('That folder does not exist.')
   e.next()
@@ -221,6 +226,11 @@ routerAdd('POST', '/api/files/{id}/link', (e) => {
   }
   if (record.getString('user') !== e.auth.id) throw new NotFoundError('File not found.')
   return e.json(200, downloadLink(e.app, record))
+})
+
+routerAdd('GET', '/api/pic/{id}/{key}', (e) => {
+  const { servePicture } = require(`${__hooks}/files.js`)
+  return servePicture(e)
 })
 
 routerAdd('GET', '/api/dl/{token}', (e) => {

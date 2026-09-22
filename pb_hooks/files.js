@@ -2,6 +2,7 @@ const FREE_QUOTA = 2 * 1024 * 1024 * 1024
 const PRO_QUOTA = 100 * 1024 * 1024 * 1024
 const NAME_LIMIT = 200
 const LINK_SECONDS = 600
+const PIC_LENGTH = 16
 const BLOCKED = ['exe', 'msi', 'bat', 'cmd', 'com', 'scr', 'pif', 'vbs', 'js', 'jse', 'wsf', 'ps1', 'jar', 'hta', 'dll', 'lnk']
 const KINDS = {
   pdf: ['pdf'],
@@ -37,6 +38,32 @@ function isBlocked(name) {
 function cleanName(name) {
   const base = String(name || '').split(/[\\/]/).pop().replace(/[\u0000-\u001f]/g, '').trim().replace(/[.\s]+$/, '')
   return (base || 'file').slice(0, NAME_LIMIT)
+}
+
+function pictureKey(kind) {
+  return kind === 'image' ? $security.randomString(PIC_LENGTH) : ''
+}
+
+function servePicture(e) {
+  const { isReachable } = require(`${__hooks}/trash.js`)
+  const key = String(e.request.pathValue('key') || '')
+  let record
+  try {
+    record = e.app.findRecordById('files', e.request.pathValue('id'))
+  } catch (error) {
+    throw new NotFoundError('Picture not found.')
+  }
+  const stored = record.getString('pic')
+  if (stored === '' || key.length !== stored.length || !$security.equal(stored, key) || record.getString('kind') !== 'image' || !isReachable(e.app, 'file', record)) throw new NotFoundError('Picture not found.')
+  const header = e.response.header()
+  header.set('X-Content-Type-Options', 'nosniff')
+  header.set('Cache-Control', 'private, max-age=31536000, immutable')
+  const fsys = e.app.newFilesystem()
+  try {
+    return fsys.serve(e.response, e.request, record.baseFilesPath() + '/' + record.getString('file'), record.getString('name'))
+  } finally {
+    fsys.close()
+  }
 }
 
 function quotaOf(user) {
@@ -162,4 +189,4 @@ function deleteOrphans(app) {
   deleteUnreferencedImages(app, "orphaned != '' AND orphaned < datetime('now', '-1 hour')")
 }
 
-module.exports = { BLOCKED, KINDS, extensionOf, kindOf, isBlocked, cleanName, quotaOf, usedBytes, assertQuota, downloadLink, serveDownload, imageIds, markImages, deleteNeverPlaced, deleteOrphans }
+module.exports = { BLOCKED, KINDS, extensionOf, kindOf, isBlocked, cleanName, pictureKey, servePicture, quotaOf, usedBytes, assertQuota, downloadLink, serveDownload, imageIds, markImages, deleteNeverPlaced, deleteOrphans }

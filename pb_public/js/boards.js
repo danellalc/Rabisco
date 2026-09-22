@@ -96,6 +96,17 @@ export function createBoards({ api, store, board, root, history, chooser, transl
     }
   }
 
+  const linkPicture = (blobUrl, record) => {
+    const img = root.querySelector(`img[src="${blobUrl}"]`)
+    const element = img ? img.closest('.item.image') : null
+    if (element) board.linkImage(element.dataset.id, record)
+  }
+
+  const storePicture = async (boardId, blob, name) => {
+    const record = await api.uploadFile(boardId, blob, name, () => {})
+    return { record, url: api.pictureUrl(record) }
+  }
+
   const pruneStaleImages = () => {
     let pending = false
     for (const img of root.querySelectorAll('img[src^="blob:"]')) {
@@ -282,8 +293,9 @@ export function createBoards({ api, store, board, root, history, chooser, transl
     if (!boardId || !blob) return
     const task = (async () => {
       try {
-        const record = await api.uploadImage(boardId, blob, `image.${blob.type.split('/')[1]}`)
-        const url = api.imageUrl(record)
+        const fileName = store.pendingNames.get(blobUrl)
+        const stored = fileName ? await storePicture(boardId, blob, fileName) : null
+        const url = stored ? stored.url : api.imageUrl(await api.uploadImage(boardId, blob, `image.${blob.type.split('/')[1]}`))
         await new Promise((resolve, reject) => {
           const probe = new Image()
           probe.onload = resolve
@@ -292,13 +304,20 @@ export function createBoards({ api, store, board, root, history, chooser, transl
         })
         store.uploaded.set(blobUrl, url)
         store.pendingImages.delete(blobUrl)
+        store.pendingNames.delete(blobUrl)
         uploadRetries.delete(blobUrl)
+        if (stored) linkPicture(blobUrl, stored.record)
         swapUploadedImages()
         onImageUploaded()
         if (current() && current().id === boardId) markDirty()
+        if (stored) {
+          refreshQuota()
+          onSummary({ id: boardId, filesChanged: true })
+        }
       } catch (error) {
         if (isClientError(error)) {
           store.pendingImages.delete(blobUrl)
+          store.pendingNames.delete(blobUrl)
           showToast(error.status === 413 ? uploadFailure(error) : translate('imageUnreadable'))
           onImageUploaded()
           if (current() && current().id === boardId) markDirty()
@@ -411,6 +430,7 @@ export function createBoards({ api, store, board, root, history, chooser, transl
     store.dirty = false
     switching = false
     store.pendingImages.clear()
+    store.pendingNames.clear()
     releaseUploaded()
     board.load('[]', { zoom: 1, x: 24, y: 24 })
     board.setEditable(false)

@@ -32,7 +32,7 @@ export function safeHref(raw) {
 export function safeImageSource(raw, allowLocal) {
   const url = cleanUrl(raw)
   if (allowLocal && /^blob:/.test(url)) return url
-  return /^\/api\/files\/images\/[a-z0-9]+\/[a-z0-9_.-]+$/i.test(url) ? url : null
+  return /^\/api\/files\/images\/[a-z0-9]+\/[a-z0-9_.-]+$/i.test(url) || /^\/api\/pic\/[a-z0-9]{15}\/[a-z0-9]{16}$/i.test(url) ? url : null
 }
 
 export function safeDimension(raw) {
