@@ -66,6 +66,12 @@ const SHAPES = {
       item.width = width
       item.height = height
     }
+    const source = raw.file ? tools.fileInfo(String(raw.file)) : null
+    if (source !== null && source.kind === 'image') {
+      item.file = String(raw.file)
+      item.name = source.name
+      item.size = source.size
+    }
     return item
   },
   link: (item, raw) => {
@@ -135,7 +141,7 @@ function referenceInfo(app, collection, boardId, userId) {
   return (id) => {
     try {
       const record = app.findRecordById(collection, id)
-      if (record.getString('board') !== boardId || record.getString('user') !== userId) return null
+      if (record.getString('board') !== boardId || record.getString('user') !== userId || record.getString('trashed') !== '') return null
       return { name: record.getString('name'), size: Number(record.get('size')) || 0, kind: record.getString('kind') }
     } catch (error) {
       return null
@@ -161,7 +167,7 @@ function boardTools(app, record) {
     },
     folderInfo: (id) => {
       const folder = id === record.id ? null : ownBoard(app, userId, id)
-      return folder === null ? null : { name: folder.getString('name') || folder.getString('title') }
+      return folder === null || folder.getString('trashed') !== '' ? null : { name: folder.getString('name') || folder.getString('title') }
     }
   }
 }

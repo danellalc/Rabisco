@@ -84,9 +84,15 @@ function isInside(app, candidateId, boardId) {
   return true
 }
 
+function openBoard(app, userId, id) {
+  const { isInTrash } = require(`${__hooks}/trash.js`)
+  const board = ownBoard(app, userId, id)
+  return board && !isInTrash(app, board.id) ? board : null
+}
+
 function assertParent(app, record, parentId) {
   if (parentId === ROOT) return
-  const parent = ownBoard(app, record.getString('user'), parentId)
+  const parent = openBoard(app, record.getString('user'), parentId)
   if (!parent) throw new BadRequestError('That folder does not exist.')
   if (record.id && isInside(app, parentId, record.id)) throw new BadRequestError('A folder cannot be moved inside itself.')
 }
@@ -104,19 +110,31 @@ function summaryOf(board) {
   }
 }
 
+function childCounts(app, userId, folderId) {
+  const rows = arrayOf(new DynamicModel({ id: '', total: 0 }))
+  app.db()
+    .newQuery("SELECT b.id AS id, (SELECT COUNT(*) FROM boards c WHERE c.parent = b.id AND c.trashed = '') + (SELECT COUNT(*) FROM docs d WHERE d.board = b.id AND d.trashed = '') + (SELECT COUNT(*) FROM files f WHERE f.board = b.id AND f.trashed = '') AS total FROM boards b WHERE b.user = {:user} AND b.parent = {:folder} AND b.trashed = ''")
+    .bind({ user: userId, folder: folderId })
+    .all(rows)
+  const counts = Object.create(null)
+  for (let index = 0; index < rows.length; index++) counts[rows[index].id] = Number(rows[index].total) || 0
+  return counts
+}
+
 function listFolder(app, userId, folderId) {
-  const folder = folderId === ROOT ? null : ownBoard(app, userId, folderId)
+  const folder = folderId === ROOT ? null : openBoard(app, userId, folderId)
   if (folderId !== ROOT && !folder) throw new NotFoundError('Folder not found.')
-  const filter = folderId === ROOT ? "user = {:user} && parent = ''" : 'user = {:user} && parent = {:folder}'
+  const filter = folderId === ROOT ? "user = {:user} && parent = '' && trashed = ''" : "user = {:user} && parent = {:folder} && trashed = ''"
   const params = { user: userId, folder: folderId }
-  const folders = app.findRecordsByFilter('boards', filter, '-pinned,-updated', 500, 0, params).map(summaryOf)
-  const docs = folderId === ROOT ? [] : app.findRecordsByFilter('docs', 'user = {:user} && board = {:folder}', '-updated', 500, 0, params).map((doc) => ({
+  const counts = childCounts(app, userId, folderId)
+  const folders = app.findRecordsByFilter('boards', filter, '-pinned,-updated', 500, 0, params).map((board) => Object.assign(summaryOf(board), { count: counts[board.id] || 0 }))
+  const docs = folderId === ROOT ? [] : app.findRecordsByFilter('docs', "user = {:user} && board = {:folder} && trashed = ''", '-updated', 500, 0, params).map((doc) => ({
     id: doc.id,
     name: doc.getString('name'),
     updated: doc.getString('updated'),
     revision: doc.getString('revision')
   }))
-  const files = folderId === ROOT ? [] : app.findRecordsByFilter('files', 'user = {:user} && board = {:folder}', '-created', 500, 0, params).map((file) => ({
+  const files = folderId === ROOT ? [] : app.findRecordsByFilter('files', "user = {:user} && board = {:folder} && trashed = ''", '-created', 500, 0, params).map((file) => ({
     id: file.id,
     name: file.getString('name'),
     size: Number(file.get('size')) || 0,
@@ -127,9 +145,27 @@ function listFolder(app, userId, folderId) {
   return { folder: folder ? summaryOf(folder) : null, path, folders, docs, files }
 }
 
+function hiddenBoards(records) {
+  const byId = Object.create(null)
+  for (let index = 0; index < records.length; index++) byId[records[index].id] = records[index]
+  const hidden = Object.create(null)
+  const isHidden = (id, depth) => {
+    if (id === ROOT) return false
+    if (hidden[id] !== undefined) return hidden[id]
+    const board = byId[id]
+    const answer = !board || depth > MAX_DEPTH || board.getString('trashed') !== '' || isHidden(board.getString('parent'), depth + 1)
+    hidden[id] = answer
+    return answer
+  }
+  for (let index = 0; index < records.length; index++) isHidden(records[index].id, 0)
+  return hidden
+}
+
 function searchIndex(app, userId) {
   const params = { user: userId }
-  const boards = app.findRecordsByFilter('boards', 'user = {:user}', '-updated', 2000, 0, params).map((board) => ({
+  const records = app.findRecordsByFilter('boards', 'user = {:user}', '-updated', 2000, 0, params)
+  const hidden = hiddenBoards(records)
+  const boards = records.filter((board) => !hidden[board.id]).map((board) => ({
     id: board.id,
     name: board.getString('name'),
     title: board.getString('title'),
@@ -137,14 +173,14 @@ function searchIndex(app, userId) {
     updated: board.getString('updated'),
     text: boardText(board.getString('content'))
   }))
-  const docs = app.findRecordsByFilter('docs', 'user = {:user}', '-updated', 2000, 0, params).map((doc) => ({
+  const docs = app.findRecordsByFilter('docs', "user = {:user} && trashed = ''", '-updated', 2000, 0, params).filter((doc) => !hidden[doc.getString('board')]).map((doc) => ({
     id: doc.id,
     name: doc.getString('name'),
     board: doc.getString('board'),
     updated: doc.getString('updated'),
     text: plainText(doc.getString('content'), TEXT_LIMIT)
   }))
-  const files = app.findRecordsByFilter('files', 'user = {:user}', '-created', 5000, 0, params).map((file) => ({
+  const files = app.findRecordsByFilter('files', "user = {:user} && trashed = ''", '-created', 5000, 0, params).filter((file) => !hidden[file.getString('board')]).map((file) => ({
     id: file.id,
     name: file.getString('name'),
     board: file.getString('board'),
@@ -154,4 +190,4 @@ function searchIndex(app, userId) {
   return { boards, docs, files }
 }
 
-module.exports = { ROOT, cleanLabel, plainText, boardText, ownBoard, ancestors, isInside, assertParent, listFolder, searchIndex }
+module.exports = { ROOT, cleanLabel, plainText, boardText, ownBoard, openBoard, ancestors, isInside, assertParent, listFolder, searchIndex }

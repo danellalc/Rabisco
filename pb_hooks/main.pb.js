@@ -54,13 +54,13 @@ onRecordCreateRequest((e) => {
 
 onRecordUpdateRequest((e) => {
   const { cleanName, isBlocked, kindOf } = require(`${__hooks}/files.js`)
-  const { ownBoard } = require(`${__hooks}/drive.js`)
+  const { openBoard } = require(`${__hooks}/drive.js`)
   const name = cleanName(e.record.getString('name'))
   if (isBlocked(name)) throw new ApiError(415, 'That file type is not allowed.', {})
   e.record.set('name', name)
   e.record.set('kind', kindOf(name))
   const board = e.record.getString('board')
-  if (board !== e.record.original().getString('board') && !ownBoard(e.app, e.auth.id, board)) throw new BadRequestError('That folder does not exist.')
+  if (board !== e.record.original().getString('board') && !openBoard(e.app, e.auth.id, board)) throw new BadRequestError('That folder does not exist.')
   e.next()
 }, 'files')
 
@@ -73,7 +73,7 @@ onRecordCreateRequest((e) => {
     } catch (error) {
       throw new BadRequestError('Nothing to share.')
     }
-    if (record.getString('user') !== e.auth.id) throw new BadRequestError('Nothing to share.')
+    if (record.getString('user') !== e.auth.id || record.getString('trashed') !== '') throw new BadRequestError('Nothing to share.')
     return record
   }
   const docId = e.record.getString('doc')
@@ -144,11 +144,11 @@ onRecordCreateRequest((e) => {
 onRecordUpdateRequest((e) => {
   const { applyRevision } = require(`${__hooks}/revision.js`)
   const { markImages } = require(`${__hooks}/files.js`)
-  const { cleanLabel, ownBoard } = require(`${__hooks}/drive.js`)
+  const { cleanLabel, openBoard } = require(`${__hooks}/drive.js`)
   const { sanitizeDoc } = require(`${__hooks}/docs.js`)
   const original = e.record.original()
   const board = e.record.getString('board')
-  if (board !== original.getString('board') && !ownBoard(e.app, e.auth.id, board)) throw new BadRequestError('That folder does not exist.')
+  if (board !== original.getString('board') && !openBoard(e.app, e.auth.id, board)) throw new BadRequestError('That folder does not exist.')
   e.record.set('name', cleanLabel(e.record.getString('name')))
   const content = sanitizeDoc(e.record.getString('content'))
   e.record.set('content', content)
@@ -176,6 +176,33 @@ routerAdd('GET', '/api/search-index', (e) => {
   if (!e.auth) throw new UnauthorizedError()
   const { searchIndex } = require(`${__hooks}/drive.js`)
   return e.json(200, searchIndex(e.app, e.auth.id))
+})
+
+routerAdd('GET', '/api/trash', (e) => {
+  if (!e.auth) throw new UnauthorizedError()
+  const { listTrash } = require(`${__hooks}/trash.js`)
+  return e.json(200, listTrash(e.app, e.auth.id))
+})
+
+routerAdd('POST', '/api/trash', (e) => {
+  if (!e.auth) throw new UnauthorizedError()
+  const { moveToTrash } = require(`${__hooks}/trash.js`)
+  const body = e.requestInfo().body
+  moveToTrash(e.app, e.auth.id, String(body.kind || ''), String(body.id || ''))
+  return e.noContent(204)
+})
+
+routerAdd('POST', '/api/trash/restore', (e) => {
+  if (!e.auth) throw new UnauthorizedError()
+  const { restore } = require(`${__hooks}/trash.js`)
+  const body = e.requestInfo().body
+  return e.json(200, restore(e.app, e.auth.id, String(body.kind || ''), String(body.id || '')))
+})
+
+routerAdd('DELETE', '/api/trash', (e) => {
+  if (!e.auth) throw new UnauthorizedError()
+  const { emptyTrash } = require(`${__hooks}/trash.js`)
+  return e.json(200, { deleted: emptyTrash(e.app, e.auth.id) })
 })
 
 routerAdd('POST', '/api/files/{id}/link', (e) => {
@@ -251,7 +278,7 @@ routerAdd('POST', '/api/shared/file-link', (e) => {
   } catch (error) {
     throw new NotFoundError('File not found.')
   }
-  if (file.getString('board') !== shared.board.id) throw new NotFoundError('File not found.')
+  if (file.getString('board') !== shared.board.id || file.getString('trashed') !== '') throw new NotFoundError('File not found.')
   return e.json(200, downloadLink(e.app, file))
 })
 
@@ -295,4 +322,9 @@ cronAdd('clean-files', '30 3 * * *', () => {
 cronAdd('free-storage', '*/15 * * * *', () => {
   const { deleteOrphans } = require(`${__hooks}/files.js`)
   deleteOrphans($app)
+})
+
+cronAdd('empty-trash', '15 4 * * *', () => {
+  const { purgeOld } = require(`${__hooks}/trash.js`)
+  purgeOld($app)
 })

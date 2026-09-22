@@ -80,26 +80,25 @@ function loadShare(e) {
   return share
 }
 
-function loadTarget(app, collection, id) {
+function loadTarget(app, kind, collection, id) {
+  const { isReachable } = require(`${__hooks}/trash.js`)
+  let record
   try {
-    return app.findRecordById(collection, id)
+    record = app.findRecordById(collection, id)
   } catch (error) {
     throw new NotFoundError('Link not active.')
   }
+  if (!isReachable(app, kind, record)) throw new NotFoundError('Link not active.')
+  return record
 }
 
 function findShared(e) {
   const share = loadShare(e)
   const docId = share.getString('doc')
-  if (docId !== '') return { kind: 'doc', share, doc: loadTarget(e.app, 'docs', docId), mode: shareMode(share.getString('mode'), false) }
+  if (docId !== '') return { kind: 'doc', share, doc: loadTarget(e.app, 'doc', 'docs', docId), mode: shareMode(share.getString('mode'), false) }
   const fileId = share.getString('file')
-  if (fileId !== '') return { kind: 'file', share, file: loadTarget(e.app, 'files', fileId), mode: 'view' }
-  let board
-  try {
-    board = e.app.findRecordById('boards', share.getString('board'))
-  } catch (error) {
-    throw new NotFoundError('Link not active.')
-  }
+  if (fileId !== '') return { kind: 'file', share, file: loadTarget(e.app, 'file', 'files', fileId), mode: 'view' }
+  const board = loadTarget(e.app, 'folder', 'boards', share.getString('board'))
   const content = board.getString('content')
   const items = parseBoard(content)
   const scoped = isScoped(share.getString('items'))
