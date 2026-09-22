@@ -8,14 +8,14 @@ Vanilla HTML, CSS and JavaScript served by PocketBase. No frameworks and nothing
 
 ## Status
 
-Version 3 is built: the explorer with breadcrumbs, folders, documents and files, desktop interactions (click selects, double click opens, right click menus, F2, Enter, Delete, drag and drop between the explorer, the board and the desktop), image resize with eight handles, quotes, code and a slash menu in every text, previews by file type, sharing of folders, documents and files, Ctrl+K with commands. Weight of the built app: 57 KB gzip.
+Version 3 is built: a sidebar made of a rail (My Drive, Recent, Search, Trash, account) and a panel with the folder head, one list of folders, documents and files, a selection bar and the board summary; one click opens, checkboxes select, right click menus, F2, Enter, Delete, drag and drop between the explorer, the board and the desktop; image resize with eight handles, quotes, code and a slash menu in every text, previews by file type, sharing of folders, selections, frames, documents and files, Ctrl+K with commands, recents kept in the browser and a trash that keeps deleted things for 30 days. Weight of the built app: 65 KB gzip.
 
 ## Roadmap
 
 1. Board: done. Pan, zoom, text blocks as items, image and link items, drag with snapping to the grid and to neighbours, lasso, tidy, undo and redo of everything, autosave of the whole board.
 2. Files and quota: done. Any file as a card with an icon, upload progress, blocked executable types, 500 MB per file, 2 GB per user (100 GB on the pro plan, both adjustable per user in the dashboard), signed short lived download links, rename, video and audio playing in the card. Storage goes wherever PocketBase points (local disk or an S3 bucket such as Cloudflare R2, set in the dashboard).
 3. Sharing: done. A link for a folder (view or edit), a selection (view), a document (view or edit) or a single file (download page), several active links per folder, expiry, revoke, duplicate with files.
-4. Drive: done. Every folder is a board; files and documents live in exactly one folder and the canvas shows the ones you placed; move by dragging or through the folder picker; delete with undo; sort; search in the folder and everywhere. Frames are thin rectangles that group a region of the board: they carry their contents when dragged and can be shared as a live, view only piece of the board.
+4. Drive: done. Every folder is a board; files and documents live in exactly one folder and the canvas shows the ones you placed; move by dragging or through the folder picker; delete to the trash with undo, restore or delete for good, empty the trash; sort; search in the folder and everywhere; recents. Frames are thin rectangles that group a region of the board: they carry their contents when dragged and can be shared as a live, view only piece of the board.
 5. Direct upload to the bucket for big files and paid plans.
 6. Drawing: a vector sketch item.
 
@@ -61,8 +61,8 @@ For files, point PocketBase at an S3 compatible bucket in Settings, Files storag
 
 ## Layout
 
-- `pb_public/`: the app source. `index.html`, `style.css`, ES modules under `js/` (`drive.js` and `resources.js` are the explorer, `board.js` the canvas, `boards.js` its persistence, `document.js` the document editor, `camera.js`, `snap.js` and `items.js` the pure math), the service worker `sw.js`, `manifest.json` and the icon (`icon.svg` is the master, the PNG sizes are exported from it).
-- `pb_hooks/`: server hooks. Security headers, user creation on the first sign in code, ownership, folder hierarchy, item validation and HTML sanitizing, share tokens, conflict detection with compare and set, folder listing and search index routes.
+- `pb_public/`: the app source. `index.html`, `style.css`, ES modules under `js/` (`drive.js` and `resources.js` are the explorer, `panel.js` the Recent and Trash views, `recent.js` the recents kept in the browser, `board.js` the canvas, `boards.js` its persistence, `document.js` the document editor, `camera.js`, `snap.js` and `items.js` the pure math), the service worker `sw.js`, `manifest.json` and the icon (`icon.svg` is the master, the PNG sizes are exported from it).
+- `pb_hooks/`: server hooks. Security headers, user creation on the first sign in code, ownership, folder hierarchy, item validation and HTML sanitizing, share tokens, conflict detection with compare and set, folder listing and search index routes, the trash (`/api/trash`) and its daily purge.
 - `pb_migrations/`: collections, rules and settings, applied on first start.
 - `tests/`: unit tests for pure functions, run with Node's built in test runner.
 - `tools/`: dev server, mail sink, build and size report.

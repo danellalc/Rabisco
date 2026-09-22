@@ -24,7 +24,7 @@ export const KIND_ICONS = {
   doc: `${SHEET} M11.5 14h9 M11.5 17.5h9 M11.5 21h5`
 }
 
-export function createFileCards({ elements, itemOf, translate, language, onMediaLink, onRenameFile, onChange }) {
+export function createFileCards({ elements, itemOf, translate, language, metaOf, onMediaLink, onRenameFile, onChange }) {
   let playing = null
 
   const fill = (element, item) => {
@@ -37,7 +37,8 @@ export function createFileCards({ elements, itemOf, translate, language, onMedia
     element.querySelector('.file-name').textContent = item.name
     const meta = element.querySelector('.file-meta')
     if (item.type === 'file') meta.textContent = item.file ? formatSize(item.size, language) : translate('uploading')
-    else meta.textContent = translate(item.type === 'doc' ? 'kindDoc' : 'kindFolder')
+    else meta.textContent = metaOf(item) || translate(item.type === 'doc' ? 'kindDoc' : 'kindFolder')
+    element.querySelector('.row-arrow').hidden = item.type !== 'folder'
     element.querySelector('.play').hidden = !(item.type === 'file' && item.file && isMedia(item.kind))
   }
 
@@ -117,7 +118,10 @@ export function createFileCards({ elements, itemOf, translate, language, onMedia
       event.stopPropagation()
       togglePlay(itemOf(item.id))
     })
-    row.append(icon, text, play)
+    const arrow = document.createElement('span')
+    arrow.className = 'row-arrow'
+    arrow.textContent = '›'
+    row.append(icon, text, play, arrow)
     const progress = document.createElement('span')
     progress.className = 'progress'
     element.append(row, progress)

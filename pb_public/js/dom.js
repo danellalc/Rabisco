@@ -110,6 +110,11 @@ export function createPopover(element) {
     item.type = 'button'
     item.className = action.danger ? 'menu-item danger' : 'menu-item'
     item.textContent = action.label
+    if (action.hint) {
+      const hint = document.createElement('kbd')
+      hint.textContent = action.hint
+      item.append(hint)
+    }
     item.addEventListener('click', () => {
       close()
       action.run()

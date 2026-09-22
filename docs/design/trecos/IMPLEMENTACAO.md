@@ -1,5 +1,9 @@
 # Implementação — guia pro dev
 
+## Tarefa atual: sidebar + quadro v3
+
+> Redesenhe a sidebar e o estilo do quadro seguindo `SIDEBAR-V3.md`, pixel-perfect. Referências visuais (abra no navegador): `Sidebar v3 - final.dc.html` (estados), `Trecos v3 - completo.dc.html` (tela inteira com todos os tipos de item) e `Trecos.dc.html` (protótipo navegável — sidebar integrada, clicar arquivo enquadra no quadro). Orçamento 72 KB gzip / CSS 32 KB é lei; estourou, pare e avise.
+
 ## Ordem (do SPEC, "Como trabalhar")
 
 1. **Quadro**: pan, zoom, blocos de texto como itens, criar/mover/redimensionar, laço, desfazer, autosave, migração das notas, lista com "quadro", renomear pra Trecos.

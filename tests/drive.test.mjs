@@ -28,3 +28,35 @@ test('board text joins text blocks, link urls and names of referenced things', (
   assert.equal(boardText(content), 'hello world https://x.test report.pdf Projects')
   assert.equal(boardText('{broken'), '')
 })
+
+test('the explorer head sums what a folder holds and says empty otherwise', async () => {
+  const { folderMeta, rangeBetween, parseResources, resourceText } = await import('../pb_public/js/drive.js')
+  const { countOf, createTranslator } = await import('../pb_public/js/i18n.js')
+  const translate = createTranslator('en')
+  const bytes = (n) => `${n} B`
+  assert.equal(folderMeta([], translate, bytes), 'empty')
+  assert.equal(folderMeta([{ kind: 'folder' }, { kind: 'folder' }, { kind: 'doc' }, { kind: 'file', size: 30 }, { kind: 'file', size: 12 }], translate, bytes), '2 folders · 1 document · 2 files · 42 B')
+  assert.equal(countOf(createTranslator('pt-BR'), 'items', 1), '1 item')
+  assert.equal(countOf(createTranslator('pt-BR'), 'items', 4), '4 itens')
+  assert.deepEqual(rangeBetween(['a', 'b', 'c', 'd'], 'c', 'a'), ['a', 'b', 'c'])
+  assert.deepEqual(rangeBetween(['a', 'b'], 'zz', 'b'), ['b'])
+  const parsed = parseResources(resourceText([{ kind: 'file', id: 'f1', name: 'x.pdf' }, { kind: 'doc', id: 'd1', name: 'Doc' }], 'folder1'))
+  assert.deepEqual(parsed, { folder: 'folder1', entries: [{ kind: 'file', id: 'f1', name: 'x.pdf' }, { kind: 'doc', id: 'd1', name: 'Doc' }] })
+  assert.equal(parseResources('plain text'), null)
+})
+
+test('the trash helpers walk up the folder chain', () => {
+  const { isInTrash, KEEP_DAYS } = require('../pb_hooks/trash.js')
+  const boards = { a: { parent: '', trashed: '' }, b: { parent: 'a', trashed: '' }, c: { parent: 'b', trashed: '2026-09-21 00:00:00.000Z' }, d: { parent: 'c', trashed: '' } }
+  const app = { findRecordById: (table, id) => {
+    if (!boards[id]) throw new Error('missing')
+    return { id, getString: (field) => boards[id][field] }
+  } }
+  assert.equal(isInTrash(app, 'a'), false)
+  assert.equal(isInTrash(app, 'b'), false)
+  assert.equal(isInTrash(app, 'c'), true)
+  assert.equal(isInTrash(app, 'd'), true)
+  assert.equal(isInTrash(app, 'missing'), true)
+  assert.equal(isInTrash(app, ''), false)
+  assert.equal(KEEP_DAYS, 30)
+})

@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<meta name="design_doc_mode" content="canvas">
+<style>
+*,*::before,*::after{box-sizing:border-box;}
+body{margin:0;background:#dcd9d1;}
+a{color:#33524d;text-decoration:underline;text-underline-offset:3px;}
+</style>
+</helmet>
+<section style="padding:40px;font-family:system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;color:#1b1a17;">
+<p style="font-family:ui-monospace,Menlo,Consolas,monospace;font-size:13px;color:#605e57;margin:0 0 24px;">trecos v3 completo · pasta "Teste" — sidebar final + quadro com todos os tipos de item</p>
+
+<div style="width:1580px;height:860px;background:#edebe7;border:1px solid #d3d0c9;border-radius:8px;overflow:hidden;display:flex;box-shadow:0 2px 6px rgba(30,28,24,0.08);">
+
+  <div style="width:52px;flex-shrink:0;border-right:1px solid #d3d0c9;display:flex;flex-direction:column;align-items:center;padding:14px 0 12px;gap:4px;">
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#1b1a17" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-bottom:12px;"><path d="M3 15.5c1.8-6 3.6-6 4.7 0s3 6 4.6 0 3-6 4.7 0 2 4.5 4 3"></path></svg>
+    <span title="Meu Drive" style="width:36px;height:36px;display:inline-flex;align-items:center;justify-content:center;border-radius:4px;background:#e3e0da;box-shadow:inset 2px 0 0 #33524d;cursor:pointer;"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="#1b1a17" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M3 19V7a2 2 0 0 1 2-2h4l2 2.5h8a2 2 0 0 1 2 2V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2Z"></path></svg></span>
+    <span title="Recentes" style="width:36px;height:36px;display:inline-flex;align-items:center;justify-content:center;border-radius:4px;cursor:pointer;" style-hover="background:#e3e0da;"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="#605e57" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.5"></circle><path d="M12 7.5V12l3 2"></path></svg></span>
+    <span title="Buscar · Ctrl K" style="width:36px;height:36px;display:inline-flex;align-items:center;justify-content:center;border-radius:4px;cursor:pointer;" style-hover="background:#e3e0da;"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="#605e57" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="6.5"></circle><path d="M15.8 15.8L20 20"></path></svg></span>
+    <span style="flex:1;"></span>
+    <span title="Lixeira" style="width:36px;height:36px;display:inline-flex;align-items:center;justify-content:center;border-radius:4px;cursor:pointer;" style-hover="background:#e3e0da;"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="#605e57" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M5 7h14 M9.5 7V5h5v2 M7 7l1 13h8l1-13 M10.5 11v5 M13.5 11v5"></path></svg></span>
+    <span title="luiz@local.test · Sair · tema" style="width:30px;height:30px;margin-top:4px;display:inline-flex;align-items:center;justify-content:center;border:1.5px solid #d3d0c9;border-radius:50%;font-size:13px;font-weight:700;color:#605e57;cursor:pointer;">L</span>
+  </div>
+
+  <div style="width:268px;flex-shrink:0;border-right:1px solid #d3d0c9;display:flex;flex-direction:column;">
+    <div style="padding:14px 14px 12px;border-bottom:1px solid #d3d0c9;">
+      <span style="font-size:13px;color:#605e57;">← <span style="text-decoration:underline;text-underline-offset:3px;cursor:pointer;">Meu Drive</span> /</span>
+      <p style="font-size:24px;font-weight:700;line-height:1.3;margin:2px 0 2px;">Teste</p>
+      <p style="font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12px;color:#605e57;margin:0 0 10px;">6 itens · 3,6 MB</p>
+      <div style="display:flex;gap:10px;align-items:center;">
+        <button style="font:inherit;border:1.5px solid #33524d;color:#33524d;background:#edebe7;border-radius:4px;padding:5px 14px;font-size:15px;cursor:pointer;white-space:nowrap;flex-shrink:0;">+ Novo</button>
+        <span style="font-size:15px;color:#33524d;text-decoration:underline;text-underline-offset:3px;cursor:pointer;">Enviar arquivos</span>
+      </div>
+    </div>
+    <div style="padding:8px 14px 0;">
+      <input placeholder="Filtrar nesta pasta" style="font:inherit;display:block;width:100%;background:transparent;border:none;border-bottom:1px solid #d3d0c9;outline:none;padding:6px 2px;font-size:15px;color:#1b1a17;">
+    </div>
+    <div style="flex:1;overflow-y:auto;padding:8px;">
+      <div style="display:flex;align-items:center;gap:10px;padding:9px 8px;border-radius:4px;cursor:pointer;" style-hover="background:#e3e0da;">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#605e57" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><path d="M3 19V7a2 2 0 0 1 2-2h4l2 2.5h8a2 2 0 0 1 2 2V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2Z"></path></svg>
+        <span style="flex:1;min-width:0;font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">Recibos</span>
+        <span style="font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12px;color:#605e57;">4</span>
+        <span style="color:#605e57;font-size:12px;">›</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:10px;padding:9px 8px;border-radius:4px;cursor:pointer;" style-hover="background:#e3e0da;">
+        <svg width="20" height="20" viewBox="0 0 32 32" fill="none" stroke="#605e57" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><path d="M19 4H9.5A2.5 2.5 0 0 0 7 6.5v19A2.5 2.5 0 0 0 9.5 28h13a2.5 2.5 0 0 0 2.5-2.5V10.5L19 4Z M19 4.5v6h6 M11.5 15h9 M11.5 18.5h6"></path></svg>
+        <span style="flex:1;min-width:0;font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">Notas da reunião</span>
+        <span style="font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12px;color:#605e57;">há 2 h</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:10px;padding:9px 8px;border-radius:4px;cursor:pointer;" style-hover="background:#e3e0da;">
+        <svg width="20" height="20" viewBox="0 0 32 32" fill="none" stroke="#605e57" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><path d="M19 4H9.5A2.5 2.5 0 0 0 7 6.5v19A2.5 2.5 0 0 0 9.5 28h13a2.5 2.5 0 0 0 2.5-2.5V10.5L19 4Z M19 4.5v6h6 M11.5 14h9v6.5h-9Z M16 14v6.5 M11.5 17.25h9"></path></svg>
+        <span style="flex:1;min-width:0;font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">DME - CHATBOT - fluxo.xlsx</span>
+        <span style="font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12px;color:#605e57;">60 KB</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:10px;padding:9px 8px;border-radius:4px;background:#e3e0da;cursor:pointer;">
+        <span style="width:20px;height:20px;flex-shrink:0;display:inline-flex;align-items:center;justify-content:center;"><svg width="16" height="16" viewBox="0 0 16 16"><rect x="0.75" y="0.75" width="14.5" height="14.5" rx="2" fill="#33524d"></rect><path d="M4 8.2l2.6 2.6L12 5.6" fill="none" stroke="#edebe7" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"></path></svg></span>
+        <span style="flex:1;min-width:0;font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">capa-home.png</span>
+        <span style="font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12px;color:#605e57;">340 KB</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:10px;padding:9px 8px;border-radius:4px;cursor:pointer;" style-hover="background:#e3e0da;">
+        <svg width="20" height="20" viewBox="0 0 32 32" fill="none" stroke="#605e57" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><path d="M19 4H9.5A2.5 2.5 0 0 0 7 6.5v19A2.5 2.5 0 0 0 9.5 28h13a2.5 2.5 0 0 0 2.5-2.5V10.5L19 4Z M19 4.5v6h6"></path></svg>
+        <span style="flex:1;min-width:0;font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">Q5GPV093.pdf</span>
+        <span style="font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12px;color:#605e57;">28 KB</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:10px;padding:9px 8px;border-radius:4px;cursor:pointer;" style-hover="background:#e3e0da;">
+        <svg width="20" height="20" viewBox="0 0 32 32" fill="none" stroke="#605e57" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><path d="M19 4H9.5A2.5 2.5 0 0 0 7 6.5v19A2.5 2.5 0 0 0 9.5 28h13a2.5 2.5 0 0 0 2.5-2.5V10.5L19 4Z M19 4.5v6h6 M11 17.5c1.6-3 3.2-3 4.8 0s3.2 3 4.8 0"></path></svg>
+        <span style="flex:1;min-width:0;font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">trilha-teaser.mp3</span>
+        <span style="font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12px;color:#605e57;">3,2 MB</span>
+      </div>
+    </div>
+    <div style="border-top:1px solid #d3d0c9;padding:10px 14px;">
+      <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px;">
+        <span style="font-size:13px;color:#605e57;">No quadro: 4 textos · 1 moldura</span>
+        <span style="font-size:13px;color:#33524d;text-decoration:underline;text-underline-offset:3px;cursor:pointer;">enquadrar</span>
+      </div>
+      <div style="height:2px;background:#d3d0c9;border-radius:1px;margin:0 0 4px;"><div style="width:3%;height:2px;background:#33524d;border-radius:1px;"></div></div>
+      <div style="font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12px;color:#605e57;">207 KB de 2 GB</div>
+    </div>
+  </div>
+
+  <div style="flex:1;min-width:0;display:flex;flex-direction:column;">
+    <div style="display:flex;align-items:center;gap:16px;padding:10px 24px;border-bottom:1px solid #d3d0c9;flex-shrink:0;">
+      <span style="flex:1;font-size:13px;letter-spacing:0.04em;text-transform:uppercase;color:#605e57;">salvo</span>
+      <span style="font-size:15px;color:#33524d;text-decoration:underline;text-underline-offset:3px;cursor:pointer;">+ Adicionar</span>
+      <span style="font-size:15px;color:#33524d;text-decoration:underline;text-underline-offset:3px;text-decoration-thickness:1.5px;cursor:pointer;">Compartilhar</span>
+      <span style="width:32px;height:32px;display:inline-flex;align-items:center;justify-content:center;letter-spacing:0.08em;cursor:pointer;">⋯</span>
+    </div>
+    <div style="flex:1;position:relative;overflow:hidden;">
+
+      <span style="position:absolute;left:56px;top:30px;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12px;color:#605e57;">Referências</span>
+      <div style="position:absolute;left:56px;top:48px;width:470px;height:330px;border:1px solid #d3d0c9;border-radius:4px;"></div>
+
+      <div style="position:absolute;left:80px;top:72px;width:260px;height:170px;border-radius:4px;background:repeating-linear-gradient(45deg,#e3e0da 0 10px,transparent 10px 22px);display:flex;align-items:center;justify-content:center;">
+        <span style="font-family:ui-monospace,Menlo,Consolas,monospace;font-size:13px;color:#605e57;background:#edebe7;padding:2px 8px;border-radius:4px;">img · home antes</span>
+      </div>
+      <div style="position:absolute;left:364px;top:72px;width:140px;padding:12px;border-radius:4px;background:#d9c583;font-size:15px;line-height:1.5;color:#1b1a17;">Aprovar a capa com a Lu antes de sexta</div>
+      <div style="position:absolute;left:364px;top:196px;width:140px;padding:12px;border-radius:4px;background:#a8bd9c;font-size:15px;line-height:1.5;color:#1b1a17;">Medir o peso da home nova</div>
+      <div style="position:absolute;left:80px;top:262px;width:260px;padding:8px 12px;font-size:13px;line-height:1.5;color:#605e57;">Só entra aqui o que for referência visual — o resto vive na pasta.</div>
+
+      <div style="position:absolute;left:576px;top:48px;width:320px;padding:8px 12px;">
+        <p style="font-size:32px;font-weight:700;line-height:1.4;margin:0 0 8px;">Lançamento do site</p>
+        <p style="font-size:16px;line-height:1.5;margin:0;">Tudo de outubro num lugar só: proposta, orçamento fechado e os prints da home pra revisar com o time.</p>
+      </div>
+
+      <div style="position:absolute;left:576px;top:240px;width:300px;padding:8px 12px;">
+        <p style="font-size:21px;font-weight:700;line-height:1.5;margin:0 0 8px;">Pendências</p>
+        <div style="display:flex;gap:8px;font-size:16px;line-height:1.5;"><span>☑</span><span style="color:#605e57;">Fechar o orçamento</span></div>
+        <div style="display:flex;gap:8px;font-size:16px;line-height:1.5;"><span>☐</span><span>Revisar o texto da <span style="background:#d9c583;">home</span></span></div>
+        <div style="display:flex;gap:8px;font-size:16px;line-height:1.5;"><span>☐</span><span>Mandar a proposta <span style="color:#8e4a40;">até sexta</span></span></div>
+      </div>
+
+      <div style="position:absolute;left:940px;top:48px;width:300px;height:190px;border-radius:4px;background:repeating-linear-gradient(45deg,#e3e0da 0 10px,transparent 10px 22px);display:flex;align-items:center;justify-content:center;box-shadow:0 0 0 2px #33524d;">
+        <span style="font-family:ui-monospace,Menlo,Consolas,monospace;font-size:13px;color:#605e57;background:#edebe7;padding:2px 8px;border-radius:4px;">capa-home.png</span>
+        <span style="position:absolute;left:-7px;top:-7px;width:13px;height:13px;background:#edebe7;border:1.5px solid #33524d;border-radius:2px;cursor:nwse-resize;"></span>
+        <span style="position:absolute;left:50%;top:-7px;margin-left:-7px;width:13px;height:13px;background:#edebe7;border:1.5px solid #33524d;border-radius:2px;cursor:ns-resize;"></span>
+        <span style="position:absolute;right:-7px;top:-7px;width:13px;height:13px;background:#edebe7;border:1.5px solid #33524d;border-radius:2px;cursor:nesw-resize;"></span>
+        <span style="position:absolute;left:-7px;top:50%;margin-top:-7px;width:13px;height:13px;background:#edebe7;border:1.5px solid #33524d;border-radius:2px;cursor:ew-resize;"></span>
+        <span style="position:absolute;right:-7px;top:50%;margin-top:-7px;width:13px;height:13px;background:#edebe7;border:1.5px solid #33524d;border-radius:2px;cursor:ew-resize;"></span>
+        <span style="position:absolute;left:-7px;bottom:-7px;width:13px;height:13px;background:#edebe7;border:1.5px solid #33524d;border-radius:2px;cursor:nesw-resize;"></span>
+        <span style="position:absolute;left:50%;bottom:-7px;margin-left:-7px;width:13px;height:13px;background:#edebe7;border:1.5px solid #33524d;border-radius:2px;cursor:ns-resize;"></span>
+        <span style="position:absolute;right:-7px;bottom:-7px;width:13px;height:13px;background:#edebe7;border:1.5px solid #33524d;border-radius:2px;cursor:nwse-resize;"></span>
+        <span style="position:absolute;top:-40px;right:0;width:28px;height:28px;display:inline-flex;align-items:center;justify-content:center;color:#605e57;letter-spacing:0.08em;cursor:pointer;">⋯</span>
+      </div>
+      <span style="position:absolute;left:940px;top:246px;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12px;color:#605e57;">340 KB · também na pasta</span>
+
+      <div style="position:absolute;left:56px;top:436px;width:230px;height:64px;display:flex;align-items:center;gap:10px;padding:12px;background:#e3e0da;border-radius:4px;cursor:grab;">
+        <span style="position:relative;flex-shrink:0;width:32px;height:32px;display:inline-block;">
+          <svg width="32" height="32" viewBox="0 0 32 32" fill="none" stroke="#1b1a17" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M19 4H9.5A2.5 2.5 0 0 0 7 6.5v19A2.5 2.5 0 0 0 9.5 28h13a2.5 2.5 0 0 0 2.5-2.5V10.5L19 4Z M19 4.5v6h6"></path></svg>
+          <span style="position:absolute;left:50%;bottom:0;transform:translateX(-50%);background:#e3e0da;padding:0 2px;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:9px;letter-spacing:0.05em;color:#605e57;">PDF</span>
+        </span>
+        <span style="flex:1;min-width:0;">
+          <span style="display:block;font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">Q5GPV093.pdf</span>
+          <span style="display:block;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12px;color:#605e57;">28 KB</span>
+        </span>
+      </div>
+
+      <div style="position:absolute;left:56px;top:516px;width:230px;height:64px;display:flex;align-items:center;gap:10px;padding:12px;background:#e3e0da;border-radius:4px;cursor:grab;">
+        <span style="position:relative;flex-shrink:0;width:32px;height:32px;display:inline-block;">
+          <svg width="32" height="32" viewBox="0 0 32 32" fill="none" stroke="#1b1a17" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M19 4H9.5A2.5 2.5 0 0 0 7 6.5v19A2.5 2.5 0 0 0 9.5 28h13a2.5 2.5 0 0 0 2.5-2.5V10.5L19 4Z M19 4.5v6h6 M11 17.5c1.6-3 3.2-3 4.8 0s3.2 3 4.8 0"></path></svg>
+          <span style="position:absolute;left:50%;bottom:0;transform:translateX(-50%);background:#e3e0da;padding:0 2px;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:9px;letter-spacing:0.05em;color:#605e57;">MP3</span>
+        </span>
+        <span style="flex:1;min-width:0;position:relative;">
+          <span style="display:block;font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">trilha-teaser.mp3</span>
+          <span style="display:block;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12px;color:#605e57;">0:42 · 3:41</span>
+        </span>
+        <span style="width:28px;height:28px;flex-shrink:0;display:inline-flex;align-items:center;justify-content:center;font-size:12px;cursor:pointer;">❚❚</span>
+        <span style="position:absolute;left:0;bottom:0;height:2px;width:19%;background:#33524d;"></span>
+      </div>
+
+      <div style="position:absolute;left:316px;top:436px;width:230px;height:64px;display:flex;align-items:center;gap:10px;padding:12px;background:#e3e0da;border-radius:4px;cursor:grab;">
+        <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#1b1a17" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><path d="M3 19V7a2 2 0 0 1 2-2h4l2 2.5h8a2 2 0 0 1 2 2V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2Z"></path></svg>
+        <span style="flex:1;min-width:0;">
+          <span style="display:block;font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">Recibos</span>
+          <span style="display:block;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12px;color:#605e57;">pasta · 4 itens</span>
+        </span>
+        <span style="color:#605e57;font-size:12px;">›</span>
+      </div>
+
+      <div style="position:absolute;left:316px;top:516px;width:230px;height:64px;display:flex;align-items:center;gap:10px;padding:12px;background:#e3e0da;border-radius:4px;cursor:grab;">
+        <span style="position:relative;flex-shrink:0;width:32px;height:32px;display:inline-block;">
+          <svg width="32" height="32" viewBox="0 0 32 32" fill="none" stroke="#1b1a17" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M19 4H9.5A2.5 2.5 0 0 0 7 6.5v19A2.5 2.5 0 0 0 9.5 28h13a2.5 2.5 0 0 0 2.5-2.5V10.5L19 4Z M19 4.5v6h6 M11.5 15h9 M11.5 18.5h6"></path></svg>
+        </span>
+        <span style="flex:1;min-width:0;">
+          <span style="display:block;font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">Notas da reunião</span>
+          <span style="display:block;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12px;color:#605e57;">documento · há 2 h</span>
+        </span>
+      </div>
+
+      <div style="position:absolute;left:56px;top:596px;width:230px;height:64px;display:flex;align-items:center;gap:10px;padding:12px;background:#e3e0da;border-radius:4px;cursor:pointer;">
+        <svg width="24" height="24" viewBox="0 0 32 32" fill="none" stroke="#1b1a17" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><path d="M13.2 18.8l5.6-5.6M11.6 15.2l-2.4 2.4a3.7 3.7 0 1 0 5.2 5.2l2.4-2.4M20.4 16.8l2.4-2.4a3.7 3.7 0 1 0-5.2-5.2l-2.4 2.4"></path></svg>
+        <span style="flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:15px;text-decoration:underline;text-decoration-color:#33524d;text-underline-offset:3px;">figma.com/file/home-v2</span>
+      </div>
+
+      <div style="position:absolute;left:620px;top:470px;width:280px;padding:8px 12px;">
+        <p style="font-style:italic;font-size:16px;line-height:1.5;margin:0 0 4px;">"A home precisa carregar antes do café esfriar."</p>
+        <p style="font-size:13px;letter-spacing:0.04em;text-transform:uppercase;color:#605e57;margin:0;">— kickoff, 4 set</p>
+      </div>
+
+      <div style="position:absolute;left:620px;top:590px;width:300px;background:#e3e0da;border-radius:4px;padding:12px;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:13px;line-height:1.5;white-space:pre;">&lt;meta name="theme-color"
+  content="#edebe7"&gt;</div>
+
+      <div style="position:absolute;right:24px;bottom:16px;display:flex;align-items:center;gap:8px;color:#605e57;">
+        <span style="width:28px;height:28px;display:inline-flex;align-items:center;justify-content:center;font-size:16px;cursor:pointer;">−</span>
+        <span style="font-family:ui-monospace,Menlo,Consolas,monospace;font-size:13px;min-width:40px;text-align:center;">100%</span>
+        <span style="width:28px;height:28px;display:inline-flex;align-items:center;justify-content:center;font-size:16px;cursor:pointer;">+</span>
+        <span style="width:28px;height:28px;display:inline-flex;align-items:center;justify-content:center;cursor:pointer;"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9V6a2 2 0 0 1 2-2h3M15 4h3a2 2 0 0 1 2 2v3M20 15v3a2 2 0 0 1-2 2h-3M9 20H6a2 2 0 0 1-2-2v-3"></path></svg></span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<ul style="margin:16px 0 0;padding-left:18px;font-size:13px;line-height:1.7;color:#605e57;max-width:720px;">
+  <li><b style="color:#1b1a17;">Moldura</b>: borda fina nomeada em mono fora do retângulo — nada de fundo; arrastar leva o conteúdo.</li>
+  <li><b style="color:#1b1a17;">Notas adesivas</b>: as 3 cores de marca-texto como fundo, sem sombra e sem rotação — é papel, não festa.</li>
+  <li><b style="color:#1b1a17;">Cartões de referência</b> (arquivo, pasta, documento, link): mesma anatomia 230×64; a 2ª linha em mono diz o tipo; ícone em fg (não fg2) pra destacar do texto; áudio toca no cartão.</li>
+  <li><b style="color:#1b1a17;">Seleção com 8 alças</b> (cantos proporcionais, lados esticam) — mostrada na capa-home.png; legenda mono "também na pasta" lembra que o cartão é referência.</li>
+  <li><b style="color:#1b1a17;">Cabeçalho do quadro</b> ganha "+ Adicionar"; resto igual: salvo · Compartilhar · ⋯ · zoom no canto.</li>
+</ul>
+</section>
+</x-dc>
+</body>
+</html>

@@ -119,6 +119,7 @@ Itens `{id, type, x, y, w, z}` (+ `h` p/ imagem, `html`, `file`, `url`); seleç�
 ## Files (tudo neste pacote)
 - `Trecos.dc.html` — protótipo navegável de referência. Os valores exatos estão no CSS inline e no objeto `THEMES` do script.
 - `IMPLEMENTACAO.md` — guia pro dev: ordem das etapas, bloco `:root` pronto, critérios de aceite.
+- `SIDEBAR-V3.md` — redesign da sidebar (trilho + painel), modelo de seleção, Recentes, lixeira e o estilo v3 do quadro; protótipos `Sidebar v3 - final.dc.html`, `Trecos v3 - completo.dc.html` e o `Trecos.dc.html` atualizado (`support.js` é o runtime dos protótipos).
 - A spec funcional completa é o `trecos-prompt.md` na raiz do repo; o briefing de design da v2 é `docs/design/BRIEFING-TRECOS.md`.
 - `MICROCOPY.md` — todos os textos em pt-BR e EN, pra colar no `i18n.js`.
 - `icons/` — os 8 ícones existentes do repo + os novos: `enquadrar.svg` (24×24), `link.svg` e os 9 `arquivo-*.svg` (32×32, folha com canto dobrado + detalhe por família; a etiqueta PDF/ZIP é texto do app, fora do SVG).

@@ -1,6 +1,5 @@
 import { normalize } from './list.js'
 
-const UNDO_DELAY = 5000
 const listingKey = 'trecos.listing'
 const lastKey = 'trecos.last'
 const FIRST_TEXT = JSON.stringify([{ id: 'first000', type: 'text', x: 0, y: 0, z: 1, w: 640, html: '' }])
@@ -10,7 +9,7 @@ export function labelOf(entry) {
 }
 
 export function entriesOf(listing) {
-  const folders = listing.folders.map((folder) => ({ kind: 'folder', id: folder.id, name: labelOf(folder), title: folder.title, pinned: folder.pinned, updated: folder.updated, cover: folder.cover }))
+  const folders = listing.folders.map((folder) => ({ kind: 'folder', id: folder.id, name: labelOf(folder), title: folder.title, pinned: folder.pinned, updated: folder.updated, cover: folder.cover, count: folder.count || 0 }))
   const docs = listing.docs.map((doc) => ({ kind: 'doc', id: doc.id, name: doc.name, updated: doc.updated, revision: doc.revision }))
   const files = listing.files.map((file) => ({ kind: 'file', id: file.id, name: file.name, size: file.size, fileKind: file.kind, updated: file.updated }))
   return [...folders, ...docs, ...files]
@@ -61,7 +60,6 @@ export function writeCachedListing(storage, id, listing) {
 
 export function createResources({ api, translate, showToast }) {
   const cache = new Map()
-  const pendingDeletes = new Map()
 
   const listing = async (id, { fresh = false } = {}) => {
     if (!fresh && cache.has(id)) return cache.get(id)
@@ -112,41 +110,43 @@ export function createResources({ api, translate, showToast }) {
     return api.deleteFile(entry.id)
   }
 
-  const commit = async (entry, folder, onCommit) => {
-    pendingDeletes.delete(entry.id)
-    try {
-      await deleteNow(entry)
-      invalidate(folder)
-      onCommit()
-    } catch {
-      showToast(translate('saveFailed'))
-    }
+  const restore = async (entry, folder) => {
+    const result = await api.restore(entry.kind, entry.id)
+    invalidate(folder, result.home)
+    return result.home
   }
 
-  const remove = (entry, folder, { onUndo, onCommit }) => {
+  const remove = async (entries, folder, { onUndo }) => {
+    const done = []
+    for (const entry of entries) {
+      try {
+        await api.trash(entry.kind, entry.id)
+        done.push(entry)
+      } catch {
+        showToast(translate('saveFailed'))
+      }
+    }
     invalidate(folder)
-    const timeout = setTimeout(() => commit(entry, folder, onCommit), UNDO_DELAY)
-    pendingDeletes.set(entry.id, { timeout, entry, folder, onCommit })
-    showToast(translate(entry.kind === 'folder' ? 'folderDeleted' : entry.kind === 'doc' ? 'docDeleted' : 'fileDeleted'), {
+    if (done.length === 0) return done
+    showToast(translate('movedToTrash'), {
       label: translate('undo'),
-      run: () => {
-        const pending = pendingDeletes.get(entry.id)
-        if (!pending) return
-        clearTimeout(pending.timeout)
-        pendingDeletes.delete(entry.id)
-        invalidate(folder)
+      run: async () => {
+        try {
+          for (const entry of done) await restore(entry, folder)
+        } catch {
+          showToast(translate('saveFailed'))
+        }
         onUndo()
       }
     })
+    return done
   }
 
-  const isPendingDelete = (id) => pendingDeletes.has(id)
+  const trashList = () => api.listTrash()
 
-  const commitDeletes = async () => {
-    for (const pending of [...pendingDeletes.values()]) {
-      clearTimeout(pending.timeout)
-      await commit(pending.entry, pending.folder, pending.onCommit)
-    }
+  const emptyTrash = async () => {
+    await api.emptyTrash()
+    cache.clear()
   }
 
   const upload = async (folder, file, onProgress = () => {}) => {
@@ -171,9 +171,7 @@ export function createResources({ api, translate, showToast }) {
 
   const reset = () => {
     cache.clear()
-    for (const pending of pendingDeletes.values()) clearTimeout(pending.timeout)
-    pendingDeletes.clear()
   }
 
-  return { listing, invalidate, createFolder, createDoc, rename, move, pin, remove, isPendingDelete, commitDeletes, deleteNow, upload, duplicate, reset, hasPendingDeletes: () => pendingDeletes.size > 0 }
+  return { listing, invalidate, createFolder, createDoc, rename, move, pin, remove, restore, deleteNow, trashList, emptyTrash, upload, duplicate, reset }
 }

@@ -19,6 +19,13 @@ export function initMenu({ button, menu, translate, settings, actions, onChange 
   const render = () => {
     menu.replaceChildren()
     for (const action of actions) {
+      if (action.note) {
+        const note = document.createElement('p')
+        note.className = 'menu-hint'
+        note.textContent = action.note()
+        menu.append(note)
+        continue
+      }
       const item = document.createElement('button')
       item.type = 'button'
       item.className = action.danger ? 'menu-item danger' : 'menu-item'
@@ -29,7 +36,7 @@ export function initMenu({ button, menu, translate, settings, actions, onChange 
       })
       menu.append(item)
     }
-    for (const key of MENU_SETTINGS) {
+    for (const key of settings ? MENU_SETTINGS : []) {
       const row = document.createElement('div')
       row.className = 'menu-row'
       const label = document.createElement('span')

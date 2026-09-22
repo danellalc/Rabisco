@@ -11,6 +11,7 @@ const NUDGE = 8
 const NUDGE_LARGE = 40
 const DUPLICATE_OFFSET = 24
 const NEW_TEXT_WIDTH = 320
+const NOTE_WIDTH = 200
 const IMAGE_MAX_WIDTH = 640
 const EDGE = 40
 const EDGE_STEP = 16
@@ -33,6 +34,11 @@ export function cleanItems(raw) {
       clean.src = safeImageSource(String(clean.src || ''), true)
       if (Number(clean.h) > 0) clean.h = Number(clean.h)
       else delete clean.h
+      if (typeof clean.file !== 'string' || clean.file === '') {
+        delete clean.file
+        delete clean.name
+        delete clean.size
+      }
     }
     if (clean.type === 'text') {
       clean.html = String(clean.html || '')
@@ -59,7 +65,7 @@ export function parseClipboard(text) {
   }
 }
 
-export function createBoard({ area, layer, lasso, guides, message, translate, language, boardId, onChange, beforeChange, onCamera, onOpenImage, onOpenItem, onItemMenu, onContextMenu, onImageInserted, onFileInserted, onFileCopy, onMediaLink, onRenameFile }) {
+export function createBoard({ area, layer, lasso, guides, message, translate, language, boardId, metaOf, onChange, beforeChange, onCamera, onSelection = () => {}, onOpenImage, onOpenItem, onItemMenu, onContextMenu, onImageInserted, onFileInserted, onFileCopy, onMediaLink, onRenameFile }) {
   let items = []
   const elements = new Map()
   let camera = { zoom: 1, x: 24, y: 24 }
@@ -76,7 +82,7 @@ export function createBoard({ area, layer, lasso, guides, message, translate, la
 
   const itemOf = (id) => items.find((item) => item.id === id)
   const noteOf = (id) => elements.get(id).querySelector('.note')
-  const cards = createFileCards({ elements, itemOf, translate, language, onMediaLink, onRenameFile, onChange })
+  const cards = createFileCards({ elements, itemOf, translate, language, metaOf, onMediaLink, onRenameFile, onChange })
   const host = {
     layer: area,
     area,
@@ -165,6 +171,23 @@ export function createBoard({ area, layer, lasso, guides, message, translate, la
       else undecorate(element)
     }
     selection = next
+    onSelection([...next])
+  }
+
+  const imageNote = (item) => {
+    const element = elements.get(item.id)
+    let note = element.querySelector('.image-note')
+    const text = item.file ? metaOf(item) : ''
+    if (!text) {
+      if (note) note.remove()
+      return
+    }
+    if (!note) {
+      note = document.createElement('span')
+      note.className = 'image-note'
+      element.append(note)
+    }
+    note.textContent = text
   }
 
   const build = (item) => {
@@ -191,6 +214,8 @@ export function createBoard({ area, layer, lasso, guides, message, translate, la
       }
       img.src = item.src
       element.append(img)
+      elements.set(item.id, element)
+      imageNote(item)
     } else if (item.type === 'link') {
       element.href = item.url
       element.target = '_blank'
@@ -279,7 +304,7 @@ export function createBoard({ area, layer, lasso, guides, message, translate, la
 
   const addText = (point, html = '', color = '') => {
     beforeChange()
-    const item = { id: newId(), type: 'text', ...place(point), w: NEW_TEXT_WIDTH, html }
+    const item = { id: newId(), type: 'text', ...place(point), w: TEXT_COLORS.includes(color) ? NOTE_WIDTH : NEW_TEXT_WIDTH, html }
     if (TEXT_COLORS.includes(color)) item.color = color
     addItem(item)
     onChange()
@@ -383,6 +408,24 @@ export function createBoard({ area, layer, lasso, guides, message, translate, la
   }
 
   const referenceIds = (kind, id) => items.filter((item) => item.type === kind && item[kind] === id).map((item) => item.id)
+
+  const linkImage = (id, record) => {
+    const item = itemOf(id)
+    if (!item || item.type !== 'image') return
+    beforeChange()
+    item.file = record.id
+    item.name = record.name
+    item.size = record.size
+    imageNote(item)
+    onChange()
+  }
+
+  const refreshCards = () => {
+    for (const item of items) {
+      if (item.type === 'image') imageNote(item)
+      else if (REFERENCE_TYPES.includes(item.type)) cards.refresh(item)
+    }
+  }
 
   const renameReferences = (kind, id, name) => {
     for (const item of items) {
@@ -1016,6 +1059,8 @@ export function createBoard({ area, layer, lasso, guides, message, translate, la
     frameSize: FRAME_SIZE,
     referenceIds,
     renameReferences,
+    linkImage,
+    refreshCards,
     setColor,
     setFileProgress: cards.setProgress,
     setFileRecord: cards.setRecord,

@@ -19,13 +19,13 @@
 <body>
 <section class="login" id="login">
 <form class="login-form" id="email-form">
-<p class="login-title"><svg class="brand-mark" viewBox="92 156 376 204" width="44" height="24" aria-hidden="true"><path d="M112 344c44-112 82-172 116-166 36 6-36 148 6 160 40 12 66-138 108-140 40-2-8 118 30 130 32 10 60-44 76-64"/></svg>Trecos</p>
+<p class="login-title"><svg class="brand-mark" viewBox="0 0 24 24" width="32" height="32" aria-hidden="true"><path d="M3 15.5c1.8-6 3.6-6 4.7 0s3 6 4.6 0 3-6 4.7 0 2 4.5 4 3"/></svg>Trecos</p>
 <input class="field" id="email" type="email" required autocomplete="email" placeholder="you@example.com" data-i18n-input="emailPlaceholder">
 <p class="login-error" id="email-error" hidden></p>
 <button class="primary" type="submit" data-i18n="getCode">Get a code</button>
 </form>
 <form class="login-form" id="code-form" hidden>
-<p class="login-title"><svg class="brand-mark" viewBox="92 156 376 204" width="44" height="24" aria-hidden="true"><path d="M112 344c44-112 82-172 116-166 36 6-36 148 6 160 40 12 66-138 108-140 40-2-8 118 30 130 32 10 60-44 76-64"/></svg>Trecos</p>
+<p class="login-title"><svg class="brand-mark" viewBox="0 0 24 24" width="32" height="32" aria-hidden="true"><path d="M3 15.5c1.8-6 3.6-6 4.7 0s3 6 4.6 0 3-6 4.7 0 2 4.5 4 3"/></svg>Trecos</p>
 <p class="login-note" id="code-note"></p>
 <input class="field" id="code" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="6" required placeholder="6-digit code" data-i18n-input="codePlaceholder">
 <p class="login-error" id="code-error" hidden></p>
@@ -36,30 +36,53 @@
 </section>
 <div class="app" id="app">
 <aside class="list" id="list">
-<div class="brand">
-<svg class="brand-mark" viewBox="92 156 376 204" width="30" height="16" aria-hidden="true"><path d="M112 344c44-112 82-172 116-166 36 6-36 148 6 160 40 12 66-138 108-140 40-2-8 118 30 130 32 10 60-44 76-64"/></svg>
-<span class="brand-name">Trecos</span>
-<button class="search-open" id="search-open" type="button"><span data-i18n="searchAll">Search</span><kbd>Ctrl K</kbd></button>
+<nav class="rail" aria-label="Trecos">
+<svg class="brand-mark" viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M3 15.5c1.8-6 3.6-6 4.7 0s3 6 4.6 0 3-6 4.7 0 2 4.5 4 3"/></svg>
+<button class="rail-item" id="rail-drive" type="button" aria-current="true" title="My Drive" aria-label="My Drive" data-i18n-title="myDrive" data-i18n-label="myDrive"><svg width="19" height="19" viewBox="0 0 24 24"><path d="M3 19V7a2 2 0 0 1 2-2h4l2 2.5h8a2 2 0 0 1 2 2V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2Z"/></svg></button>
+<button class="rail-item" id="rail-recent" type="button" title="Recent" aria-label="Recent" data-i18n-title="recent" data-i18n-label="recent"><svg width="19" height="19" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/></svg></button>
+<button class="rail-item" id="search-open" type="button" title="Search · Ctrl K" aria-label="Search" data-i18n-title="searchTitle" data-i18n-label="searchAll"><svg width="19" height="19" viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"/><path d="M15.8 15.8L20 20"/></svg></button>
+<span class="rail-gap"></span>
+<button class="rail-item" id="rail-trash" type="button" title="Trash" aria-label="Trash" data-i18n-title="trash" data-i18n-label="trash"><svg width="19" height="19" viewBox="0 0 24 24"><path d="M5 7h14 M9.5 7V5h5v2 M7 7l1 13h8l1-13 M10.5 11v5 M13.5 11v5"/></svg></button>
+<button class="avatar" id="avatar" type="button" aria-label="Account" data-i18n-label="account" aria-controls="account-menu"></button>
+<div class="menu account-menu" id="account-menu" hidden></div>
+</nav>
+<div class="panel">
+<section class="panel-view" id="folder-view">
+<div class="panel-head" id="folder-head">
+<div class="crumb-line" id="crumb-line"><button class="up" id="up" type="button" aria-label="Up one level" data-i18n-label="upLevel">←</button><span class="crumbs" id="crumbs"></span></div>
+<p class="panel-title" id="panel-title"></p>
+<p class="panel-meta" id="panel-meta"></p>
+<div class="panel-actions">
+<button class="new-button" id="new" type="button" data-i18n="newMenu" aria-controls="new-menu">+ New</button>
+<button class="text-link" id="upload" type="button" data-i18n="uploadShort">Upload files</button>
 </div>
-<div class="place">
-<button class="up" id="up" type="button" aria-label="Up one level" data-i18n-label="upLevel" hidden><svg width="18" height="18" viewBox="0 0 24 24"><path d="M20 12H4M11 19l-7-7 7-7"/></svg></button>
-<nav class="crumbs" id="crumbs" aria-label="Folders"></nav>
+<div class="select-bar" id="select-bar" hidden>
+<p class="select-line"><span id="select-count"></span><button class="text-link small" id="select-clear" type="button" data-i18n="clearSelection">clear</button></p>
+<div class="panel-actions">
+<button class="text-link" id="select-share" type="button" data-i18n="share">Share</button>
+<button class="text-link" id="select-move" type="button" data-i18n="move">Move</button>
+<button class="text-link" id="select-download" type="button" data-i18n="download">Download</button>
+<button class="text-link danger" id="select-delete" type="button" data-i18n="delete">Delete</button>
 </div>
-<div class="actions">
-<button class="action" id="new-folder" type="button" data-i18n="newFolderShort">+ Folder</button>
-<button class="action" id="new-doc" type="button" data-i18n="newDocShort">+ Document</button>
-<button class="action" id="upload" type="button" data-i18n="uploadShort">Upload</button>
 </div>
-<input class="search" id="search" type="search" placeholder="Filter this folder" aria-label="Filter this folder" data-i18n-input="search" data-i18n-label="search">
+</div>
+<div class="filter-wrap"><input class="filter" id="search" type="search" placeholder="Filter this folder" aria-label="Filter this folder" data-i18n-input="search" data-i18n-label="search"></div>
 <div class="rows" id="rows"></div>
-<p class="list-hint" data-i18n="listHint">Double click opens · right click shows options</p>
-<div class="list-foot">
-<div class="list-foot-row">
-<span class="meta" id="me"></span>
-<button class="text-link" id="sign-out" type="button" data-i18n="signOut">Sign out</button>
-</div>
+<div class="panel-foot">
+<p class="board-line" id="board-line" hidden><span id="board-summary"></span><button class="text-link small" id="fit-link" type="button" data-i18n="fitView">fit view</button></p>
 <span class="quota-bar"><span class="quota-fill" id="quota-fill"></span></span>
 <span class="quota" id="quota"></span>
+</div>
+</section>
+<div class="menu new-menu" id="new-menu" hidden></div>
+<section class="panel-view" id="side-view" hidden>
+<div class="panel-head">
+<p class="panel-title" id="view-title"></p>
+<p class="panel-meta" id="view-sub"></p>
+<div class="panel-actions" id="view-actions"></div>
+</div>
+<div class="rows" id="view-rows"></div>
+</section>
 </div>
 <input type="file" id="file-input" multiple hidden>
 <input type="file" id="image-input" accept="image/*" multiple hidden>
@@ -71,9 +94,8 @@
 <svg class="icon-sidebar" width="20" height="20" viewBox="0 0 24 24"><path d="M4 5h16v14H4z M9 5v14"/></svg>
 </button>
 <span class="pane-title" id="pane-title"></span>
-<span class="pane-kind" id="pane-kind"></span>
 <span class="save-state" id="save-state"></span>
-<button class="text-button" id="add" type="button" data-i18n="addMenu" aria-controls="add-menu">Add</button>
+<button class="text-button add-button" id="add" type="button" data-i18n="addMenu" aria-controls="add-menu">+ Add</button>
 <button class="text-button" id="share" type="button" data-i18n="share" aria-controls="share-panel">Share</button>
 <button class="icon-button more-button" id="menu" type="button" aria-label="More" data-i18n-label="more" aria-controls="menu-panel">⋯</button>
 <div class="menu" id="add-menu" hidden></div>
@@ -133,7 +155,6 @@
 <button type="button" id="zoom-in" aria-label="Zoom in" data-i18n-label="zoomIn">+</button>
 <button type="button" id="fit" aria-label="Fit all" data-i18n-label="fit"><svg width="20" height="20" viewBox="0 0 24 24"><path d="M4 9V6a2 2 0 0 1 2-2h3M15 4h3a2 2 0 0 1 2 2v3M20 15v3a2 2 0 0 1-2 2h-3M9 20H6a2 2 0 0 1-2-2v-3"/></svg></button>
 </div>
-<div class="menu item-menu" id="item-menu" hidden></div>
 <div class="menu slash-menu" id="slash-menu" hidden></div>
 </main>
 <section class="download-page" id="download-page" hidden>
@@ -157,6 +178,7 @@
 <div class="palette-rows" id="palette-rows"></div>
 </div>
 <div class="menu picker" id="picker" hidden></div>
+<div class="menu item-menu" id="item-menu" hidden></div>
 <div class="toast" id="toast" hidden></div>
 <div class="chooser" id="paste-choice" hidden></div>
 <dialog class="lightbox" id="lightbox">
