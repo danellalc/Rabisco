@@ -249,9 +249,143 @@ Depois de testar a v2, a ideia cresceu: Trecos é um **Google Drive + editor de 
 - **Exportar um texto**: botão direito num bloco de texto, "Exportar…", e sai .md, .html (página completa, sem dependências), .docx (Word, com títulos, negrito, listas, checklist, citação, código, links e tabelas; imagens ficam de fora) e .txt, além de "Imprimir ou salvar em PDF", que imprime só aquele bloco (o PDF sai pela impressão do navegador). O menu ⋯ do quadro e do documento ganhou .html e .docx também.
 - **Ferramentas de ponteiro**, como no Miro: barra vertical à esquerda do quadro com Selecionar (V, seta), Mão (H, arrasta o quadro; segurar Espaço faz o mesmo), Texto (T, cursor de texto: um clique escreve, clicar num texto edita), Nota (N, um clique põe uma nota adesiva) e Moldura (F, arrastar desenha a moldura). Depois de colocar algo a ferramenta volta pra Selecionar; Esc também volta. Some no celular, no documento, na raiz e pra quem só vê.
 
+## Investigação de produto (21/09/2026): tudo isto entra
+
+Decisão do dono: **vamos fazer tudo que está aqui**. Este é o backlog de produto, escrito olhando o app como quem chega sem saber nada, e comparando com Google Drive, Miro, Milanote, Heptabase, Kosmik e Freeform. O que já foi feito sai desta lista quando entra.
+
+### Para quem é e o que promete
+
+- Pessoa: quem organiza projetos com arquivos, textos e referências visuais (freelancer, estudante, dupla pequena), no Brasil, sem paciência pra ferramenta pesada. Quer o Drive pra guardar e o quadro pra pensar, sem trocar de app.
+- Promessa numa frase (falta em todo lugar: login, landing, e-mail): "Trecos: cada pasta é um quadro. Guarde arquivos, escreva e organize tudo num lugar leve."
+- Conceitos que a interface precisa nomear sempre: pasta (= quadro), documento, arquivo, cartão (uma referência no quadro; tirar do quadro não apaga), moldura, nota.
+
+### Jornadas e onde quebram
+
+1. **Primeiro acesso**: e-mail, código, cai numa pasta "Meu primeiro quadro" com um bloco em branco. Ninguém disse o que é o produto, o que é a lista à esquerda, por que a pasta tem um quadro. Quebra: sem promessa, sem exemplo, sem tour. Corrigir com: login com a frase do produto, primeira pasta já com um quadro de exemplo (texto explicando, uma nota, uma moldura, um arquivo de exemplo), três dicas curtas no canvas na primeira vez, legenda "Quadro da pasta X" no canvas.
+2. **Organizar um projeto no dia a dia**: criar pastas, subir arquivos, escrever. Quebra: URL não muda (não dá pra favoritar nem voltar), caminho só com o pai, lista sem miniatura, upload sem progresso, sem loading em conexão lenta (clicar numa pasta parece não fazer nada), ordenar escondido, sem pesquisar dentro do quadro (Ctrl F), sem "duplicar pasta", sem pastas modelo.
+3. **Compartilhar com um cliente**: link só ver de pasta, seleção, moldura, documento ou arquivo. Quebra: o link da pasta mostra só o canvas, não a lista de arquivos (quem recebe não consegue baixar o que não está no quadro); links sem título nem prévia; não existe uma tela "tudo que eu compartilhei"; não dá pra compartilhar com uma pessoa por e-mail.
+4. **Trabalhar em dupla**: "pode editar" sem presença nem cursores; dois editando ao mesmo tempo caem em "editado em outro lugar". Quebra: promete colaboração e entrega revezamento. Sem comentários, sem "quem mexeu".
+5. **Voltar depois de um mês**: recentes só no navegador de antes; sem histórico de versões; sem atividade. Quebra: medo de ter perdido algo, sem rastro.
+6. **Celular**: lista ok, quadro só pra ver e mover. Quebra: criar texto é duplo toque, sem ferramentas, sem seleção múltipla, menus por toque longo sem dica. Capturar do celular (foto, print) direto pra uma pasta é o uso mais natural e não existe além do share target do Android.
+
+### Lacunas por área
+
+**Conceito e onboarding**
+- Legenda do canvas ("Quadro da pasta X") e nome do que está aberto também no desktop.
+- Primeiro acesso com pasta de exemplo pronta e três dicas na tela (só na primeira vez, some ao interagir).
+- Um só verbo de apagar: "Tirar do quadro" (cartão) vs "Apagar" (recurso), com o aviso explicando o que acontece; confirmar quando apagar um recurso que está no quadro.
+- Imagem no quadro vira arquivo da pasta sempre (uma regra só). Print colado aparece na lista. "Salvar no Drive"/"Mostrar como cartão" deixam de existir; sobra "Mostrar como imagem" e "Mostrar como cartão".
+- Tela de login e landing dizendo o que é o produto, com prints.
+- Assunto e texto do e-mail de código com a marca Trecos.
+- Página "?" com atalhos, e dicas de atalho nos menus.
+
+**Navegação**
+- URL por pasta e por documento (`/f/{id}`, `/d/{id}`), Voltar e Avançar do navegador, favoritos.
+- Caminho completo (clicável) no cabeçalho do painel, com reticências no meio quando não cabe.
+- Visão em árvore opcional na lateral (expandir subpastas no lugar).
+- Ctrl F dentro do quadro: acha texto nos blocos, notas e nomes de cartão e enquadra.
+- Ctrl K: mostrar o trecho onde a palavra aparece, filtro por tipo, ir direto ao item no quadro.
+- Abrir pasta em nova aba (clique do meio, Ctrl clique).
+- Fixar também documentos e arquivos; seção "Fixados" no trilho.
+- Indicador de carregamento discreto (barra de 2 px no topo do painel) em qualquer espera acima de 300 ms.
+
+**Quadro**
+- Setas e conectores entre itens (reto e com cotovelo, ponta opcional, rótulo de texto, acompanham o item ao mover, somem com ele).
+- Formas simples: retângulo, elipse, linha (traço fino, sem preenchimento, na identidade).
+- Modo apresentação: passar de moldura em moldura em tela cheia, ordem das molduras editável, teclas.
+- Alinhar e distribuir a seleção (esquerda, centro, direita, topo, meio, base, espaçar), além do "arrumar" que já existe.
+- Travar item (não move nem apaga até destravar).
+- Notas adesivas: mais cores (6), altura que cresce com o texto, largura ajustável, texto maior automático em nota curta.
+- Texto: alinhamento, tamanho de fonte (pequeno, normal, grande), lista dentro de nota.
+- Minimapa opcional no canto e indicador "N itens fora da tela" com setas.
+- Duplicar pasta (com quadro, documentos e arquivos).
+- Trocar cor de várias notas de uma vez, copiar estilo.
+- Ordem z explícita (trazer pra frente e mandar pra trás já existem; falta "um passo").
+- Colar link com título editável e favicon local (sem buscar na rede); cartão de link com nome.
+- Imagem: recortar, girar, compressão escolhida no upload (qualidade); mostrar tamanho.
+- Cartão de arquivo com miniatura quando for imagem, primeira página quando for PDF (gerada no cliente).
+- Limites visíveis: aviso ao chegar perto de 2000 itens; sugerir mover pra subpasta.
+
+**Drive (lateral)**
+- Miniaturas na lista para imagens e vídeos; visualização em grade.
+- Ordenar por nome, data, tamanho, tipo, com a escolha visível no cabeçalho.
+- Upload com lista de envios (progresso por arquivo, cancelar, tentar de novo), arrastar uma pasta inteira do computador (cria a subpasta).
+- Prévia rápida (Espaço) de imagem, PDF, vídeo e áudio sem sair da lista.
+- Desfazer para renomear e mover.
+- Detalhes completos: criado, modificado, tamanho, onde está, em quais quadros está como cartão, links ativos.
+- Página de espaço: maiores arquivos, lixeira, o que dá pra limpar.
+- Recentes na conta (servidor), não só no navegador; "Compartilhados comigo" quando existir compartilhamento por pessoa.
+- Substituir arquivo mantendo o cartão e os links (nova versão).
+- Renomear várias, mover várias já existe; "selecionar tudo" na lista (Ctrl A).
+- Duplicar pasta.
+
+**Documento**
+- Sumário lateral pelos títulos, contagem de palavras, H3.
+- Tabela pelo menu "/" (inserir, linha, coluna).
+- Imagem no .docx e no PDF.
+- Link entre documentos e pastas por "@" e cartão de documento dentro do texto.
+- Modelos de documento (ata, briefing, proposta).
+- Histórico de versões com restaurar.
+
+**Compartilhar e colaborar**
+- Link de pasta mostra a lista de arquivos e documentos além do quadro (só ver, baixar permitido).
+- Compartilhar com pessoa por e-mail (ver ou editar), "Compartilhados comigo" no trilho, remover acesso.
+- Tela "Meus links" com tudo que está compartilhado na conta, por onde e até quando.
+- Colaboração ao vivo pelo realtime do PocketBase (SSE, sem dependência): mudanças de item chegam sem recarregar, presença (quem está no quadro) e cursores com nome, mescla por item em vez de "editado em outro lugar".
+- Comentários em item e em documento, com resolver.
+- Atividade: quem fez o quê e quando, por pasta.
+- Prévia do link com título e imagem de capa (og tags na página compartilhada).
+
+**Confiança e histórico**
+- Histórico de versões do quadro e do documento (automático a cada X minutos e ao fechar), restaurar, comparar.
+- Indicador de estado mais claro: salvo, salvando, offline com fila, erro com "tentar de novo".
+- Modo offline explicado: o que funciona sem rede.
+
+**Celular**
+- Barra de ferramentas própria embaixo (texto, nota, foto da câmera, arquivo).
+- Toque longo com dica visual; seleção múltipla por toque longo e "selecionar".
+- Capturar: botão "+" fixo que abre câmera ou galeria direto pra pasta atual.
+- Gestos: pinça já existe; dois dedos pra mover já existe; toque duplo pra enquadrar.
+- Compartilhar do iOS: instrução de instalar como app e usar o atalho; share target já cobre Android.
+
+**Conta e negócio**
+- Configurações: trocar e-mail (com código), tema, idioma opcional, apagar a conta (com prazo de 7 dias e e-mail), exportar tudo (zip com pastas, quadros em md e html, documentos, arquivos).
+- Plano e cobrança: página de preços em reais, Pix e cartão, upgrade e downgrade, nota fiscal simples, aviso ao chegar em 80% e 100% da cota.
+- Landing page com prints, três frases e o botão de entrar; página de privacidade e termos.
+- E-mails: boas-vindas com as três dicas, cota cheia, link expirando, resumo semanal opcional.
+- Feedback dentro do app ("Enviar sugestão") e página de novidades.
+
+**Performance e limites**
+- Listagem paginada acima de 500 itens; índice de busca em pedaços e em cache com data.
+- Quadro com muitos itens: só desenhar o que está na tela (virtualização por retângulo visível).
+- Peso: com 69,6 KB de 72 gzip, cada bloco novo precisa vir com enxugar algo (dividir em módulos carregados sob demanda: docx, zip, apresentação, importar).
+
+**Acessibilidade**
+- Navegar itens do quadro por Tab e setas com anúncio de nome e tipo; papel e nome em cada item; atalhos com letras reveladas em "?"; contraste conferido no tema escuro.
+
+### O que copiar de quem
+
+- Milanote: quadros dentro de quadros com miniatura, colunas, cartão de link com título, exportar quadro em PDF e imagem, modelos.
+- Heptabase: um cartão pode estar em vários quadros e o cartão sabe onde está ("em quais quadros"), backlinks.
+- Kosmik: capturar da web e do computador direto pra pasta, prévia rápida.
+- Freeform: conectores que seguem o item, guias de alinhamento, formas simples, caneta.
+- Miro: molduras com apresentação, cursores com nome, comentários com resolver, "?" de atalhos, travar.
+- Google Drive: URL por pasta, miniaturas, prévia com Espaço, "compartilhados comigo", atividade, versões de arquivo, arrastar pasta inteira.
+
+### Ordem proposta (cada fase com teste, peso e bateria)
+
+1. **Entender e navegar**: URLs e Voltar, caminho completo, legenda do canvas, primeira pasta de exemplo com dicas, login e e-mail com a marca, "?" de atalhos, indicador de carregamento, um só verbo de apagar, imagem sempre arquivo.
+2. **Drive de verdade**: miniaturas e grade, upload com lista e pasta inteira, ordenar visível, prévia com Espaço, desfazer de renomear e mover, detalhes completos, duplicar pasta, Ctrl F no quadro, Ctrl A na lista.
+3. **Quadro completo**: setas e conectores, formas, alinhar e distribuir, travar, notas com mais cores e altura livre, tamanho de fonte, minimapa, apresentação por molduras, miniaturas nos cartões.
+4. **Conta e negócio**: configurações, apagar conta, exportar tudo, preços com Pix e cartão, landing, termos, e-mails.
+5. **Compartilhar melhor**: link de pasta com lista, "Meus links", compartilhar por e-mail, "Compartilhados comigo", prévia do link.
+6. **Colaborar**: realtime, presença e cursores, comentários, atividade, histórico de versões.
+7. **Celular**: barra própria, captura, toque longo, seleção múltipla.
+8. **Escala**: paginação, busca em cache, virtualização do quadro, módulos sob demanda.
+
 ## Fora do escopo (continua)
 
-Tags, templates, colaboração em tempo real, preview de site em link, visualizador de PDF próprio, comentários, versões, app nativo, integrações, login com Google ou senha, conectores, formas, agrupar, camadas, minimapa, OCR.
+Tags, visualizador de PDF próprio, app nativo, integrações, login com Google ou senha, camadas, OCR. (Templates, colaboração em tempo real, comentários, versões, conectores, formas, minimapa e prévia de link saíram daqui em 21/09/2026 e entraram no backlog acima.)
 
 ## Como trabalhar na v3
 
