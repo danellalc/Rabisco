@@ -8,7 +8,7 @@ Vanilla HTML, CSS and JavaScript served by PocketBase. No frameworks and nothing
 
 ## Status
 
-Version 3 is built: a sidebar made of a rail (My Drive, Recent, Search, Trash, account) and a panel with the folder head, one list of folders, documents and files, a selection bar and the board summary; one click opens, checkboxes select, right click menus, F2, Enter, Delete, drag and drop between the explorer, the board and the desktop; image resize with eight handles, quotes, code and a slash menu in every text, previews by file type, sharing of folders, selections, frames, documents and files, Ctrl+K with commands, recents kept in the browser and a trash that keeps deleted things for 30 days. Weight of the built app: 65 KB gzip.
+Version 3 is built: a sidebar made of a rail (My Drive, Recent, Search, Trash, account) and a panel with the folder head, one list of folders, documents and files, a selection bar and the board summary; one click opens, checkboxes select, right click menus, F2, Enter, Delete, drag and drop between the explorer, the board and the desktop; image resize with eight handles, quotes, code and a slash menu in every text, previews by file type, sharing of folders, selections, frames, documents and files, Ctrl+K with commands, recents kept in the browser, a trash that keeps deleted things for 30 days, pointer tools (select, hand, text, sticky note, frame), a native video player on cards, and export of any text or document to Markdown, HTML, Word and PDF. Weight of the built app: 70 KB gzip.
 
 ## Roadmap
 

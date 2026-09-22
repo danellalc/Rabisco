@@ -77,3 +77,52 @@ test('a list nested inside a heading is exported as a list', () => {
   const tree = root(h('h1', {}, h('ul', {}, h('li', {}, 'task'))))
   assert.equal(toMarkdown(tree, origin), '- task\n')
 })
+
+test('the html export is a standalone page that escapes text and keeps only safe attributes', async () => {
+  const { toHtml } = await import('../pb_public/js/export.js')
+  const tree = { tag: 'div', attrs: {}, children: [
+    { tag: 'h1', attrs: {}, children: ['Title & <co>'] },
+    { tag: 'div', attrs: { onclick: 'x()', class: 'hl1' }, children: ['Hello ', { tag: 'a', attrs: { href: 'https://x.test/?a=1&b=2', target: '_self' }, children: ['link'] }] },
+    { tag: 'img', attrs: { src: '/api/files/images/abc/def.webp', 'data-width': '50', style: 'color:red' }, children: [] }
+  ] }
+  const html = toHtml(tree, 'https://trecos.test', 'My & title', 'pt-BR')
+  assert.ok(html.startsWith('<!doctype html>\n<html lang="pt-BR">'))
+  assert.ok(html.includes('<title>My &amp; title</title>'))
+  assert.ok(html.includes('<h1>Title &amp; &lt;co&gt;</h1>'))
+  assert.ok(html.includes('<div class="hl1">Hello <a href="https://x.test/?a=1&amp;b=2" target="_blank" rel="noopener noreferrer">link</a></div>'))
+  assert.ok(html.includes('<img src="https://trecos.test/api/files/images/abc/def.webp" style="width:50%">'))
+  assert.ok(!html.includes('onclick'))
+  assert.ok(!html.includes('color:red'))
+})
+
+test('the docx export writes headings, runs, lists, links and tables into wordprocessingml', async () => {
+  const { toDocxXml, toDocx, escapeXml } = await import('../pb_public/js/docx.js')
+  const tree = { tag: 'div', attrs: {}, children: [
+    { tag: 'h1', attrs: {}, children: ['Title & co'] },
+    { tag: 'div', attrs: {}, children: ['Hello ', { tag: 'b', attrs: {}, children: ['bold'] }, ' ', { tag: 'a', attrs: { href: 'https://x.test/?a=1&b=2' }, children: ['link'] }, ' ', { tag: 'mark', attrs: { class: 'hl2' }, children: ['green'] }] },
+    { tag: 'ul', attrs: { class: 'ck' }, children: [{ tag: 'li', attrs: { class: 'on' }, children: ['done'] }, { tag: 'li', attrs: {}, children: ['todo', { tag: 'ol', attrs: {}, children: [{ tag: 'li', attrs: {}, children: ['nested'] }] }] }] },
+    { tag: 'blockquote', attrs: {}, children: [{ tag: 'div', attrs: {}, children: ['quoted'] }] },
+    { tag: 'pre', attrs: {}, children: ['a = 1\nb = 2'] },
+    { tag: 'hr', attrs: {}, children: [] },
+    { tag: 'table', attrs: {}, children: [{ tag: 'tbody', attrs: {}, children: [{ tag: 'tr', attrs: {}, children: [{ tag: 'td', attrs: {}, children: ['1'] }, { tag: 'td', attrs: {}, children: ['2'] }] }] }] }
+  ] }
+  const { document, rels } = toDocxXml(tree)
+  assert.ok(document.includes('<w:pStyle w:val="Heading1"/>'))
+  assert.ok(document.includes('<w:t xml:space="preserve">Title &amp; co</w:t>'))
+  assert.ok(document.includes('<w:rPr><w:b/></w:rPr><w:t xml:space="preserve">bold</w:t>'))
+  assert.ok(document.includes('<w:hyperlink r:id="rId10">'))
+  assert.ok(rels.includes('Id="rId10"') && rels.includes('Target="https://x.test/?a=1&amp;b=2"') && rels.includes('TargetMode="External"'))
+  assert.ok(document.includes('<w:highlight w:val="green"/>'))
+  assert.ok(document.includes('☑ ') && document.includes('☐ ') && document.includes('1. nested'.slice(0, 2)))
+  assert.ok(document.includes('<w:ind w:left="1440"/>'))
+  assert.ok(document.includes('<w:i/>') && document.includes('quoted'))
+  assert.ok(document.includes('<w:pStyle w:val="Code"/>') && document.includes('a = 1</w:t><w:br/><w:t xml:space="preserve">b = 2'))
+  assert.ok(document.includes('<w:pBdr>'))
+  assert.ok(document.includes('<w:tbl>') && document.includes('<w:tc>'))
+  assert.equal(escapeXml('a<b>&"\u0001'), 'a&lt;b&gt;&amp;&quot;')
+  const zip = new Uint8Array(await toDocx(tree).arrayBuffer())
+  assert.equal(zip[0], 0x50)
+  assert.equal(zip[1], 0x4b)
+  const text = new TextDecoder().decode(zip)
+  assert.ok(text.includes('[Content_Types].xml') && text.includes('word/document.xml') && text.includes('word/styles.xml'))
+})

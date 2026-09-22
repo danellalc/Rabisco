@@ -141,3 +141,29 @@ export function toMarkdown(tree, origin) {
 export function toText(tree, origin) {
   return `${blocks(tree.children, { markdown: false, origin }).join('\n')}\n`
 }
+
+const HTML_ATTRS = { a: ['href'], img: ['src', 'width', 'height'] }
+const HTML_STYLE = 'body{margin:0;background:#edebe7;color:#1b1a17;font:16px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}article{max-width:760px;margin:0 auto;padding:40px 24px}article>*{margin:0 0 16px}h1{font-size:32px}h2{font-size:21px}ul,ol{padding-left:1.3em}ul.ck{list-style:none;padding:0}ul.ck>li::before{content:"☐ "}ul.ck>li.on::before{content:"☑ "}ul.ck>li.on{opacity:.6}a{color:#33524d}blockquote{margin:0 0 16px;font-style:italic}pre{padding:12px;border-radius:4px;background:#e3e0da;font:13px/1.5 ui-monospace,Menlo,Consolas,monospace;white-space:pre-wrap}code{padding:0 .25em;border-radius:3px;background:#e3e0da;font:.9em ui-monospace,Menlo,Consolas,monospace}pre code{padding:0;background:none;font:inherit}hr{border:0;border-top:1px solid #d3d0c9}table{border-collapse:collapse;font-size:15px}td{border:1px solid #d3d0c9;padding:4px 8px;vertical-align:top}img{display:block;max-width:100%;height:auto;border-radius:4px}mark.hl1,.hl1{background:#d9c583}mark.hl2,.hl2{background:#a8bd9c}mark.hl3,.hl3{background:#d2a7a7}mark{color:inherit}.c1{color:#8e4a40}.c2{color:#4a637c}.c3{color:#605e57}'
+
+export function escapeHtml(text) {
+  return String(text).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
+}
+
+function htmlOf(node, origin) {
+  if (isText(node)) return escapeHtml(node)
+  const attrs = []
+  for (const name of HTML_ATTRS[node.tag] || []) {
+    const value = name === 'src' ? imageUrl(node, origin) : node.attrs[name]
+    if (value) attrs.push(` ${name}="${escapeHtml(value)}"`)
+  }
+  if (node.attrs.class) attrs.push(` class="${escapeHtml(node.attrs.class)}"`)
+  if (node.tag === 'img' && node.attrs['data-width']) attrs.push(` style="width:${escapeHtml(node.attrs['data-width'])}%"`)
+  if (node.tag === 'br' || node.tag === 'hr' || node.tag === 'img') return `<${node.tag}${attrs.join('')}>`
+  if (node.tag === 'a') attrs.push(' target="_blank" rel="noopener noreferrer"')
+  return `<${node.tag}${attrs.join('')}>${node.children.map((child) => htmlOf(child, origin)).join('')}</${node.tag}>`
+}
+
+export function toHtml(tree, origin, title, language = 'en') {
+  const body = tree.children.map((child) => htmlOf(child, origin)).join('\n')
+  return `<!doctype html>\n<html lang="${escapeHtml(language)}">\n<head>\n<meta charset="utf-8">\n<meta name="viewport" content="width=device-width, initial-scale=1">\n<title>${escapeHtml(title)}</title>\n<style>${HTML_STYLE}</style>\n</head>\n<body>\n<article>\n${body}\n</article>\n</body>\n</html>\n`
+}

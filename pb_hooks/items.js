@@ -9,6 +9,7 @@ const IMAGE_MIN_HEIGHT = 40
 const FRAME_MIN = 40
 const FRAME_MAX = 20000
 const FRAME_NAME_LIMIT = 80
+const CARD_MIN_WIDTH = 230
 const ID_PATTERN = /^[A-Za-z0-9_-]{4,16}$/
 const TEXT_COLORS = ['hl1', 'hl2', 'hl3']
 
@@ -88,7 +89,13 @@ const SHAPES = {
     if (name !== '') item.name = name
     return item
   },
-  file: (item, raw, tools) => withReference(item, raw, 'file', tools.fileInfo(String(raw.file || ''))),
+  file: (item, raw, tools) => {
+    const card = withReference(item, raw, 'file', tools.fileInfo(String(raw.file || '')))
+    if (card === null) return null
+    const w = finiteNumber(raw.w, CARD_MIN_WIDTH, MAX_WIDTH)
+    if (raw.w !== undefined && w !== null) card.w = w
+    return card
+  },
   doc: (item, raw, tools) => withReference(item, raw, 'doc', tools.docInfo(String(raw.doc || ''))),
   folder: (item, raw, tools) => withReference(item, raw, 'folder', tools.folderInfo(String(raw.folder || '')))
 }

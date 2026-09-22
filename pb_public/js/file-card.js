@@ -24,7 +24,7 @@ export const KIND_ICONS = {
   doc: `${SHEET} M11.5 14h9 M11.5 17.5h9 M11.5 21h5`
 }
 
-export function createFileCards({ elements, itemOf, translate, language, metaOf, onMediaLink, onRenameFile, onChange }) {
+export function createFileCards({ elements, itemOf, translate, language, metaOf, onMediaLink, onRenameFile, onChange, onPlayingChanged }) {
   let playing = null
 
   const fill = (element, item) => {
@@ -57,6 +57,7 @@ export function createFileCards({ elements, itemOf, translate, language, metaOf,
     refresh(item)
     media.pause()
     media.remove()
+    onPlayingChanged(item.id)
   }
 
   const togglePlay = async (item) => {
@@ -64,7 +65,6 @@ export function createFileCards({ elements, itemOf, translate, language, metaOf,
     if (playing && playing.item.id === item.id) {
       if (playing.media.paused) playing.media.play()
       else playing.media.pause()
-      element.querySelector('.play').textContent = playing.media.paused ? PLAY : PAUSE
       return
     }
     stopPlaying()
@@ -78,17 +78,17 @@ export function createFileCards({ elements, itemOf, translate, language, metaOf,
     })
     media.addEventListener('ended', stopPlaying)
     media.addEventListener('error', stopPlaying)
+    media.addEventListener('play', () => { element.querySelector('.play').textContent = PAUSE })
+    media.addEventListener('pause', () => { element.querySelector('.play').textContent = PLAY })
     if (item.kind === 'video') {
+      media.controls = true
       element.classList.add('playing')
-      media.addEventListener('click', () => togglePlay(item))
+      onPlayingChanged(item.id)
     }
     element.append(media)
     try {
       media.src = await onMediaLink(item)
-      if (playing && playing.media === media) {
-        await media.play()
-        element.querySelector('.play').textContent = PAUSE
-      }
+      if (playing && playing.media === media) await media.play()
     } catch {
       if (playing && playing.media === media) stopPlaying()
     }

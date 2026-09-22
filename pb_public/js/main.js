@@ -8,7 +8,8 @@ import { createChooser, createPopover, createToast } from './dom.js'
 import { initDrive, transferResources } from './drive.js'
 import { duplicateShared } from './duplicate.js'
 import { clearIfBlank, createInsertImage, insertText, removeImageBlock } from './editor.js'
-import { fileName, toMarkdown, toText, treeOf, treeOfBoard } from './export.js'
+import { toDocx } from './docx.js'
+import { fileName, toHtml, toMarkdown, toText, treeOf, treeOfBoard } from './export.js'
 import { FILE_ICON_PATHS } from './file-card.js'
 import { createFormatter, initChecklist } from './format.js'
 import { bindHistoryKeys, createHistory } from './history.js'
@@ -214,6 +215,9 @@ const board = createBoard({
   boardId: () => sync.boardId(),
   metaOf: (item) => sync.metaOf(item),
   onSelection: () => sync.selectionChanged(),
+  onTool: (tool) => {
+    for (const button of toolButtons) button.setAttribute('aria-pressed', String(button.dataset.tool === tool))
+  },
   onChange: () => sync.markDirty(),
   beforeChange,
   onCamera: (camera) => {
@@ -230,6 +234,8 @@ const board = createBoard({
   onMediaLink: (item) => sync.mediaLink(item),
   onRenameFile: (item, name) => sync.renameFile(item, name)
 })
+const toolButtons = [...document.querySelectorAll('#tools button')]
+for (const button of toolButtons) button.addEventListener('click', () => board.setTool(button.dataset.tool))
 const host = board.host
 const formatter = createFormatter(host)
 const history = createHistory({ snapshot: board.snapshot, restore: (entry) => { imageSelection.clear(); board.restore(entry) } })
@@ -366,6 +372,34 @@ const uploadError = (error) => {
   return translate('fileUploadFailed')
 }
 
+const FORMATS = [['md', 'downloadMd'], ['html', 'downloadHtml'], ['docx', 'downloadDocx'], ['txt', 'downloadTxt']]
+const DOCX_TYPE = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+
+const exportAs = (format, tree, title) => {
+  const origin = location.origin
+  const name = title || translate('untitled')
+  if (format === 'html') downloadBlob(new Blob([toHtml(tree, origin, name, language)], { type: 'text/html' }), fileName(name, 'html'))
+  else if (format === 'docx') downloadBlob(new Blob([toDocx(tree)], { type: DOCX_TYPE }), fileName(name, 'docx'))
+  else if (format === 'md') downloadBlob(new Blob([toMarkdown(tree, origin)], { type: 'text/markdown' }), fileName(name, 'md'))
+  else downloadBlob(new Blob([toText(tree, origin)], { type: 'text/plain' }), fileName(name, 'txt'))
+}
+
+const exportMenu = (treeOfTarget, titleOfTarget, print) => [
+  ...FORMATS.map(([format, key]) => ({ label: translate(key), run: () => exportAs(format, treeOfTarget(), titleOfTarget()) })),
+  { separator: true },
+  { label: translate('printPdf'), run: print }
+]
+
+const textExportMenu = (id, point) => {
+  const note = () => board.elementOf(id).querySelector('.note')
+  const tree = () => ({ tag: 'div', attrs: {}, children: treeOf(note()).children })
+  const title = () => note().textContent.trim().split('\n')[0].slice(0, 60)
+  return exportMenu(tree, title, () => {
+    board.stopEditing()
+    board.printOnly([id])
+  })
+}
+
 const canvasMenu = (ids, item, point, { owner }) => {
   const single = ids.length === 1 ? item : null
   const front = { label: translate('bringToFront'), run: () => board.bringToFront(ids) }
@@ -385,6 +419,7 @@ const canvasMenu = (ids, item, point, { owner }) => {
       { label: translate('edit'), run: () => board.startEditing(single.id) },
       duplicateAction,
       { label: translate('copyItems'), run: () => copyText(board.clipboardText(ids)) },
+      { label: translate('export'), run: () => itemMenu.open(textExportMenu(single.id, point), point) },
       { swatches: ['', ...TEXT_COLORS], current: single.color || '', labelOf: (value) => translate(value ? `noteColor_${value}` : 'noteColorNone'), pick: (value) => board.setColor(ids, value) },
       front, back, { separator: true }, removeAction
     )
@@ -1287,10 +1322,9 @@ if (sharedPage) {
   const currentTree = () => (docEditor.isOpen() ? { tag: 'div', attrs: {}, children: treeOf(docEditor.note).children } : treeOfBoard(board.elementsInReadingOrder()))
   const currentTitle = () => (docEditor.isOpen() ? docEditor.current().name : folderLabel())
 
-  const exportBoard = (extension, convert, type) => {
+  const exportCurrent = (format) => {
     board.stopEditing()
-    const content = convert(currentTree(), location.origin)
-    downloadBlob(new Blob([content], { type }), fileName(currentTitle() || content.slice(0, 60), extension))
+    exportAs(format, currentTree(), currentTitle())
   }
 
   const exportZip = async () => {
@@ -1346,8 +1380,10 @@ if (sharedPage) {
       } },
       { label: () => translate('renameFolder'), run: () => drive.renameCurrent() },
       { label: () => translate('addFile'), run: () => { uploadTarget = 'board'; fileInput.click() } },
-      { label: () => translate('downloadTxt'), run: () => exportBoard('txt', toText, 'text/plain') },
-      { label: () => translate('downloadMd'), run: () => exportBoard('md', toMarkdown, 'text/markdown') },
+      { label: () => translate('downloadMd'), run: () => exportCurrent('md') },
+      { label: () => translate('downloadHtml'), run: () => exportCurrent('html') },
+      { label: () => translate('downloadDocx'), run: () => exportCurrent('docx') },
+      { label: () => translate('downloadTxt'), run: () => exportCurrent('txt') },
       { label: () => translate('downloadZip'), run: exportZip },
       { label: () => translate('print'), run: () => window.print() },
       { label: () => translate('deleteFolder'), danger: true, run: removeCurrentFolder }

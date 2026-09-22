@@ -102,7 +102,7 @@
 <div class="menu" id="share-panel" hidden></div>
 <div class="menu" id="menu-panel" hidden></div>
 </header>
-<main class="board" id="board" data-editable="false">
+<main class="board" id="board" data-editable="false" data-tool="select">
 <div class="layer" id="layer"></div>
 <div class="lasso" id="lasso" hidden></div>
 <div class="guide guide-x" id="guide-x" hidden></div>
@@ -148,6 +148,13 @@
 <button type="button" data-cmd="cDefault" aria-label="Default color" data-i18n-label="cDefault"><span class="dot fg"></span></button>
 <span class="sep"></span>
 <button type="button" data-cmd="clear" aria-label="Clear formatting" data-i18n-label="clear"><svg width="16" height="16" viewBox="0 0 24 24"><path d="M8 4L3 18M8 4l5 14M5.2 13h6.4M4 20L20 4"/></svg></button>
+</div>
+<div class="tools" id="tools">
+<button type="button" data-tool="select" aria-pressed="true" title="Select · V" aria-label="Select" data-i18n-title="toolSelectTitle" data-i18n-label="toolSelect"><svg width="20" height="20" viewBox="0 0 24 24"><path d="M5.5 3.5l14 8-6 1.5-3.5 5.5Z"/></svg></button>
+<button type="button" data-tool="hand" aria-pressed="false" title="Hand · H" aria-label="Hand" data-i18n-title="toolHandTitle" data-i18n-label="toolHand"><svg width="20" height="20" viewBox="0 0 24 24"><path d="M8 12V5.5a1.5 1.5 0 0 1 3 0V11 M11 10.5V4.5a1.5 1.5 0 0 1 3 0V11 M14 11V6a1.5 1.5 0 0 1 3 0v8.5a5.5 5.5 0 0 1-11 0V13 M8 12l-1.8-2.2a1.5 1.5 0 0 0-2.4 1.8L6.5 16"/></svg></button>
+<button type="button" data-tool="text" aria-pressed="false" title="Text · T" aria-label="Text" data-i18n-title="toolTextTitle" data-i18n-label="toolText"><svg width="20" height="20" viewBox="0 0 24 24"><path d="M5 6.5V5h14v1.5 M12 5v14 M9.5 19h5"/></svg></button>
+<button type="button" data-tool="note" aria-pressed="false" title="Sticky note · N" aria-label="Sticky note" data-i18n-title="toolNoteTitle" data-i18n-label="toolNote"><svg width="20" height="20" viewBox="0 0 24 24"><path d="M5 5h14v9l-5 5H5Z M14 19v-5h5"/></svg></button>
+<button type="button" data-tool="frame" aria-pressed="false" title="Frame · F" aria-label="Frame" data-i18n-title="toolFrameTitle" data-i18n-label="toolFrame"><svg width="20" height="20" viewBox="0 0 24 24"><path d="M7 3v18 M17 3v18 M3 7h18 M3 17h18"/></svg></button>
 </div>
 <div class="zoom" id="zoom">
 <button type="button" id="zoom-out" aria-label="Zoom out" data-i18n-label="zoomOut">−</button>

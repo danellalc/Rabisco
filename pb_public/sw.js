@@ -13,6 +13,7 @@ const ASSETS = [
   '/js/board.js',
   '/js/boards.js',
   '/js/camera.js',
+  '/js/docx.js',
   '/js/document.js',
   '/js/dom.js',
   '/js/drive.js',
