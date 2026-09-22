@@ -45,6 +45,16 @@ test('the explorer head sums what a folder holds and says empty otherwise', asyn
   assert.equal(parseResources('plain text'), null)
 })
 
+test('drive entries keep the creation date of every kind', async () => {
+  const { entriesOf } = await import('../pb_public/js/resources.js')
+  const entries = entriesOf({
+    folders: [{ id: 'f', name: 'Work', created: '2026-09-01 10:00:00.000Z', updated: '2026-09-02 10:00:00.000Z' }],
+    docs: [{ id: 'd', name: 'Notes', created: '2026-09-03 10:00:00.000Z', updated: '2026-09-04 10:00:00.000Z' }],
+    files: [{ id: 'x', name: 'a.pdf', size: 3, kind: 'pdf', created: '2026-09-05 10:00:00.000Z', updated: '2026-09-05 10:00:00.000Z' }]
+  })
+  assert.deepEqual(entries.map((entry) => [entry.kind, entry.created]), [['folder', '2026-09-01 10:00:00.000Z'], ['doc', '2026-09-03 10:00:00.000Z'], ['file', '2026-09-05 10:00:00.000Z']])
+})
+
 test('the trash helpers walk up the folder chain', () => {
   const { isInTrash, KEEP_DAYS } = require('../pb_hooks/trash.js')
   const boards = { a: { parent: '', trashed: '' }, b: { parent: 'a', trashed: '' }, c: { parent: 'b', trashed: '2026-09-21 00:00:00.000Z' }, d: { parent: 'c', trashed: '' } }

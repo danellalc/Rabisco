@@ -1,7 +1,7 @@
 import { createApi } from './api.js'
 import { initAuth, readAuth, writeAuth } from './auth.js'
 import { createBoard, parseClipboard } from './board.js'
-import { createBoards } from './boards.js'
+import { createBoards, liveShares } from './boards.js'
 import { ZOOM_STEP, zoomLabel } from './camera.js'
 import { createDocument } from './document.js'
 import { createChooser, createPopover, createToast } from './dom.js'
@@ -26,6 +26,7 @@ import { initMove } from './move.js'
 import { initPanel } from './panel.js'
 import { imageFiles, initPaste, otherFiles } from './paste.js'
 import { createFolderPicker } from './picker.js'
+import { createPreview } from './preview.js'
 import { forget, readRecent, renameIn, touch, writeRecent } from './recent.js'
 import { initResize } from './resize.js'
 import { createResources, labelOf, readCachedListing, readLast, writeCachedListing, writeLast } from './resources.js'
@@ -34,7 +35,7 @@ import { render, serviceWorkerUrl, textOf } from './sanitize.js'
 import { buildIndex, initSearch } from './search.js'
 import { applySettings, readSettings, writeSettings } from './settings.js'
 import { SHARE_HASH, clearShareTarget, readShareTarget } from './share-target.js'
-import { initShare, matchesTarget, shareTarget, shareUrl, tokenFromHash } from './share.js'
+import { initShare, matchesTarget, parseShareItems, shareTarget, shareUrl, tokenFromHash } from './share.js'
 import { initShortcuts } from './shortcuts.js'
 import { initSlash } from './slash.js'
 import { migrateStorage, store } from './store.js'
@@ -178,17 +179,26 @@ const downloadFile = async (file) => {
 
 const fileOf = (item) => ({ id: item.file, name: item.name, kind: item.kind, size: item.size })
 
+const whenOf = (value) => {
+  const date = parseDate(value)
+  return `${new Intl.DateTimeFormat(language, { dateStyle: 'medium', timeStyle: 'short' }).format(date)} (${relativeTime(date.getTime(), Date.now(), translate, language)})`
+}
+
 const showDetails = (target, anchor) => {
   const lines = [{ label: translate('nameLabel'), text: target.name }]
   const kindText = target.kind === 'file' ? (target.fileKind === 'generic' ? translate('kindFile') : target.fileKind) : target.kind === 'image' ? translate('asImage') : translate(target.kind === 'doc' ? 'kindDoc' : 'kindFolder')
   lines.push({ label: translate('typeLabel'), text: kindText })
   if (target.kind === 'file') lines.push({ label: translate('sizeLabel'), text: formatBytes(target.size) })
   if (target.location) lines.push({ label: translate('locationLabel'), text: target.location })
-  if (target.updated) lines.push({ label: translate('modifiedLabel'), text: relativeTime(parseDate(target.updated).getTime(), Date.now(), translate, language) })
+  if (target.created) lines.push({ label: translate('createdLabel'), text: whenOf(target.created) })
+  if (target.updated) lines.push({ label: translate('modifiedLabel'), text: whenOf(target.updated) })
   if (target.dimensions) lines.push({ label: translate('dimensionsLabel'), text: target.dimensions })
-  const actions = [...lines]
-  if (target.kind === 'file') actions.push({ separator: true }, { label: translate('download'), run: () => downloadFile({ id: target.id, name: target.name }) })
-  itemMenu.open(actions, anchor)
+  if (target.cards !== undefined) lines.push({ label: translate('onBoardLabel'), text: target.cards > 0 ? `${translate('yes')} (${countOf(translate, 'cards', target.cards)})` : translate('no') })
+  if (target.links !== undefined) lines.push({ label: translate('linksLabel'), text: countOf(translate, 'active', target.links) })
+  const actions = []
+  if (target.manage) actions.push({ label: translate('manage'), run: target.manage })
+  if (target.kind === 'file') actions.push({ label: translate('download'), run: () => downloadFile({ id: target.id, name: target.name }) })
+  itemMenu.open(actions.length > 0 ? [...lines, { separator: true }, ...actions] : lines, anchor)
 }
 
 const openFile = async (file, anchor) => {
@@ -449,7 +459,7 @@ const canvasMenu = (ids, item, point, { owner }) => {
     if (owner && single.file) actions.push({ label: translate('showAsCard'), run: () => owner.imageToCard(single) })
     else if (owner) actions.push({ label: translate('saveToDrive'), run: () => owner.imageToFile(single) })
     actions.push(
-      { label: translate('details'), run: () => showDetails({ kind: 'image', name: single.name || translate('asImage'), dimensions: `${img.naturalWidth} × ${img.naturalHeight}`, location: owner ? owner.folderLabel() : '' }, point) },
+      { label: translate('details'), run: () => showDetails({ kind: 'image', name: single.name || translate('asImage'), dimensions: `${img.naturalWidth} × ${img.naturalHeight}`, location: owner ? owner.folderPath() : '' }, point) },
       duplicateAction, front, back, { separator: true }, removeAction
     )
     return actions
@@ -473,7 +483,7 @@ const canvasMenu = (ids, item, point, { owner }) => {
         duplicateAction,
         { label: translate('shareFile'), run: () => sync.shareItems([single.id]) },
         { label: translate('copyLink'), run: () => owner.copyLinkFor(owner.refOf(single)) },
-        { label: translate('details'), run: () => showDetails({ ...owner.refOf(single), location: owner.folderLabel() }, point) }
+        { label: translate('details'), run: () => owner.showEntryDetails(owner.refOf(single), point) }
       )
     }
     actions.push(front, back, { separator: true }, removeAction)
@@ -489,7 +499,7 @@ const canvasMenu = (ids, item, point, { owner }) => {
     { label: translate('share'), run: () => sync.shareItems([single.id]) },
     { label: translate('copyLink'), run: () => owner.copyLinkFor(owner.refOf(single)) }
   )
-  actions.push({ label: translate('details'), run: () => showDetails({ ...owner.refOf(single), location: owner.folderLabel() }, point) })
+  actions.push({ label: translate('details'), run: () => owner.showEntryDetails(owner.refOf(single), point) })
   actions.push(front, back, { separator: true }, removeAction, { label: translate(trashKeyOf(single.type)), danger: true, run: () => owner.removeEntries([owner.refOf(single)]) })
   return actions
 }
@@ -577,6 +587,17 @@ if (sharedPage) {
 } else {
   const resources = createResources({ api, translate, showToast })
   const picker = createFolderPicker({ element: document.getElementById('picker'), resources, translate })
+  const rowsElement = document.getElementById('rows')
+  const preview = createPreview({
+    element: document.getElementById('preview'),
+    translate,
+    formatBytes,
+    mediaLink: (item) => sync.mediaLink(item),
+    fileBlob: (id) => sync.fileBlob(id),
+    siblings: () => [...rowsElement.querySelectorAll('.row[data-kind=file]')].map((row) => drive.entry(row.dataset.id)).filter(Boolean),
+    download: (entry) => downloadFile({ id: entry.id, name: entry.name }),
+    openInTab: (entry) => openInTab(() => sync.mediaLink({ file: entry.id }))
+  })
   const quotaLine = document.getElementById('quota')
   const quotaFill = document.getElementById('quota-fill')
   const fileInput = document.getElementById('file-input')
@@ -632,6 +653,10 @@ if (sharedPage) {
   const folderLabel = () => {
     const folder = folderEntry()
     return folder ? labelOf(folder) || translate('untitled') : translate('myDrive')
+  }
+  const folderPath = () => {
+    const listing = drive.listing()
+    return [translate('myDrive'), ...(listing ? listing.path : []).map((folder) => labelOf(folder) || translate('untitled'))].join(' / ')
   }
   const refOf = (item) => ({ kind: item.type, id: item[item.type], name: item.name, size: item.size, fileKind: item.kind })
   const timeAgo = (value) => relativeTime(parseDate(value).getTime(), Date.now(), translate, language)
@@ -787,7 +812,7 @@ if (sharedPage) {
       else {
         rememberRecent(entry)
         focusCardOf(entry)
-        await openFile({ id: entry.id, name: entry.name, kind: entry.fileKind, size: entry.size, updated: entry.updated, location: folderLabel() })
+        await openFile({ id: entry.id, name: entry.name, kind: entry.fileKind, size: entry.size, updated: entry.updated, location: folderPath() })
       }
     } catch (error) {
       if (error && error.status === 404) forgetRecent(entry.kind, entry.id)
@@ -795,7 +820,7 @@ if (sharedPage) {
     }
   }
 
-  const renameEntry = async (entry, name) => {
+  const renameEntry = async (entry, name, { undoable = true } = {}) => {
     try {
       await resources.rename(entry, folderId, name)
       board.renameReferences(entry.kind, entry.id, name)
@@ -803,19 +828,38 @@ if (sharedPage) {
       recents = renameIn(recents, entry.kind, entry.id, name)
       writeRecent(localStorage, recents)
       await refreshFolder()
+      if (undoable) showToast(translate('renamedTo').replace('{name}', name), { label: translate('undo'), run: () => renameEntry({ ...entry, name }, entry.name, { undoable: false }) })
     } catch {
       showToast(translate('saveFailed'))
       await refreshFolder()
     }
   }
 
-  const moveEntries = async (entries, from, target) => {
+  const cardsOf = (entries) => entries.flatMap((entry) => {
+    const known = drive.entry(entry.id)
+    return board.referenceIds(entry.kind, entry.id).map(board.itemOf).map((item) => ({ ...item, pic: (known && known.pic) || entry.pic || '' }))
+  })
+
+  const restoreCards = (cards) => {
+    for (const card of cards) {
+      if (card.type === 'image') board.addPicture({ x: card.x, y: card.y }, { id: card.file, name: card.name, size: card.size, pic: card.pic })
+      else board.addReference({ x: card.x, y: card.y }, card.type, card[card.type], card.name, card.type === 'file' ? { size: card.size, kind: card.kind } : {})
+    }
+  }
+
+  const moveEntries = async (entries, from, target, { undoable = true } = {}) => {
+    const cards = from === folderId ? cardsOf(entries) : []
+    const moved = []
     try {
       for (const entry of entries) {
         await resources.move(entry, from, target)
+        moved.push(entry)
         if (from === folderId && entry.kind !== 'folder') board.remove(board.referenceIds(entry.kind, entry.id))
       }
-      showToast(translate('moved'))
+      showToast(translate('moved'), undoable ? { label: translate('undo'), run: async () => {
+        await moveEntries(moved, target, from, { undoable: false })
+        if (folderId === from) restoreCards(cards)
+      } } : undefined)
     } catch {
       showToast(translate('saveFailed'))
     }
@@ -846,7 +890,7 @@ if (sharedPage) {
   const removeEntries = async (entries, { ask = true } = {}) => {
     const question = ask ? onBoardQuestion(entries) : null
     if (question && !(await confirmTrash(question))) return
-    const cards = entries.flatMap((entry) => board.referenceIds(entry.kind, entry.id).map(board.itemOf).map((item) => ({ ...item, pic: entry.pic || '' })))
+    const cards = cardsOf(entries)
     for (const entry of entries) {
       if (docEditor.isOpen() && docEditor.current().id === entry.id) {
         await docEditor.close()
@@ -857,10 +901,7 @@ if (sharedPage) {
     if (cards.length > 0) board.remove(cards.map((card) => card.id))
     const done = await resources.remove(entries, folderId, {
       onUndo: () => {
-        for (const card of cards) {
-          if (card.type === 'image') board.addPicture({ x: card.x, y: card.y }, { id: card.file, name: card.name, size: card.size, pic: card.pic })
-          else board.addReference({ x: card.x, y: card.y }, card.type, card[card.type], card.name, card.type === 'file' ? { size: card.size, kind: card.kind } : {})
-        }
+        restoreCards(cards)
         refreshFolder()
       }
     })
@@ -924,6 +965,17 @@ if (sharedPage) {
       return
     }
     share.open({ kind: entry.kind, ids: [], [entry.kind]: entry.id, name: entry.name })
+  }
+
+  const linksOf = async (entry) => {
+    if (entry.kind !== 'folder') return boards.getShares().filter((share) => matchesTarget(share, { kind: entry.kind, ids: [], [entry.kind]: entry.id })).length
+    return liveShares((await api.listShares(entry.id)).items).filter((share) => !share.doc && !share.file && parseShareItems(share.items).length === 0).length
+  }
+
+  const showEntryDetails = async (entry, point) => {
+    const known = drive.entry(entry.id) || entry
+    const links = await linksOf(known).catch(() => undefined)
+    showDetails({ ...known, location: folderPath(), cards: board.referenceIds(known.kind, known.id).length, links, manage: links > 0 ? () => shareEntry(known) : null }, point)
   }
 
   const placeOnBoard = (entries) => {
@@ -1029,7 +1081,7 @@ if (sharedPage) {
     }
   }
 
-  const owner = { refOf, folderLabel, moveWithPicker, removeEntries, copyLinkFor, imageToFile, imageToCard, fileToImage }
+  const owner = { refOf, folderLabel, folderPath, showEntryDetails, moveWithPicker, removeEntries, copyLinkFor, imageToFile, imageToCard, fileToImage }
 
   const downloadEntries = async (entries) => {
     const files = entries.filter((entry) => entry.kind === 'file')
@@ -1067,6 +1119,7 @@ if (sharedPage) {
     }
     const entry = entries[0]
     const actions = [{ label: translate('open'), run: () => openEntry(entry) }]
+    if (entry.kind === 'file') actions.push({ label: translate('quickLook'), hint: 'Space', run: () => preview.open(entry) })
     if (folderId) actions.push({ label: translate('placeOnBoard'), run: () => placeOnBoard([entry]) })
     actions.push(
       { label: translate('share'), run: () => shareEntry(entry) },
@@ -1077,7 +1130,7 @@ if (sharedPage) {
     if (entry.kind === 'folder') actions.push({ label: translate(entry.pinned ? 'unpin' : 'pin'), run: () => resources.pin(entry, folderId).then(refreshFolder).catch(() => showToast(translate('saveFailed'))) })
     else actions.push({ label: translate('duplicate'), run: () => resources.duplicate(entry, folderId).then(refreshFolder).catch((error) => showToast(uploadError(error))) })
     if (entry.kind !== 'folder') actions.push({ label: translate('download'), run: () => downloadEntries([entry]) })
-    actions.push({ label: translate('details'), run: () => showDetails({ ...entry, location: folderLabel() }, point) })
+    actions.push({ label: translate('details'), run: () => showEntryDetails(entry, point) })
     actions.push({ separator: true }, { label: translate('delete'), hint: 'Del', danger: true, run: () => removeEntries([entry]) })
     return actions
   }
@@ -1116,6 +1169,7 @@ if (sharedPage) {
     formatBytes,
     actions: {
       open: openEntry,
+      preview: (entry) => { if (entry.kind === 'file') preview.open(entry) },
       menu: (entries, point) => itemMenu.open(entryMenu(entries, point), point),
       folderMenu: (point) => itemMenu.open(folderMenu(), point),
       rename: renameEntry,
@@ -1318,7 +1372,7 @@ if (sharedPage) {
     else if (item.type === 'doc') openDoc(item.doc).catch(() => showToast(translate('loadFailed')))
     else if (item.file) {
       rememberRecent(refOf(item))
-      openFile({ ...fileOf(item), location: folderLabel() })
+      openFile({ ...fileOf(item), location: folderPath() })
     }
   }
   const pictureName = (file, blob) => {
