@@ -38,6 +38,7 @@ const ASSETS = [
   '/js/recent.js',
   '/js/resize.js',
   '/js/resources.js',
+  '/js/router.js',
   '/js/sanitize.js',
   '/js/search.js',
   '/js/settings.js',
@@ -54,7 +55,7 @@ const ASSETS = [
   '/js/zip.js'
 ]
 
-const shellFor = (path) => (path === '/' || path === '/index.html' || path === '/s' || path.startsWith('/s/') ? '/' : '')
+const shellFor = (path) => (path === '/' || path === '/index.html' || /^\/[sfd](\/|$)/.test(path) ? '/' : '')
 const isSharedImage = (file) => typeof file !== 'string' && file.type.startsWith('image/') && file.size > 0 && file.size <= MAX_SHARE_BYTES
 
 async function receiveShare(request) {
