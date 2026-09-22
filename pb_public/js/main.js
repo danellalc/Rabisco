@@ -596,6 +596,7 @@ if (sharedPage) {
   const selectButtons = { share: document.getElementById('select-share'), move: document.getElementById('select-move'), download: document.getElementById('select-download'), remove: document.getElementById('select-delete') }
   let folderId = ''
   let uploadTarget = 'board'
+  let replaceEntry = null
   let imageTarget = 'board'
   let dropPoint = null
   let lastHint = null
@@ -1055,6 +1056,57 @@ if (sharedPage) {
     }
   }
 
+  const copyError = (error) => (error && error.status === 413 && !(error.data && error.data.quota) ? translate('folderTooBig') : uploadError(error))
+
+  const duplicateFolderEntry = async (entry, target) => {
+    try {
+      await resources.duplicate(entry, target)
+      await refreshFolder()
+      showToast(translate('folderDuplicated'))
+      boards.refreshQuota()
+    } catch (error) {
+      showToast(copyError(error))
+    }
+  }
+
+  const pickReplacement = (entry) => {
+    uploadTarget = 'replace'
+    replaceEntry = entry
+    fileInput.click()
+  }
+
+  const replaceFileOf = async (entry, file) => {
+    if (!file) return
+    if (isBlockedName(file.name)) {
+      showToast(translate('fileTypeBlocked'))
+      return
+    }
+    if (file.size > FILE_MAX_BYTES) {
+      showToast(translate('fileTooBig'))
+      return
+    }
+    try {
+      const record = await resources.replace(entry, folderId, file)
+      const cards = board.referenceIds('file', entry.id)
+      for (const id of cards) {
+        const item = board.itemOf(id)
+        if (!item) continue
+        item.size = record.size
+        item.kind = record.kind
+      }
+      board.renameReferences('file', entry.id, record.name)
+      for (const id of cards) {
+        if ((board.itemOf(id) || {}).type === 'image') board.linkImage(id, record)
+      }
+      if (cards.length > 0) boards.markDirty()
+      await refreshFolder()
+      showToast(translate('fileReplaced'))
+      boards.refreshQuota()
+    } catch (error) {
+      showToast(uploadError(error))
+    }
+  }
+
   const entryMenu = (entries, point) => {
     if (entries.length > 1) {
       return [
@@ -1074,8 +1126,9 @@ if (sharedPage) {
       { label: translate('rename'), hint: 'F2', run: () => drive.startRename(entry.id) },
       { label: translate('move'), run: () => moveWithPicker([entry]) }
     )
-    if (entry.kind === 'folder') actions.push({ label: translate(entry.pinned ? 'unpin' : 'pin'), run: () => resources.pin(entry, folderId).then(refreshFolder).catch(() => showToast(translate('saveFailed'))) })
+    if (entry.kind === 'folder') actions.push({ label: translate(entry.pinned ? 'unpin' : 'pin'), run: () => resources.pin(entry, folderId).then(refreshFolder).catch(() => showToast(translate('saveFailed'))) }, { label: translate('duplicate'), run: () => duplicateFolderEntry(entry, folderId) })
     else actions.push({ label: translate('duplicate'), run: () => resources.duplicate(entry, folderId).then(refreshFolder).catch((error) => showToast(uploadError(error))) })
+    if (entry.kind === 'file') actions.push({ label: translate('replaceFile'), run: () => pickReplacement(entry) })
     if (entry.kind !== 'folder') actions.push({ label: translate('download'), run: () => downloadEntries([entry]) })
     actions.push({ label: translate('details'), run: () => showDetails({ ...entry, location: folderLabel() }, point) })
     actions.push({ separator: true }, { label: translate('delete'), hint: 'Del', danger: true, run: () => removeEntries([entry]) })
@@ -1367,7 +1420,8 @@ if (sharedPage) {
   fileInput.addEventListener('change', () => {
     const files = [...fileInput.files]
     fileInput.value = ''
-    if (uploadTarget === 'board') addFilesOnBoard(dropPoint || board.center(), files)
+    if (uploadTarget === 'replace') replaceFileOf(replaceEntry, files[0])
+    else if (uploadTarget === 'board') addFilesOnBoard(dropPoint || board.center(), files)
     else uploadInto(folderId, files)
     dropPoint = null
   })
@@ -1493,6 +1547,10 @@ if (sharedPage) {
         }
       } },
       { label: () => translate('renameFolder'), run: () => drive.renameCurrent() },
+      { label: () => translate('duplicateFolder'), run: () => {
+        const folder = folderEntry()
+        if (folder) duplicateFolderEntry({ kind: 'folder', id: folder.id, name: labelOf(folder) || translate('untitled') }, folder.parent)
+      } },
       { label: () => translate('addFile'), run: () => { uploadTarget = 'board'; fileInput.click() } },
       { label: () => translate('downloadMd'), run: () => exportCurrent('md') },
       { label: () => translate('downloadHtml'), run: () => exportCurrent('html') },

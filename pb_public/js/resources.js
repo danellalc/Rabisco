@@ -157,7 +157,18 @@ export function createResources({ api, translate, showToast }) {
     return record
   }
 
+  const replace = async (entry, folder, file, onProgress = () => {}) => {
+    const record = await api.replaceFile(entry.id, file, onProgress)
+    invalidate(folder)
+    return record
+  }
+
   const duplicate = async (entry, folder) => {
+    if (entry.kind === 'folder') {
+      const record = await api.duplicateFolder(entry.id, translate('copyOf').replace('{name}', entry.name))
+      invalidate(folder)
+      return record
+    }
     if (entry.kind === 'doc') {
       const doc = await api.getDoc(entry.id)
       return createDoc(folder, translate('copyOf').replace('{name}', doc.name), doc.content)
@@ -175,5 +186,5 @@ export function createResources({ api, translate, showToast }) {
     cache.clear()
   }
 
-  return { listing, invalidate, createFolder, createDoc, rename, move, pin, remove, restore, deleteNow, trashList, emptyTrash, upload, duplicate, reset }
+  return { listing, invalidate, createFolder, createDoc, rename, move, pin, remove, restore, deleteNow, trashList, emptyTrash, upload, duplicate, replace, reset }
 }
