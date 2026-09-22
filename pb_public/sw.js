@@ -22,6 +22,7 @@ const ASSETS = [
   '/js/examples.js',
   '/js/export.js',
   '/js/file-card.js',
+  '/js/find.js',
   '/js/format.js',
   '/js/help.js',
   '/js/history.js',
