@@ -27,6 +27,7 @@ import { createFolderPicker } from './picker.js'
 import { forget, readRecent, renameIn, touch, writeRecent } from './recent.js'
 import { initResize } from './resize.js'
 import { createResources, labelOf, readCachedListing, readLast, writeCachedListing, writeLast } from './resources.js'
+import { parsePath, pathFor } from './router.js'
 import { render, serviceWorkerUrl, textOf } from './sanitize.js'
 import { buildIndex, initSearch } from './search.js'
 import { applySettings, readSettings, writeSettings } from './settings.js'
@@ -86,6 +87,7 @@ const sync = {
   openItem: () => {},
   contextMenu: () => {},
   pickImage: () => {},
+  closeDoc: () => docEditor.close(),
   docClosed: () => {},
   selectionChanged: () => {},
   metaOf: () => ''
@@ -255,7 +257,7 @@ const docEditor = createDocument({
   }
 })
 const activeHistory = () => (docEditor.isOpen() ? docEditor.history : history)
-document.getElementById('doc-close').addEventListener('click', () => docEditor.close())
+document.getElementById('doc-close').addEventListener('click', () => sync.closeDoc())
 
 const imageSelection = initResize({
   host,
@@ -374,6 +376,7 @@ const uploadError = (error) => {
 
 const FORMATS = [['md', 'downloadMd'], ['html', 'downloadHtml'], ['docx', 'downloadDocx'], ['txt', 'downloadTxt']]
 const DOCX_TYPE = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+const LOADING_DELAY = 300
 
 const exportAs = (format, tree, title) => {
   const origin = location.origin
@@ -597,6 +600,29 @@ if (sharedPage) {
   let panelView = 'folder'
   let recents = readRecent(localStorage)
 
+  const createLoadingBar = (bar) => {
+    let pending = 0
+    let timer = 0
+    const settle = () => {
+      if (--pending > 0) return
+      clearTimeout(timer)
+      bar.hidden = true
+    }
+    return (promise) => {
+      if (pending++ === 0) timer = setTimeout(() => { bar.hidden = false }, LOADING_DELAY)
+      return promise.finally(settle)
+    }
+  }
+  const whileLoading = createLoadingBar(document.getElementById('loading-bar'))
+  const whileBoardLoading = createLoadingBar(document.getElementById('board-loading'))
+
+  const setPath = (path, replace) => {
+    if (location.pathname === path) return
+    window.history[replace ? 'replaceState' : 'pushState'](null, '', path)
+  }
+  const currentPath = () => (docEditor.isOpen() ? pathFor('doc', docEditor.current().id) : pathFor('folder', folderId))
+  const routeOf = () => parsePath(location.pathname) || { kind: 'root', id: '' }
+
   const folderEntry = () => {
     const listing = drive.listing()
     return listing && listing.folder ? listing.folder : null
@@ -659,7 +685,7 @@ if (sharedPage) {
 
   const refreshFolder = async (id = folderId) => {
     try {
-      const listing = await resources.listing(id, { fresh: true })
+      const listing = await whileLoading(resources.listing(id, { fresh: true }))
       if (id !== folderId) return
       drive.set(listing)
       board.refreshCards()
@@ -670,16 +696,16 @@ if (sharedPage) {
     }
   }
 
-  const openFolder = async (id) => {
+  const openFolder = async (id, replace) => {
     await docEditor.close()
     let listing
     try {
-      listing = await resources.listing(id)
+      listing = await whileLoading(resources.listing(id))
     } catch (error) {
       if (error && error.status === 404 && id) {
         showToast(translate('loadFailed'))
         forgetRecent('folder', id)
-        return openFolder('')
+        return openFolder('', replace)
       }
       throw error
     }
@@ -687,18 +713,19 @@ if (sharedPage) {
     drive.set(listing)
     writeLast(localStorage, id)
     writeCachedListing(localStorage, id, listing)
+    setPath(pathFor('folder', id), replace)
     if (listing.folder) rememberRecent({ kind: 'folder', id, name: labelOf(listing.folder) || translate('untitled') }, listing.folder.parent, listing.path.length > 1 ? listing.path[listing.path.length - 2].name || listing.path[listing.path.length - 2].title : translate('myDrive'))
     updateTitle()
-    if (id) await boards.open(id)
+    if (id) await whileBoardLoading(boards.open(id))
     else await boards.close()
     lastHint = null
     updateHints()
     updateBoardLine()
   }
 
-  const openDoc = async (id, folder) => {
-    if (folder !== folderId) await openFolder(folder)
-    const doc = await api.getDoc(id)
+  const openDoc = async (id, replace) => {
+    const doc = await whileLoading(api.getDoc(id))
+    if (doc.board !== folderId) await openFolder(doc.board, replace)
     await docEditor.open({
       id,
       name: doc.name,
@@ -709,10 +736,17 @@ if (sharedPage) {
       reload: () => api.getDoc(id),
       rename: (name) => api.updateDoc(id, { name })
     })
+    setPath(pathFor('doc', id), replace)
     rememberRecent({ kind: 'doc', id, name: doc.name })
     updateTitle()
     showNote()
   }
+
+  const followRoute = (route) => (route.kind === 'doc' ? openDoc(route.id, true) : openFolder(route.id, true)).catch((error) => {
+    if (!(error && error.status === 404)) throw error
+    showToast(translate('loadFailed'))
+    return openFolder('', true)
+  })
 
   const focusCardOf = (entry) => {
     const placed = board.referenceIds(entry.kind, entry.id)
@@ -722,7 +756,7 @@ if (sharedPage) {
   const openEntry = async (entry) => {
     try {
       if (entry.kind === 'folder') await openFolder(entry.id)
-      else if (entry.kind === 'doc') await openDoc(entry.id, folderId)
+      else if (entry.kind === 'doc') await openDoc(entry.id)
       else {
         rememberRecent(entry)
         focusCardOf(entry)
@@ -787,7 +821,10 @@ if (sharedPage) {
     if (question && !(await confirmTrash(question))) return
     const cards = entries.flatMap((entry) => board.referenceIds(entry.kind, entry.id).map(board.itemOf).map((item) => ({ ...item })))
     for (const entry of entries) {
-      if (docEditor.isOpen() && docEditor.current().id === entry.id) await docEditor.close()
+      if (docEditor.isOpen() && docEditor.current().id === entry.id) {
+        await docEditor.close()
+        setPath(pathFor('folder', folderId), true)
+      }
     }
     drive.remove(entries.map((entry) => entry.id))
     if (cards.length > 0) board.remove(cards.map((card) => card.id))
@@ -889,7 +926,7 @@ if (sharedPage) {
     try {
       const record = await resources.createDoc(folderId, translate('newDocName'))
       await refreshFolder()
-      await openDoc(record.id, folderId)
+      await openDoc(record.id)
     } catch {
       showToast(translate('saveFailed'))
     }
@@ -909,7 +946,7 @@ if (sharedPage) {
       const record = await resources.createDoc(folderId, translate('newDocName'))
       board.addReference(world, 'doc', record.id, record.name)
       await refreshFolder()
-      await openDoc(record.id, folderId)
+      await openDoc(record.id)
     } catch {
       showToast(translate('saveFailed'))
     }
@@ -1070,6 +1107,10 @@ if (sharedPage) {
     }
   })
   sync.docClosed = () => updateTitle()
+  sync.closeDoc = async () => {
+    await docEditor.close()
+    setPath(pathFor('folder', folderId))
+  }
 
   const panel = initPanel({
     elements: { title: document.getElementById('view-title'), sub: document.getElementById('view-sub'), actions: document.getElementById('view-actions'), rows: document.getElementById('view-rows') },
@@ -1143,7 +1184,7 @@ if (sharedPage) {
 
   async function renderTrash() {
     try {
-      trashListing = await resources.trashList()
+      trashListing = await whileLoading(resources.trashList())
     } catch {
       showToast(translate('loadFailed'))
     }
@@ -1237,7 +1278,7 @@ if (sharedPage) {
   }
   sync.openItem = (item) => {
     if (item.type === 'folder') openFolder(item.folder).catch(() => showToast(translate('loadFailed')))
-    else if (item.type === 'doc') openDoc(item.doc, folderId).catch(() => showToast(translate('loadFailed')))
+    else if (item.type === 'doc') openDoc(item.doc).catch(() => showToast(translate('loadFailed')))
     else if (item.file) {
       rememberRecent(refOf(item))
       openFile({ ...fileOf(item), location: folderLabel() })
@@ -1496,12 +1537,12 @@ if (sharedPage) {
       { label: translate('recent'), run: () => showPanel('recent') },
       { label: translate('trash'), run: () => showPanel('trash') }
     ],
-    loadIndex: async () => buildIndex(await api.searchIndex(), translate),
+    loadIndex: async () => buildIndex(await whileLoading(api.searchIndex()), translate),
     onOpen: async (row) => {
       try {
         showPanel('folder')
         if (row.kind === 'folder') await openFolder(row.id)
-        else if (row.kind === 'doc') await openDoc(row.id, row.folder)
+        else if (row.kind === 'doc') await openDoc(row.id)
         else {
           await openFolder(row.folder)
           const entry = drive.entry(row.id)
@@ -1559,6 +1600,7 @@ if (sharedPage) {
       resources.reset()
       drive.reset()
       folderId = ''
+      setPath('/', true)
       recents = []
       showPanel('folder')
       clearShareTarget()
@@ -1599,7 +1641,7 @@ if (sharedPage) {
     const listing = drive.listing()
     const recent = listing && listing.folders[0]
     if (!recent) return false
-    await openFolder(recent.id)
+    await openFolder(recent.id, true)
     return true
   }
 
@@ -1608,7 +1650,7 @@ if (sharedPage) {
       clearShareTarget()
       return
     }
-    window.history.replaceState(null, '', '/')
+    window.history.replaceState(null, '', location.pathname)
     const shared = await readShareTarget()
     if (!shared || (!shared.text && shared.files.length === 0)) return
     if (!(await openSomeFolder())) {
@@ -1623,16 +1665,18 @@ if (sharedPage) {
 
   async function loadDrive() {
     try {
-      const last = readLast(localStorage)
+      const route = routeOf()
+      const last = route.kind === 'root' ? readLast(localStorage) : route.id
       const cached = readCachedListing(localStorage, last || '')
       if (cached) drive.set(cached)
       await duplicatePending()
-      await openFolder(last || '')
+      if (route.kind === 'doc') await followRoute(route)
+      else await openFolder(last || '', true)
       if (last === null) await openSomeFolder()
       const listing = drive.listing()
       if (!folderId && listing && listing.folders.length === 0) {
         const record = await resources.createFolder('', translate('firstFolderName'))
-        await openFolder(record.id)
+        await openFolder(record.id, true)
         if (!isPhone()) board.editFirstText()
       }
       boards.refreshQuota()
@@ -1646,6 +1690,11 @@ if (sharedPage) {
       window.addEventListener('online', loadDrive, { once: true })
     }
   }
+
+  window.addEventListener('popstate', () => {
+    if (!signedIn() || location.pathname === currentPath()) return
+    followRoute(routeOf()).catch(() => showToast(translate('loadFailed')))
+  })
 
   auth.restore()
 }

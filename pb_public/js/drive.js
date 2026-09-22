@@ -7,6 +7,7 @@ import { entriesOf, sortEntries } from './resources.js'
 export const RESOURCE_PREFIX = 'trecos-resources:'
 const CHECK = 'M4 8.2l2.6 2.6L12 5.6'
 const COUNTS = [['folder', 'folders'], ['doc', 'docs'], ['file', 'files']]
+const MAX_CRUMBS = 4
 
 export function resourceText(entries, folder) {
   return `${RESOURCE_PREFIX}${JSON.stringify({ folder, entries: entries.map((entry) => ({ kind: entry.kind, id: entry.id, name: entry.name })) })}`
@@ -68,26 +69,39 @@ export function initDrive({ elements, translate, language, formatBytes, actions 
   const selectedEntries = () => [...selected].map(entryOf).filter(Boolean)
   const visibleIds = () => [...rows.querySelectorAll('.row')].map((element) => element.dataset.id)
 
+  const nameOf = (folder) => (folder ? folder.name || folder.title || translate('untitled') : translate('myDrive'))
+
+  const crumbButton = (className, text) => {
+    const button = document.createElement('button')
+    button.type = 'button'
+    button.className = className
+    button.textContent = text
+    return button
+  }
+
+  const crumbOf = (folder) => {
+    const button = crumbButton('crumb', nameOf(folder))
+    button.dataset.folder = folder ? folder.id : ''
+    return button
+  }
+
+  const ellipsisOf = (path) => {
+    const button = crumbButton('crumb-more', '…')
+    button.tabIndex = -1
+    button.title = `${translate('fullPath')}: ${[null, ...path].map(nameOf).join(' / ')}`
+    return button
+  }
+
   const renderHead = () => {
     const path = listing ? listing.path : []
     const current = path[path.length - 1]
     const parent = path[path.length - 2]
-    const atRoot = !current
-    up.parentElement.hidden = atRoot
+    up.parentElement.hidden = !current
     up.dataset.folder = parent ? parent.id : ''
-    crumbs.replaceChildren()
-    if (!atRoot) {
-      const link = document.createElement('button')
-      link.type = 'button'
-      link.className = 'crumb'
-      link.dataset.folder = parent ? parent.id : ''
-      link.textContent = parent ? parent.name || parent.title || translate('untitled') : translate('myDrive')
-      const slash = document.createElement('span')
-      slash.className = 'crumb-sep'
-      slash.textContent = ' /'
-      crumbs.append(link, slash)
-    }
-    title.textContent = current ? current.name || current.title || translate('untitled') : translate('myDrive')
+    const ancestors = current ? [null, ...path.slice(0, -1)] : []
+    const shown = ancestors.length > MAX_CRUMBS ? [crumbOf(ancestors[0]), ellipsisOf(path), ...ancestors.slice(-2).map(crumbOf)] : ancestors.map(crumbOf)
+    crumbs.replaceChildren(...shown.flatMap((crumb) => [crumb, ' / ']))
+    title.textContent = nameOf(current)
     title.dataset.folder = current ? current.id : ''
     meta.textContent = folderMeta(entries, translate, formatBytes)
   }
