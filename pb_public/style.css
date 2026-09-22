@@ -112,7 +112,8 @@ body[data-view=note] .app,body[data-view=list] .app{display:flex}
 .quota.full{color:var(--c1)}
 .menu-item{display:flex;justify-content:space-between;align-items:baseline;gap:var(--s2);width:100%;padding:7px var(--s2);text-align:left;border-radius:4px}
 .menu-item kbd{font:11px/1.5 var(--mono);color:var(--fg2)}
-.pane-title{max-width:45%;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;font-weight:700}
+.pane-title{max-width:45%;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;font-size:13px;color:var(--fg2)}
+.pane-name{color:var(--fg);font-size:15px;font-weight:700}
 .add-button{text-decoration-thickness:auto}
 #add-menu{right:120px}
 body[data-view=shared] #add,body[data-doc] #add,body[data-root] #add,body[data-root] #share,body[data-root] #menu,body[data-root] .zoom{display:none}
@@ -148,12 +149,12 @@ body[data-view=shared] .list,body[data-view=shared] #back,body[data-view=shared]
 body[data-view=note] .list{display:none}
 body[data-view=list] .pane{display:none}
 .list{border-right:0}
-.icon-sidebar{display:none}
+.icon-sidebar,.pane-title span:first-child{display:none}
 }
 @media (min-width:719.5px){
 .list{width:var(--sidebar);flex-shrink:0}
 :root[data-sidebar=closed] .list{display:none}
-.icon-back,.pane-title{display:none}
+.icon-back{display:none}
 }
 .login-form{flex-direction:column;gap:var(--s2)}
 .login-form:not([hidden]){display:flex}
@@ -198,6 +199,13 @@ body[data-view=list] .pane{display:none}
 .palette-row:focus-visible,.palette-row:hover{background:var(--bg)}
 .palette-row .kind{width:64px;flex-shrink:0;font-size:13px;letter-spacing:.04em;text-transform:uppercase;color:var(--fg2)}
 .palette-row .label{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.help{position:fixed;top:72px;left:50%;right:auto;transform:translateX(-50%);width:560px;max-width:90%;max-height:85vh;overflow:auto;margin:0;padding:var(--s3) var(--s4);z-index:7}
+.help-body{columns:220px 2;column-gap:var(--s5)}
+.help-group{break-inside:avoid;padding-bottom:var(--s3)}
+.help-group .menu-label{padding:0}
+.help-row{display:flex;gap:var(--s3);padding:2px 0;font-size:14px}
+.help-row kbd{flex-shrink:0;width:104px;font:12px/1.7 var(--mono);color:var(--fg2)}
+.help-row span{flex:1;min-width:0}
 .meta-mono{flex-shrink:0;font:12px/1.5 var(--mono);color:var(--fg2)}
 .download-page{flex:1;flex-direction:column;align-items:center;justify-content:center;gap:var(--s4);max-width:360px;margin:0 auto;padding:var(--s5) var(--s4);text-align:center}
 .download-page:not([hidden]){display:flex}
@@ -279,6 +287,10 @@ body.dragging .item.selected{opacity:.8}
 .guide-y{left:0;right:0;height:1px}
 .board-message{position:absolute;left:0;right:0;top:40%;margin:0;padding:0 var(--s4);text-align:center;color:var(--fg2);pointer-events:none}
 .board-message span{display:block}
+.tips{position:absolute;left:50%;bottom:var(--s5);transform:translateX(-50%);width:max-content;max-width:min(420px,calc(100% - 32px));padding:10px var(--s4);border-radius:8px;background:var(--bg2);box-shadow:var(--shadow);font-size:14px;line-height:1.4;z-index:3}
+.tips p{margin:0 0 6px}
+.tips .text-link{min-height:0;font-size:14px}
+body[data-doc] .tips{display:none}
 .doc{position:absolute;inset:0;z-index:2;overflow:auto;background:var(--bg);user-select:text;-webkit-user-select:text;touch-action:auto;cursor:auto}
 .doc-page{max-width:760px;margin:0 auto;padding:var(--s3) var(--s4) 40vh}
 .doc-top{display:flex;align-items:center;gap:var(--s2);margin-bottom:var(--s2)}
@@ -358,7 +370,7 @@ mark{color:inherit}
 @media print{
 body{--bg:#fff;--bg2:#fff;--fg:#000;--fg2:#444;--line:#999;--acc:#000;--hl1:#d8c98a;--hl2:#a9bfa0;--hl3:#d3a9ac;--c1:#8f4a42;--c2:#4d647a;--c3:#5e5e5e;display:block;height:auto}
 body[data-view] .app,.pane{display:block}
-.list,.note-header,.shared-foot:not([hidden]),.toolbar:not([hidden]),.toast,.chooser:not([hidden]),.image-selection,.drop-marker,.zoom,.tools,.lasso,.guide,.handle,.more,.play:not([hidden]),.palette,.picker,.doc-top,.image-note{display:none}
+.list,.note-header,.shared-foot:not([hidden]),.toolbar:not([hidden]),.toast,.chooser:not([hidden]),.image-selection,.drop-marker,.zoom,.tools,.lasso,.guide,.handle,.more,.play:not([hidden]),.palette,.picker,.help,.tips,.doc-top,.image-note{display:none}
 .doc{position:static;overflow:visible}
 .board{overflow:visible;position:static}
 .layer[data-print]{position:static}

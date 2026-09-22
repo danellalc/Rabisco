@@ -1,7 +1,7 @@
 const storageKey = 'trecos.settings'
 
-export const defaults = { theme: 'system', sidebar: 'open' }
-export const choices = { theme: ['system', 'light', 'dark'], sidebar: ['open', 'closed'] }
+export const defaults = { theme: 'system', sidebar: 'open', tips: 'pending' }
+export const choices = { theme: ['system', 'light', 'dark'], sidebar: ['open', 'closed'], tips: ['pending', 'shown'] }
 
 export function sanitizeSettings(raw) {
   const result = { ...defaults }

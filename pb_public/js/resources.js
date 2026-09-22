@@ -73,8 +73,8 @@ export function createResources({ api, translate, showToast }) {
     for (const id of ids) cache.delete(id)
   }
 
-  const createFolder = async (parent, name) => {
-    const record = await api.createBoard({ parent, name, content: FIRST_TEXT })
+  const createFolder = async (parent, name, content = FIRST_TEXT) => {
+    const record = await api.createBoard({ parent, name, content })
     invalidate(parent)
     return record
   }

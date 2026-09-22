@@ -14,13 +14,19 @@ test('unknown values fall back to the defaults', () => {
 })
 
 test('known values are kept and forgotten ones are dropped', () => {
-  assert.deepEqual(sanitizeSettings({ theme: 'dark', width: 'wide', sidebar: 'closed' }), { theme: 'dark', sidebar: 'closed' })
+  assert.deepEqual(sanitizeSettings({ theme: 'dark', width: 'wide', sidebar: 'closed', tips: 'shown' }), { theme: 'dark', sidebar: 'closed', tips: 'shown' })
 })
 
 test('settings survive a round trip through storage', () => {
   const storage = memoryStorage()
-  writeSettings(storage, { theme: 'light', sidebar: 'open' })
-  assert.deepEqual(readSettings(storage), { theme: 'light', sidebar: 'open' })
+  writeSettings(storage, { theme: 'light', sidebar: 'open', tips: 'pending' })
+  assert.deepEqual(readSettings(storage), { theme: 'light', sidebar: 'open', tips: 'pending' })
+})
+
+test('the first run tips start pending and only accept shown', () => {
+  assert.equal(defaults.tips, 'pending')
+  assert.equal(sanitizeSettings({ tips: 'shown' }).tips, 'shown')
+  assert.equal(sanitizeSettings({ tips: 'never' }).tips, 'pending')
 })
 
 test('broken or missing storage yields the defaults', () => {
