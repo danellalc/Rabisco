@@ -3,7 +3,7 @@ export const SHORTCUTS = [
     ['V', 'toolSelect'], ['H / Space', 'toolHand'], ['T', 'toolText'], ['N', 'toolNote'], ['F', 'toolFrame'],
     ['dblClick', 'placeholder'], ['Enter', 'edit'], ['Del', 'delete'],
     ['Ctrl A', 'selectAll'], ['Ctrl Shift A', 'tidy'], ['Ctrl D', 'duplicate'], ['Ctrl C, Ctrl V', 'copyPaste'],
-    ['Ctrl Z', 'undo'], ['Ctrl Shift Z', 'redo'], ['Ctrl 0', 'zoom100'], ['Ctrl +', 'zoomIn'], ['Ctrl -', 'zoomOut'], ['Esc', 'escHelp']
+    ['Ctrl Z', 'undo'], ['Ctrl Shift Z', 'redo'], ['Ctrl 0', 'zoom100'], ['Ctrl +', 'zoomIn'], ['Ctrl -', 'zoomOut'], ['Ctrl F', 'findOnBoard'], ['Esc', 'escHelp']
   ]],
   ['helpList', [['Enter', 'open'], ['F2', 'rename'], ['Del', 'delete'], ['Space', 'select'], ['↑ ↓', 'arrowsRows']]],
   ['slashText', [

@@ -12,6 +12,7 @@ import { firstBoardContent } from './examples.js'
 import { toDocx } from './docx.js'
 import { fileName, toHtml, toMarkdown, toText, treeOf, treeOfBoard } from './export.js'
 import { FILE_ICON_PATHS } from './file-card.js'
+import { initFind } from './find.js'
 import { createFormatter, initChecklist } from './format.js'
 import { initHelp } from './help.js'
 import { bindHistoryKeys, createHistory } from './history.js'
@@ -260,6 +261,14 @@ const docEditor = createDocument({
 })
 const activeHistory = () => (docEditor.isOpen() ? docEditor.history : history)
 document.getElementById('doc-close').addEventListener('click', () => sync.closeDoc())
+const find = initFind({
+  bar: document.getElementById('find'),
+  input: document.getElementById('find-input'),
+  count: document.getElementById('find-count'),
+  board,
+  translate,
+  isActive: () => !docEditor.isOpen()
+})
 
 const imageSelection = initResize({
   host,
@@ -724,6 +733,7 @@ if (sharedPage) {
   }
 
   const openFolder = async (id, replace) => {
+    find.close()
     await docEditor.close()
     let listing
     try {
@@ -751,6 +761,7 @@ if (sharedPage) {
   }
 
   const openDoc = async (id, replace) => {
+    find.close()
     const doc = await whileLoading(api.getDoc(id))
     if (doc.board !== folderId) await openFolder(doc.board, replace)
     await docEditor.open({
@@ -1584,11 +1595,13 @@ if (sharedPage) {
       { label: translate('trash'), run: () => showPanel('trash') }
     ],
     loadIndex: async () => buildIndex(await whileLoading(api.searchIndex()), translate),
-    onOpen: async (row) => {
+    onOpen: async (row, query) => {
       try {
         showPanel('folder')
-        if (row.kind === 'folder') await openFolder(row.id)
-        else if (row.kind === 'doc') await openDoc(row.id)
+        if (row.kind === 'folder') {
+          await openFolder(row.id)
+          find.jumpTo(query)
+        } else if (row.kind === 'doc') await openDoc(row.id)
         else {
           await openFolder(row.folder)
           const entry = drive.entry(row.id)

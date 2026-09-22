@@ -22,7 +22,7 @@ const HANDLE_EDGES = { text: ['e', 'w'], image: ALL_EDGES, frame: ALL_EDGES, fil
 const TYPES = ['text', 'image', 'link', 'frame', ...REFERENCE_TYPES]
 const FRAME_SIZE = { w: 320, h: 240 }
 const MIN_SIZE = { image: { w: IMAGE_MIN_WIDTH, h: IMAGE_MIN_HEIGHT }, frame: { w: FRAME_MIN, h: FRAME_MIN }, text: { w: TEXT_MIN_WIDTH, h: 0 }, file: { w: CARD_WIDTH, h: 0 } }
-const CONTROLS = '.toolbar, .image-selection, .zoom, .tools, .menu, .chooser, .board-message, .play, .rename, video, .doc'
+const CONTROLS = '.toolbar, .image-selection, .zoom, .tools, .menu, .chooser, .board-message, .play, .rename, video, .doc, .find'
 export const TOOLS = ['select', 'hand', 'text', 'note', 'frame']
 export const TOOL_KEYS = { v: 'select', h: 'hand', t: 'text', n: 'note', f: 'frame' }
 export const CLIPBOARD_PREFIX = 'trecos-items:'
@@ -202,6 +202,11 @@ export function createBoard({ area, layer, lasso, guides, message, translate, la
     }
     selection = next
     onSelection([...next])
+  }
+
+  const markFound = (ids) => {
+    const found = new Set(ids)
+    for (const [id, element] of elements) element.classList.toggle('found', found.has(id))
   }
 
   const imageNote = (item) => {
@@ -1191,6 +1196,7 @@ export function createBoard({ area, layer, lasso, guides, message, translate, la
       onChange()
     },
     select: setSelection,
+    markFound,
     selected: () => [...selection],
     camera: () => camera,
     setCamera,

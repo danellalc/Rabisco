@@ -1,21 +1,39 @@
 import { normalize, relativeTime, parseDate } from './list.js'
 
 const LIMIT = 20
+const SNIPPET = 60
+const KIND_LABELS = { all: 'typeAll', folder: 'typeFolders', doc: 'typeDocs', file: 'typeFiles' }
+export const KINDS = Object.keys(KIND_LABELS)
 
 export function buildIndex(index, translate) {
   const folderNames = new Map(index.boards.map((board) => [board.id, board.name || board.title || translate('untitled')]))
   const rows = []
   for (const board of index.boards) {
     const label = folderNames.get(board.id)
-    rows.push({ kind: 'folder', id: board.id, folder: board.parent, label, updated: board.updated, meta: folderNames.get(board.parent) || translate('myDrive'), haystack: normalize(`${label} ${board.text}`) })
+    rows.push({ kind: 'folder', id: board.id, folder: board.parent, label, updated: board.updated, meta: folderNames.get(board.parent) || translate('myDrive'), text: board.text || '', haystack: normalize(`${label} ${board.text}`) })
   }
   for (const doc of index.docs) {
-    rows.push({ kind: 'doc', id: doc.id, folder: doc.board, label: doc.name, updated: doc.updated, meta: folderNames.get(doc.board) || '', haystack: normalize(`${doc.name} ${doc.text}`) })
+    rows.push({ kind: 'doc', id: doc.id, folder: doc.board, label: doc.name, updated: doc.updated, meta: folderNames.get(doc.board) || '', text: doc.text || '', haystack: normalize(`${doc.name} ${doc.text}`) })
   }
   for (const file of index.files) {
-    rows.push({ kind: 'file', id: file.id, folder: file.board, label: file.name, fileKind: file.kind, size: file.size, meta: folderNames.get(file.board) || '', haystack: normalize(file.name) })
+    rows.push({ kind: 'file', id: file.id, folder: file.board, label: file.name, fileKind: file.kind, size: file.size, meta: folderNames.get(file.board) || '', text: '', haystack: normalize(file.name) })
   }
   return rows
+}
+
+export function filterRows(rows, kind) {
+  return !kind || kind === 'all' ? rows : rows.filter((row) => row.kind === kind)
+}
+
+export function snippetOf(text, query) {
+  const source = String(text || '')
+  const needle = normalize(query).trim().split(/\s+/)[0]
+  if (!needle) return ''
+  const at = normalize(source).indexOf(needle)
+  if (at < 0) return ''
+  const start = Math.max(0, at - Math.round((SNIPPET - needle.length) / 2))
+  const end = Math.min(source.length, start + SNIPPET)
+  return `${start > 0 ? '…' : ''}${source.slice(start, end).trim()}${end < source.length ? '…' : ''}`
 }
 
 export function searchIndex(rows, query, limit = LIMIT) {
@@ -38,6 +56,7 @@ export function initSearch({ palette, input, rows, translate, language, commands
   let index = null
   let loading = null
   let highlighted = 0
+  let kind = 'all'
 
   const close = () => {
     palette.hidden = true
@@ -55,20 +74,28 @@ export function initSearch({ palette, input, rows, translate, language, commands
     buttons[highlighted].scrollIntoView({ block: 'nearest' })
   }
 
-  const rowButton = (kindLabel, label, metaText, run) => {
+  const rowButton = (kindLabel, label, metaText, run, snippet = '') => {
     const button = document.createElement('button')
     button.type = 'button'
     button.className = 'palette-row'
-    const kind = document.createElement('span')
-    kind.className = 'kind'
-    kind.textContent = kindLabel
+    const kindText = document.createElement('span')
+    kindText.className = 'kind'
+    kindText.textContent = kindLabel
     const text = document.createElement('span')
     text.className = 'label'
-    text.textContent = label
+    const title = document.createElement('span')
+    title.textContent = label
+    text.append(title)
+    if (snippet) {
+      const hint = document.createElement('span')
+      hint.className = 'snippet'
+      hint.textContent = snippet
+      text.append(hint)
+    }
     const meta = document.createElement('span')
     meta.className = 'meta-mono'
     meta.textContent = metaText
-    button.append(kind, text, meta)
+    button.append(kindText, text, meta)
     button.addEventListener('click', () => {
       close()
       run()
@@ -76,17 +103,45 @@ export function initSearch({ palette, input, rows, translate, language, commands
     return button
   }
 
+  const filters = document.createElement('div')
+  filters.className = 'palette-filters'
+  const chips = KINDS.map((name) => {
+    const chip = document.createElement('button')
+    chip.type = 'button'
+    chip.className = 'chip'
+    chip.dataset.kind = name
+    chip.textContent = translate(KIND_LABELS[name])
+    chip.addEventListener('click', () => setKind(name))
+    filters.append(chip)
+    return chip
+  })
+  rows.before(filters)
+
+  const setKind = (next) => {
+    kind = next
+    for (const chip of chips) chip.setAttribute('aria-pressed', String(chip.dataset.kind === kind))
+    render()
+    input.focus()
+  }
+
+  const snippetFor = (row, query) => {
+    const words = normalize(query).trim().split(/\s+/).filter(Boolean)
+    if (words.length === 0 || words.every((word) => normalize(row.label).includes(word))) return ''
+    return snippetOf(row.text, query)
+  }
+
   const render = () => {
     const query = input.value
-    const results = index ? searchIndex(index, query) : []
-    const chosen = matchingCommands(commands(), query)
+    const results = index ? searchIndex(filterRows(index, kind), query) : []
+    const chosen = kind === 'all' ? matchingCommands(commands(), query) : []
     rows.replaceChildren(
       ...chosen.map((command) => rowButton(translate('kindCommand'), command.label, '', command.run)),
       ...results.map((row) => rowButton(
         translate(row.kind === 'file' ? 'kindFile' : row.kind === 'doc' ? 'kindDoc' : 'kindFolder'),
         row.label || translate('untitled'),
         row.kind === 'folder' ? relativeTime(parseDate(row.updated).getTime(), Date.now(), translate, language) : row.meta,
-        () => onOpen(row)
+        () => onOpen(row, query),
+        snippetFor(row, query)
       ))
     )
     highlight(0)
@@ -96,8 +151,8 @@ export function initSearch({ palette, input, rows, translate, language, commands
     palette.hidden = false
     input.value = ''
     input.focus()
+    setKind('all')
     document.addEventListener('pointerdown', closeIfOutside, true)
-    render()
     if (!loading) loading = loadIndex().then((built) => { index = built }).catch(() => {}).finally(() => { loading = null })
     await loading
     if (!palette.hidden) render()
@@ -107,6 +162,11 @@ export function initSearch({ palette, input, rows, translate, language, commands
   input.addEventListener('keydown', (event) => {
     if (event.key === 'Escape') {
       close()
+      return
+    }
+    if (event.key === 'Tab') {
+      event.preventDefault()
+      setKind(KINDS[(KINDS.indexOf(kind) + (event.shiftKey ? KINDS.length - 1 : 1)) % KINDS.length])
       return
     }
     if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
