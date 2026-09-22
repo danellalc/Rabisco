@@ -151,8 +151,8 @@ export function createResources({ api, translate, showToast }) {
     cache.clear()
   }
 
-  const upload = async (folder, file, onProgress = () => {}) => {
-    const record = await api.uploadFile(folder, file, file.name, onProgress)
+  const upload = async (folder, file, onProgress = () => {}, signal) => {
+    const record = await api.uploadFile(folder, file, file.name, onProgress, signal)
     invalidate(folder)
     return record
   }
