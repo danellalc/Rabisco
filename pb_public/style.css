@@ -44,6 +44,9 @@ body[data-view=note] .app,body[data-view=list] .app{display:flex}
 .avatar{width:30px;height:30px;margin-top:var(--s1);display:inline-flex;align-items:center;justify-content:center;border:1.5px solid var(--line);border-radius:50%;color:var(--fg2);font-size:13px;font-weight:700}
 .avatar:hover{border-color:var(--acc)}
 .panel{position:relative;flex:1;min-width:0;display:flex;flex-direction:column}
+.loading-bar{position:absolute;left:0;right:0;top:0;height:2px;background:var(--acc);z-index:2;transform-origin:left;animation:loading 1.2s infinite alternate}
+@keyframes loading{from{transform:scaleX(.1)}}
+@media (prefers-reduced-motion:reduce){.loading-bar{animation:none}}
 .panel-view{flex:1;min-height:0;flex-direction:column}
 .panel-view:not([hidden]){display:flex}
 .panel-head{position:relative;padding:14px 14px 12px;border-bottom:1px solid var(--line);flex-shrink:0}

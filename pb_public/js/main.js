@@ -374,6 +374,7 @@ const uploadError = (error) => {
 
 const FORMATS = [['md', 'downloadMd'], ['html', 'downloadHtml'], ['docx', 'downloadDocx'], ['txt', 'downloadTxt']]
 const DOCX_TYPE = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+const LOADING_DELAY = 300
 
 const exportAs = (format, tree, title) => {
   const origin = location.origin
@@ -586,6 +587,22 @@ if (sharedPage) {
   let panelView = 'folder'
   let recents = readRecent(localStorage)
 
+  const createLoadingBar = (bar) => {
+    let pending = 0
+    let timer = 0
+    const settle = () => {
+      if (--pending > 0) return
+      clearTimeout(timer)
+      bar.hidden = true
+    }
+    return (promise) => {
+      if (pending++ === 0) timer = setTimeout(() => { bar.hidden = false }, LOADING_DELAY)
+      return promise.finally(settle)
+    }
+  }
+  const whileLoading = createLoadingBar(document.getElementById('loading-bar'))
+  const whileBoardLoading = createLoadingBar(document.getElementById('board-loading'))
+
   const folderEntry = () => {
     const listing = drive.listing()
     return listing && listing.folder ? listing.folder : null
@@ -648,7 +665,7 @@ if (sharedPage) {
 
   const refreshFolder = async (id = folderId) => {
     try {
-      const listing = await resources.listing(id, { fresh: true })
+      const listing = await whileLoading(resources.listing(id, { fresh: true }))
       if (id !== folderId) return
       drive.set(listing)
       board.refreshCards()
@@ -663,7 +680,7 @@ if (sharedPage) {
     await docEditor.close()
     let listing
     try {
-      listing = await resources.listing(id)
+      listing = await whileLoading(resources.listing(id))
     } catch (error) {
       if (error && error.status === 404 && id) {
         showToast(translate('loadFailed'))
@@ -678,7 +695,7 @@ if (sharedPage) {
     writeCachedListing(localStorage, id, listing)
     if (listing.folder) rememberRecent({ kind: 'folder', id, name: labelOf(listing.folder) || translate('untitled') }, listing.folder.parent, listing.path.length > 1 ? listing.path[listing.path.length - 2].name || listing.path[listing.path.length - 2].title : translate('myDrive'))
     updateTitle()
-    if (id) await boards.open(id)
+    if (id) await whileBoardLoading(boards.open(id))
     else await boards.close()
     lastHint = null
     updateHints()
@@ -687,7 +704,7 @@ if (sharedPage) {
 
   const openDoc = async (id, folder) => {
     if (folder !== folderId) await openFolder(folder)
-    const doc = await api.getDoc(id)
+    const doc = await whileLoading(api.getDoc(id))
     await docEditor.open({
       id,
       name: doc.name,
@@ -1116,7 +1133,7 @@ if (sharedPage) {
 
   async function renderTrash() {
     try {
-      trashListing = await resources.trashList()
+      trashListing = await whileLoading(resources.trashList())
     } catch {
       showToast(translate('loadFailed'))
     }
@@ -1468,7 +1485,7 @@ if (sharedPage) {
       { label: translate('recent'), run: () => showPanel('recent') },
       { label: translate('trash'), run: () => showPanel('trash') }
     ],
-    loadIndex: async () => buildIndex(await api.searchIndex(), translate),
+    loadIndex: async () => buildIndex(await whileLoading(api.searchIndex()), translate),
     onOpen: async (row) => {
       try {
         showPanel('folder')
