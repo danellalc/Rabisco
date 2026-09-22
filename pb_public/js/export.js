@@ -24,7 +24,7 @@ export function treeOfBoard(elements) {
 
 export function fileName(title, extension) {
   const clean = Array.from(String(title || '').replace(/[\\/:*?"<>|\u0000-\u001f]/g, '')).slice(0, FILE_NAME_LIMIT).join('').trim()
-  return `${clean || 'rabisco'}.${extension}`
+  return `${clean || 'trecos'}.${extension}`
 }
 
 const isText = (node) => typeof node === 'string'

@@ -57,7 +57,7 @@ test('empty marks and blank blocks are dropped', () => {
 
 test('file names come from the title and stay safe', () => {
   assert.equal(fileName('Meeting: notes / plan?', 'md'), 'Meeting notes  plan.md')
-  assert.equal(fileName('', 'txt'), 'rabisco.txt')
+  assert.equal(fileName('', 'txt'), 'trecos.txt')
   assert.equal(fileName('x'.repeat(100), 'md'), `${'x'.repeat(60)}.md`)
   assert.equal(fileName(`${'x'.repeat(59)}😀 tail`, 'md'), `${'x'.repeat(59)}😀.md`)
   assert.equal(fileName('word '.repeat(30), 'md'), `${'word '.repeat(11)}word.md`)

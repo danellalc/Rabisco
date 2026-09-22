@@ -1,7 +1,7 @@
 {
   "name": "Trecos",
   "short_name": "Trecos",
-  "description": "A board for your notes, screenshots, links and files",
+  "description": "Every folder is a board. Keep files, write and organize everything in one light place.",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
