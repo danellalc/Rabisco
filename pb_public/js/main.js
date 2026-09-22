@@ -8,10 +8,12 @@ import { createChooser, createPopover, createToast } from './dom.js'
 import { initDrive, transferResources } from './drive.js'
 import { duplicateShared } from './duplicate.js'
 import { clearIfBlank, createInsertImage, insertText, removeImageBlock } from './editor.js'
+import { firstBoardContent } from './examples.js'
 import { toDocx } from './docx.js'
 import { fileName, toHtml, toMarkdown, toText, treeOf, treeOfBoard } from './export.js'
 import { FILE_ICON_PATHS } from './file-card.js'
 import { createFormatter, initChecklist } from './format.js'
+import { initHelp } from './help.js'
 import { bindHistoryKeys, createHistory } from './history.js'
 import { applyTranslations, countOf, createTranslator, pickLanguage } from './i18n.js'
 import { compressImage, copyImage, downloadBlob, fileExtension } from './images.js'
@@ -404,19 +406,19 @@ const canvasMenu = (ids, item, point, { owner }) => {
   const single = ids.length === 1 ? item : null
   const front = { label: translate('bringToFront'), run: () => board.bringToFront(ids) }
   const back = { label: translate('sendToBack'), run: () => board.sendToBack(ids) }
-  const duplicateAction = { label: translate('duplicate'), run: () => board.duplicate(ids) }
-  const removeAction = { label: translate(single && single.type !== 'text' && single.type !== 'image' && single.type !== 'link' ? 'removeFromBoard' : 'delete'), danger: !single || ['text', 'image', 'link'].includes(single.type), run: () => board.remove(ids) }
+  const duplicateAction = { label: translate('duplicate'), hint: 'Ctrl D', run: () => board.duplicate(ids) }
+  const removeAction = { label: translate(single && single.type !== 'text' && single.type !== 'image' && single.type !== 'link' ? 'removeFromBoard' : 'delete'), hint: 'Del', danger: !single || ['text', 'image', 'link'].includes(single.type), run: () => board.remove(ids) }
   if (!single) return [{ label: translate('frameSelection'), run: () => board.frameSelection(ids) }, duplicateAction, front, back, { separator: true }, removeAction]
   const actions = []
   if (single.type === 'frame') {
-    actions.push({ label: translate('rename'), run: () => board.renameFile(single.id) })
+    actions.push({ label: translate('rename'), hint: 'Enter', run: () => board.renameFile(single.id) })
     if (owner) actions.push({ label: translate('shareFrame'), run: () => sync.shareItems([single.id]) })
-    actions.push(duplicateAction, { separator: true }, { label: translate('delete'), danger: true, run: () => board.remove(ids) })
+    actions.push(duplicateAction, { separator: true }, { label: translate('delete'), hint: 'Del', danger: true, run: () => board.remove(ids) })
     return actions
   }
   if (single.type === 'text') {
     actions.push(
-      { label: translate('edit'), run: () => board.startEditing(single.id) },
+      { label: translate('edit'), hint: 'Enter', run: () => board.startEditing(single.id) },
       duplicateAction,
       { label: translate('copyItems'), run: () => copyText(board.clipboardText(ids)) },
       { label: translate('export'), run: () => itemMenu.open(textExportMenu(single.id, point), point) },
@@ -571,6 +573,7 @@ if (sharedPage) {
   const newButton = document.getElementById('new')
   const uploadButton = document.getElementById('upload')
   const paneTitle = document.getElementById('pane-title')
+  const tips = document.getElementById('tips')
   const folderView = document.getElementById('folder-view')
   const sideView = document.getElementById('side-view')
   const boardLine = document.getElementById('board-line')
@@ -616,9 +619,21 @@ if (sharedPage) {
     if (isPhone()) showList()
   }
 
+  const setPaneTitle = (template, name) => {
+    paneTitle.replaceChildren()
+    if (!template) return
+    const caption = document.createElement('span')
+    caption.textContent = template.split('{name}')[0]
+    const named = document.createElement('span')
+    named.className = 'pane-name'
+    named.textContent = name
+    paneTitle.append(caption, named)
+  }
+
   const updateTitle = () => {
     const doc = docEditor.isOpen() ? docEditor.current() : null
-    paneTitle.textContent = doc ? doc.name : folderLabel()
+    if (doc) setPaneTitle(translate('docNamed'), doc.name || translate('untitled'))
+    else setPaneTitle(folderId ? translate('boardOfFolderNamed') : '', folderLabel())
     uploadButton.disabled = !folderId
     if (folderId) delete document.body.dataset.root
     else document.body.dataset.root = ''
@@ -631,6 +646,19 @@ if (sharedPage) {
     if (doc && doc.id) ids.push(doc.id)
     drive.setLinked(ids)
   }
+
+  const showTips = () => {
+    tips.hidden = store.settings.tips === 'shown'
+  }
+  const dismissTips = () => {
+    if (tips.hidden) return
+    tips.hidden = true
+    store.settings.tips = 'shown'
+    saveSettings()
+  }
+  document.getElementById('tips-done').addEventListener('click', dismissTips)
+  area.addEventListener('pointerdown', (event) => { if (!tips.contains(event.target)) dismissTips() })
+  document.addEventListener('keydown', (event) => { if (event.key === 'Escape') dismissTips() })
 
   const updateHints = () => {
     const hint = folderId && store.board && board.items().length === 0 ? translate('boardHints') : folderId ? '' : translate('rootHint')
@@ -1144,6 +1172,7 @@ if (sharedPage) {
     onOpened: () => {
       showNote()
       updateBoardLine()
+      showTips()
     },
     onQuota: ({ used, quota }) => {
       quotaLine.textContent = translate('quotaLine').replace('{used}', formatBytes(used)).replace('{quota}', formatBytes(quota))
@@ -1385,6 +1414,7 @@ if (sharedPage) {
       { label: () => translate('downloadDocx'), run: () => exportCurrent('docx') },
       { label: () => translate('downloadTxt'), run: () => exportCurrent('txt') },
       { label: () => translate('downloadZip'), run: exportZip },
+      { label: () => translate('shortcuts'), run: () => help.open() },
       { label: () => translate('print'), run: () => window.print() },
       { label: () => translate('deleteFolder'), danger: true, run: removeCurrentFolder }
     ],
@@ -1487,6 +1517,7 @@ if (sharedPage) {
   })
 
   document.getElementById('search-open').addEventListener('click', () => palette.open())
+  const help = initHelp({ element: document.getElementById('help'), translate, isActive: signedIn })
 
   document.addEventListener('keydown', (event) => {
     if (!(event.ctrlKey || event.metaKey) || !event.altKey || event.key.toLowerCase() !== 'n') return
@@ -1603,9 +1634,8 @@ if (sharedPage) {
       if (last === null) await openSomeFolder()
       const listing = drive.listing()
       if (!folderId && listing && listing.folders.length === 0) {
-        const record = await resources.createFolder('', translate('firstFolderName'))
+        const record = await resources.createFolder('', translate('firstFolderName'), firstBoardContent(translate))
         await openFolder(record.id)
-        if (!isPhone()) board.editFirstText()
       }
       boards.refreshQuota()
       await receiveShared()
