@@ -1,7 +1,7 @@
 const REFRESH_WINDOW = 3600000
 const BOARD_FIELDS = 'id,content,revision,updated,title,cover,pinned,name,parent'
 const SUMMARY_FIELDS = 'id,revision,updated,title,cover,pinned,name,parent'
-const FILE_FIELDS = 'id,name,size,kind,board'
+const FILE_FIELDS = 'id,name,size,kind,board,pic'
 const DOC_FIELDS = 'id,name,board,revision,updated'
 const DOC_CONTENT_FIELDS = 'id,name,board,revision,updated,content'
 const SHARE_FIELDS = 'id,token,mode,items,expires,doc,file'
@@ -129,6 +129,7 @@ export function createApi({ getToken, getUserId, onSession = () => {} }) {
       return fresh('POST', '/api/collections/images/records?fields=id,file', { body: form })
     },
     imageUrl: (record) => `/api/files/images/${record.id}/${record.file}`,
+    pictureUrl: (record) => (record.pic ? `/api/pic/${record.id}/${record.pic}` : ''),
     uploadFile: async (boardId, file, name, onProgress) => {
       const form = new FormData()
       form.append('board', boardId)

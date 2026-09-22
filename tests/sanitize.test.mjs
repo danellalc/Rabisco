@@ -70,6 +70,7 @@ test('good content survives the server sanitizer unchanged in meaning', () => {
 })
 
 test('quotes, inline code and code blocks survive without attributes', () => {
+  assert.equal(sanitizeHtml('<img src="/api/pic/abcdefghijklmno/AbCdEfGhIjKlMnOp"><img src="/api/pic/abc/x">'), '<img src="/api/pic/abcdefghijklmno/AbCdEfGhIjKlMnOp">')
   assert.equal(sanitizeHtml('<blockquote class="x" onclick="1">quoted</blockquote><pre style="a"><code>let a = 1</code></pre><p>use <code>npm</code></p>'), '<blockquote>quoted</blockquote><pre><code>let a = 1</code></pre><p>use <code>npm</code></p>')
 })
 
@@ -109,6 +110,10 @@ test('client url and width validators agree with the server', () => {
   assert.equal(safeImageSource('blob:http://x/1', true), 'blob:http://x/1')
   assert.equal(safeImageSource('blob:http://x/1', false), null)
   assert.equal(safeImageSource('/api/files/images/abc/x.webp', false), '/api/files/images/abc/x.webp')
+  assert.equal(safeImageSource('/api/pic/abcdefghijklmno/AbCdEfGhIjKlMnOp', false), '/api/pic/abcdefghijklmno/AbCdEfGhIjKlMnOp')
+  assert.equal(safeImageSource('/api/pic/abcdefghijklmno/short', false), null)
+  assert.equal(safeImageSource('/api/pic/abcdefghijklmno/AbCdEfGhIjKlMnOp/../x', false), null)
+  assert.equal(safeImageSource('/api/pic/../files/images/abc/x.webp', false), null)
   assert.equal(safeWidth('width: 45%'), '45')
   assert.equal(safeWidth('width: 2%'), null)
   assert.equal(safeWidth('width: 45%; color: red'), null)

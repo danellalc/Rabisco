@@ -446,8 +446,31 @@ export function createBoard({ area, layer, lasso, guides, message, translate, la
     item.file = record.id
     item.name = record.name
     item.size = record.size
+    if (record.pic) {
+      item.src = `/api/pic/${record.id}/${record.pic}`
+      elements.get(id).querySelector('img').src = item.src
+    }
     imageNote(item)
     onChange()
+  }
+
+  const addPicture = (point, record) => {
+    beforeChange()
+    const item = addItem({ id: newId(), type: 'image', ...place(point), w: NEW_TEXT_WIDTH, src: `/api/pic/${record.id}/${record.pic}`, file: record.id, name: record.name, size: record.size })
+    const img = elements.get(item.id).querySelector('img')
+    img.addEventListener('load', () => {
+      if (!img.naturalWidth) return
+      item.width = img.naturalWidth
+      item.height = img.naturalHeight
+      item.w = Math.max(IMAGE_MIN_WIDTH, Math.min(IMAGE_MAX_WIDTH, img.naturalWidth))
+      img.width = item.width
+      img.height = item.height
+      applyGeometry(item)
+      onChange()
+    }, { once: true })
+    onChange()
+    setSelection([item.id])
+    return item
   }
 
   const refreshCards = () => {
@@ -1145,6 +1168,7 @@ export function createBoard({ area, layer, lasso, guides, message, translate, la
     referenceIds,
     renameReferences,
     linkImage,
+    addPicture,
     refreshCards,
     setColor,
     setFileProgress: cards.setProgress,

@@ -39,7 +39,7 @@ function safeHref(raw) {
 
 function safeImageSource(raw) {
   const url = cleanUrl(raw)
-  return /^\/api\/files\/images\/[a-z0-9]+\/[a-z0-9_.-]+$/i.test(url) ? url : null
+  return /^\/api\/files\/images\/[a-z0-9]+\/[a-z0-9_.-]+$/i.test(url) || /^\/api\/pic\/[a-z0-9]{15}\/[a-z0-9]{16}$/i.test(url) ? url : null
 }
 
 function safeDimension(raw) {

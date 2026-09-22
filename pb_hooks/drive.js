@@ -139,6 +139,7 @@ function listFolder(app, userId, folderId) {
     name: file.getString('name'),
     size: Number(file.get('size')) || 0,
     kind: file.getString('kind'),
+    pic: file.getString('pic'),
     updated: file.getString('created')
   }))
   const path = folder ? ancestors(app, folder).concat([folder]).map((board) => ({ id: board.id, name: board.getString('name'), title: board.getString('title') })) : []
