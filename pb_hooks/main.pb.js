@@ -239,7 +239,7 @@ routerAdd('GET', '/api/dl/{token}', (e) => {
 })
 
 routerAdd('GET', '/api/shared', (e) => {
-  const { findShared } = require(`${__hooks}/share.js`)
+  const { findShared, folderContents } = require(`${__hooks}/share.js`)
   const shared = findShared(e)
   if (shared.kind === 'doc') {
     return e.json(200, {
@@ -261,35 +261,34 @@ routerAdd('GET', '/api/shared', (e) => {
       partial: true
     })
   }
+  const contents = shared.scoped ? { docs: [], files: [] } : folderContents(e.app, shared.board.id)
   return e.json(200, {
     kind: 'board',
     content: shared.content,
     revision: shared.mode === 'edit' ? shared.board.getString('revision') : '',
     mode: shared.mode,
     title: shared.scoped ? '' : shared.board.getString('name') || shared.board.getString('title'),
-    partial: shared.scoped
+    partial: shared.scoped,
+    docs: contents.docs,
+    files: contents.files
   })
 })
 
 routerAdd('POST', '/api/shared/file-link', (e) => {
-  const { findShared } = require(`${__hooks}/share.js`)
+  const { findShared, sharedFileOf } = require(`${__hooks}/share.js`)
   const { downloadLink } = require(`${__hooks}/files.js`)
   const shared = findShared(e)
-  const id = String(e.requestInfo().body.file || '')
-  if (shared.kind === 'file') {
-    if (id !== shared.file.id) throw new NotFoundError('File not found.')
-    return e.json(200, downloadLink(e.app, shared.file))
-  }
-  if (shared.kind !== 'board') throw new NotFoundError('File not found.')
-  if (id === '' || shared.content.indexOf('"file":"' + id + '"') < 0) throw new NotFoundError('File not found.')
-  let file
-  try {
-    file = e.app.findRecordById('files', id)
-  } catch (error) {
-    throw new NotFoundError('File not found.')
-  }
-  if (file.getString('board') !== shared.board.id || file.getString('trashed') !== '') throw new NotFoundError('File not found.')
+  const file = sharedFileOf(e.app, shared, String(e.requestInfo().body.file || ''))
+  if (file === null) throw new NotFoundError('File not found.')
   return e.json(200, downloadLink(e.app, file))
+})
+
+routerAdd('POST', '/api/shared/doc', (e) => {
+  const { findShared, sharedDocOf } = require(`${__hooks}/share.js`)
+  const shared = findShared(e)
+  const doc = sharedDocOf(e.app, shared, String(e.requestInfo().body.doc || ''))
+  if (doc === null) throw new NotFoundError('Document not found.')
+  return e.json(200, { id: doc.id, name: doc.getString('name'), content: doc.getString('content') })
 })
 
 routerAdd('PATCH', '/api/shared', (e) => {

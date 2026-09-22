@@ -146,6 +146,7 @@ export function createApi({ getToken, getUserId, onSession = () => {} }) {
     quota: () => fresh('GET', '/api/quota'),
     getShared: (token) => shared('GET', '/api/shared', token),
     saveShared: (token, content, revision) => shared('PATCH', '/api/shared', token, { body: { content }, headers: { 'X-Note-Rev': revision } }),
-    sharedFileLink: (token, file) => shared('POST', '/api/shared/file-link', token, { body: { file } })
+    sharedFileLink: (token, file) => shared('POST', '/api/shared/file-link', token, { body: { file } }),
+    sharedDoc: (token, doc) => shared('POST', '/api/shared/doc', token, { body: { doc } })
   }
 }

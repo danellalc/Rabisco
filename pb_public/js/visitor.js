@@ -120,7 +120,7 @@ export function createVisitor({ api, token, board, layer, history, chooser, tran
         return
       }
       apply(shared)
-      onReady(mode)
+      onReady(mode, shared)
     } catch (error) {
       const gone = Boolean(error && error.status === 404)
       board.setMessage(translate(gone ? 'linkGone' : 'loadFailed'))

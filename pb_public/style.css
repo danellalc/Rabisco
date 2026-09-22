@@ -145,6 +145,9 @@ body[data-view=shared] .list,body[data-view=shared] #back,body[data-view=shared]
 .shared-foot:not([hidden]){display:flex}
 .shared-foot a{color:var(--acc)}
 .shared-foot .text-link{align-self:auto;min-height:0;font-size:13px;letter-spacing:.04em;text-transform:uppercase}
+.shared-list{top:auto;bottom:52px;right:var(--s4);width:320px;max-width:calc(100vw - 32px);max-height:50vh;overflow-y:auto;margin:0;z-index:5}
+.shared-list .row{cursor:pointer}
+.row-thumb{width:20px;height:20px;flex-shrink:0;border-radius:2px;object-fit:cover}
 @media (max-width:719px){
 body[data-view=note] .list{display:none}
 body[data-view=list] .pane{display:none}

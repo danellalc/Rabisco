@@ -35,6 +35,7 @@ import { buildIndex, initSearch } from './search.js'
 import { applySettings, readSettings, writeSettings } from './settings.js'
 import { SHARE_HASH, clearShareTarget, readShareTarget } from './share-target.js'
 import { initShare, matchesTarget, shareTarget, shareUrl, tokenFromHash } from './share.js'
+import { createSharedList } from './shared-list.js'
 import { initShortcuts } from './shortcuts.js'
 import { initSlash } from './slash.js'
 import { migrateStorage, store } from './store.js'
@@ -515,6 +516,7 @@ if (sharedPage) {
     onReady: (mode, payload) => {
       document.body.dataset.mode = mode === 'doc' ? payload.mode : mode
       document.getElementById('shared-foot').hidden = false
+      if (mode === 'view' || mode === 'edit') sharedList.set(payload)
       if (mode === 'doc') {
         docEditor.open({
           id: '',
@@ -536,6 +538,24 @@ if (sharedPage) {
       document.getElementById('download-size').textContent = formatBytes(payload.size)
       document.getElementById('download-button').addEventListener('click', () => downloadFile({ id: payload.file || payload.id, name: payload.name }))
       page.hidden = false
+    }
+  })
+  const openSharedDoc = async (entry) => {
+    try {
+      const doc = await api.sharedDoc(sharedToken, entry.id)
+      await docEditor.open({ id: doc.id, name: doc.name, content: doc.content, revision: '', editable: false, rename: null, save: null, reload: null })
+    } catch {
+      showToast(translate('linkGone'))
+    }
+  }
+  const sharedList = createSharedList({
+    button: document.getElementById('shared-files'),
+    panel: document.getElementById('shared-list'),
+    translate,
+    language,
+    onOpen: (entry) => {
+      if (entry.kind === 'doc') openSharedDoc(entry)
+      else openFile({ id: entry.id, name: entry.name, kind: entry.fileKind, size: entry.size })
     }
   })
   sync.markDirty = () => (docEditor.isOpen() ? docEditor.markDirty() : visitor.markDirty())

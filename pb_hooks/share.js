@@ -107,9 +107,49 @@ function findShared(e) {
   return { kind: 'board', share, board, scoped, itemIds, mode: shareMode(share.getString('mode'), scoped), content: filterContent(content, items, itemIds) }
 }
 
+function folderContents(app, boardId) {
+  const docs = app.findRecordsByFilter('docs', "board = {:board} && trashed = ''", '-updated', 500, 0, { board: boardId }).map((doc) => ({
+    id: doc.id,
+    name: doc.getString('name'),
+    updated: doc.getString('updated')
+  }))
+  const files = app.findRecordsByFilter('files', "board = {:board} && trashed = ''", '-created', 500, 0, { board: boardId }).map((file) => ({
+    id: file.id,
+    name: file.getString('name'),
+    size: Number(file.get('size')) || 0,
+    kind: file.getString('kind'),
+    pic: file.getString('pic')
+  }))
+  return { docs, files }
+}
+
+function sharedFileOf(app, shared, id) {
+  if (shared.kind === 'file') return id === shared.file.id ? shared.file : null
+  if (shared.kind !== 'board' || id === '') return null
+  if (shared.scoped && shared.content.indexOf('"file":"' + id + '"') < 0 && shared.content.indexOf('/api/pic/' + id + '/') < 0) return null
+  let file
+  try {
+    file = app.findRecordById('files', id)
+  } catch (error) {
+    return null
+  }
+  return file.getString('board') === shared.board.id && file.getString('trashed') === '' ? file : null
+}
+
+function sharedDocOf(app, shared, id) {
+  if (shared.kind !== 'board' || shared.scoped || id === '') return null
+  let doc
+  try {
+    doc = app.findRecordById('docs', id)
+  } catch (error) {
+    return null
+  }
+  return doc.getString('board') === shared.board.id && doc.getString('trashed') === '' ? doc : null
+}
+
 function expireShares(app) {
   const records = app.findRecordsByFilter('shares', "expires != '' && expires < @now", '', 200, 0)
   for (let index = 0; index < records.length; index++) app.delete(records[index])
 }
 
-module.exports = { findShared, isExpired, parseIds, parseBoard, sharedItemIds, expandFrames, isScoped, shareMode, filterContent, expireShares }
+module.exports = { findShared, isExpired, parseIds, parseBoard, sharedItemIds, expandFrames, isScoped, shareMode, filterContent, folderContents, sharedFileOf, sharedDocOf, expireShares }

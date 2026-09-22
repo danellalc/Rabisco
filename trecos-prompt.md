@@ -378,7 +378,7 @@ Decisão do dono: **vamos fazer tudo que está aqui**. Este é o backlog de prod
 2. **Drive de verdade**: miniaturas e grade, upload com lista e pasta inteira, ordenar visível, prévia com Espaço, desfazer de renomear e mover, detalhes completos, duplicar pasta, Ctrl F no quadro, Ctrl A na lista.
 3. **Quadro completo**: setas e conectores, formas, alinhar e distribuir, travar, notas com mais cores e altura livre, tamanho de fonte, minimapa, apresentação por molduras, miniaturas nos cartões.
 4. **Conta e negócio**: configurações, apagar conta, exportar tudo, preços com Pix e cartão, landing, termos, e-mails.
-5. **Compartilhar melhor**: link de pasta com lista, "Meus links", compartilhar por e-mail, "Compartilhados comigo", prévia do link.
+5. **Compartilhar melhor**: link de pasta com lista (feito em 22/09/2026: o link de pasta inteira mostra um botão "Arquivos e documentos (N)" que abre a lista da pasta, com miniatura das imagens; o visitante abre um documento só pra ler e baixa qualquer arquivo da pasta por link assinado; um link de seleção ou moldura continua sem revelar nada da pasta), "Meus links", compartilhar por e-mail, "Compartilhados comigo", prévia do link.
 6. **Colaborar**: realtime, presença e cursores, comentários, atividade, histórico de versões.
 7. **Celular**: barra própria, captura, toque longo, seleção múltipla.
 8. **Escala**: paginação, busca em cache, virtualização do quadro, módulos sob demanda.
