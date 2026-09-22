@@ -107,7 +107,7 @@ test('the docx export writes headings, runs, lists, links and tables into wordpr
     { tag: 'table', attrs: {}, children: [{ tag: 'tbody', attrs: {}, children: [{ tag: 'tr', attrs: {}, children: [{ tag: 'td', attrs: {}, children: ['1'] }, { tag: 'td', attrs: {}, children: ['2'] }] }] }] }
   ] }
   const { document, rels } = toDocxXml(tree)
-  assert.ok(document.includes('<w:pStyle w:val="Heading1"/>'))
+  assert.ok(document.includes('<w:sz w:val="40"/>') && document.includes('<w:keepNext/>'))
   assert.ok(document.includes('<w:t xml:space="preserve">Title &amp; co</w:t>'))
   assert.ok(document.includes('<w:rPr><w:b/></w:rPr><w:t xml:space="preserve">bold</w:t>'))
   assert.ok(document.includes('<w:hyperlink r:id="rId10">'))
@@ -116,7 +116,7 @@ test('the docx export writes headings, runs, lists, links and tables into wordpr
   assert.ok(document.includes('☑ ') && document.includes('☐ ') && document.includes('1. nested'.slice(0, 2)))
   assert.ok(document.includes('<w:ind w:left="1440"/>'))
   assert.ok(document.includes('<w:i/>') && document.includes('quoted'))
-  assert.ok(document.includes('<w:pStyle w:val="Code"/>') && document.includes('a = 1</w:t><w:br/><w:t xml:space="preserve">b = 2'))
+  assert.ok(document.includes('w:fill="E3E0DA"') && document.includes('a = 1</w:t><w:br/><w:t xml:space="preserve">b = 2'))
   assert.ok(document.includes('<w:pBdr>'))
   assert.ok(document.includes('<w:tbl>') && document.includes('<w:tc>'))
   assert.equal(escapeXml('a<b>&"\u0001'), 'a&lt;b&gt;&amp;&quot;')
@@ -124,5 +124,5 @@ test('the docx export writes headings, runs, lists, links and tables into wordpr
   assert.equal(zip[0], 0x50)
   assert.equal(zip[1], 0x4b)
   const text = new TextDecoder().decode(zip)
-  assert.ok(text.includes('[Content_Types].xml') && text.includes('word/document.xml') && text.includes('word/styles.xml'))
+  assert.ok(text.includes('[Content_Types].xml') && text.includes('word/document.xml') && text.includes('word/_rels/document.xml.rels'))
 })

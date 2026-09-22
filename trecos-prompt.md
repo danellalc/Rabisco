@@ -358,7 +358,7 @@ Decisão do dono: **vamos fazer tudo que está aqui**. Este é o backlog de prod
 **Performance e limites**
 - Listagem paginada acima de 500 itens; índice de busca em pedaços e em cache com data.
 - Quadro com muitos itens: só desenhar o que está na tela (virtualização por retângulo visível).
-- Peso: com 69,6 KB de 72 gzip, cada bloco novo precisa vir com enxugar algo (dividir em módulos carregados sob demanda: docx, zip, apresentação, importar).
+- Peso: a fase 1 fechou em 73,5 KB de 73,7 (teto de 72 KB gzip); as fases seguintes não cabem sem um teto novo ou sem carregar módulos sob demanda (docx, zip, ajuda, exemplo, apresentação, importar). Teto provisório a partir de 22/09/2026, até o dono confirmar: 96 KB gzip, 320 KB sem gzip, JS 256 KB, CSS 40 KB (`tools/size.mjs`), ainda muito leve; módulos grandes (docx, zip, ajuda, exemplo) passam a carregar sob demanda na fase 8.
 
 **Acessibilidade**
 - Navegar itens do quadro por Tab e setas com anúncio de nome e tipo; papel e nome em cada item; atalhos com letras reveladas em "?"; contraste conferido no tema escuro.
@@ -374,7 +374,7 @@ Decisão do dono: **vamos fazer tudo que está aqui**. Este é o backlog de prod
 
 ### Ordem proposta (cada fase com teste, peso e bateria)
 
-1. **Entender e navegar**: URLs e Voltar, caminho completo, legenda do canvas, primeira pasta de exemplo com dicas, login e e-mail com a marca, "?" de atalhos, indicador de carregamento, um só verbo de apagar, imagem sempre arquivo.
+1. **Entender e navegar** (feita em 22/09/2026): URLs `/f/{id}` e `/d/{id}` com Voltar e Avançar, caminho completo com reticências, legenda "Quadro da pasta X" no cabeçalho, primeira pasta "Boas-vindas" com quadro de exemplo e três dicas na primeira vez, login com a frase do produto, e-mail de código com a marca Trecos (migration), "?" com os atalhos (também no menu ⋯), barra de carregamento de 2 px na lateral e no cabeçalho, "Tirar do quadro" vs "Apagar (vai pra lixeira)" com pergunta quando o item está no quadro, e imagem sempre arquivo: uma imagem colada no quadro vira um arquivo da pasta servido por `/api/pic/{id}/{chave}` (chave de 16 caracteres escolhida pelo servidor, só enquanto o arquivo não está na lixeira), sem cópia na coleção `images`; "Mostrar como imagem" e "Mostrar como cartão" trocam sem baixar; "Salvar no Drive" só existe pra imagens antigas.
 2. **Drive de verdade**: miniaturas e grade, upload com lista e pasta inteira, ordenar visível, prévia com Espaço, desfazer de renomear e mover, detalhes completos, duplicar pasta, Ctrl F no quadro, Ctrl A na lista.
 3. **Quadro completo**: setas e conectores, formas, alinhar e distribuir, travar, notas com mais cores e altura livre, tamanho de fonte, minimapa, apresentação por molduras, miniaturas nos cartões.
 4. **Conta e negócio**: configurações, apagar conta, exportar tudo, preços com Pix e cartão, landing, termos, e-mails.

@@ -846,7 +846,7 @@ if (sharedPage) {
   const removeEntries = async (entries, { ask = true } = {}) => {
     const question = ask ? onBoardQuestion(entries) : null
     if (question && !(await confirmTrash(question))) return
-    const cards = entries.flatMap((entry) => board.referenceIds(entry.kind, entry.id).map(board.itemOf).map((item) => ({ ...item })))
+    const cards = entries.flatMap((entry) => board.referenceIds(entry.kind, entry.id).map(board.itemOf).map((item) => ({ ...item, pic: entry.pic || '' })))
     for (const entry of entries) {
       if (docEditor.isOpen() && docEditor.current().id === entry.id) {
         await docEditor.close()
@@ -857,7 +857,10 @@ if (sharedPage) {
     if (cards.length > 0) board.remove(cards.map((card) => card.id))
     const done = await resources.remove(entries, folderId, {
       onUndo: () => {
-        for (const card of cards) board.addReference({ x: card.x, y: card.y }, card.type, card[card.type], card.name, card.type === 'file' ? { size: card.size, kind: card.kind } : {})
+        for (const card of cards) {
+          if (card.type === 'image') board.addPicture({ x: card.x, y: card.y }, { id: card.file, name: card.name, size: card.size, pic: card.pic })
+          else board.addReference({ x: card.x, y: card.y }, card.type, card[card.type], card.name, card.type === 'file' ? { size: card.size, kind: card.kind } : {})
+        }
         refreshFolder()
       }
     })
@@ -1010,6 +1013,12 @@ if (sharedPage) {
   }
 
   const fileToImage = async (item) => {
+    const entry = drive.entry(item.file)
+    if (entry && entry.pic) {
+      board.remove([item.id])
+      board.addPicture({ x: item.x, y: item.y }, { id: entry.id, name: entry.name, size: entry.size, pic: entry.pic })
+      return
+    }
     try {
       const blob = await api.downloadFile(item.file)
       board.remove([item.id])
@@ -1312,10 +1321,18 @@ if (sharedPage) {
       openFile({ ...fileOf(item), location: folderLabel() })
     }
   }
+  const pictureName = (file, blob) => {
+    const base = String(file.name || '').replace(/\.[^.]+$/, '') || `image-${new Date().toISOString().slice(0, 19).replace(/[-:T]/g, '')}`
+    return `${base}.${fileExtension(blob.type)}`
+  }
+
   sync.imageInserted = async (img, file) => {
     try {
       const blobUrl = img.src
-      store.pendingImages.set(blobUrl, await compressImage(file))
+      const blob = await compressImage(file)
+      store.pendingImages.set(blobUrl, blob)
+      const holder = img.closest('.item')
+      if (holder && holder.dataset.type === 'image') store.pendingNames.set(blobUrl, pictureName(file, blob))
       boards.upload(blobUrl)
     } catch {
       discardImage(img)
@@ -1434,7 +1451,7 @@ if (sharedPage) {
           entries.push({ name: uniqueName(item.name, taken), data: new Uint8Array(await blob.arrayBuffer()) })
         }
       }
-      for (const img of area.querySelectorAll('img[src^="/api/files/images/"]')) {
+      for (const img of area.querySelectorAll('img[src^="/api/files/images/"], img[src^="/api/pic/"]')) {
         const blob = await (await fetch(img.getAttribute('src'))).blob()
         entries.push({ name: uniqueName(img.getAttribute('src').split('/').pop(), taken), data: new Uint8Array(await blob.arrayBuffer()) })
       }

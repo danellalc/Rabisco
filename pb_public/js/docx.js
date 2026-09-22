@@ -2,7 +2,7 @@ import { buildZip } from './zip.js'
 
 const HIGHLIGHTS = { hl1: 'yellow', hl2: 'green', hl3: 'magenta' }
 const COLORS = { c1: '8E4A40', c2: '4A637C', c3: '605E57' }
-const HEADINGS = { h1: 'Heading1', h2: 'Heading2' }
+const HEADINGS = { h1: 40, h2: 30 }
 const LISTS = ['ul', 'ol']
 const INDENT = 720
 
@@ -15,7 +15,8 @@ export function escapeXml(text) {
 
 function runProperties(style) {
   const parts = []
-  if (style.code) parts.push('<w:rFonts w:ascii="Consolas" w:hAnsi="Consolas"/><w:sz w:val="20"/>')
+  if (style.code) parts.push('<w:rFonts w:ascii="Consolas" w:hAnsi="Consolas"/>')
+  if (style.size || style.code) parts.push(`<w:sz w:val="${style.size || 20}"/>`)
   if (style.bold) parts.push('<w:b/>')
   if (style.italic) parts.push('<w:i/>')
   if (style.underline) parts.push('<w:u w:val="single"/>')
@@ -59,12 +60,13 @@ function runs(nodes, style, links) {
   }).join('')
 }
 
-function paragraph(content, { styleName = '', indent = 0, border = false } = {}) {
-  const props = []
-  if (styleName) props.push(`<w:pStyle w:val="${styleName}"/>`)
+function paragraph(content, { heading = false, code = false, indent = 0, border = false } = {}) {
+  const props = ['<w:spacing w:before="' + (heading ? 240 : 0) + '" w:after="' + (heading ? 120 : 160) + '"/>']
+  if (heading) props.push('<w:keepNext/>')
+  if (code) props.push('<w:shd w:val="clear" w:color="auto" w:fill="E3E0DA"/>')
   if (indent > 0) props.push(`<w:ind w:left="${indent}"/>`)
   if (border) props.push('<w:pBdr><w:bottom w:val="single" w:sz="6" w:space="1" w:color="D3D0C9"/></w:pBdr>')
-  return `<w:p>${props.length > 0 ? `<w:pPr>${props.join('')}</w:pPr>` : ''}${content}</w:p>`
+  return `<w:p><w:pPr>${props.join('')}</w:pPr>${content}</w:p>`
 }
 
 function listParagraphs(node, depth, style, links) {
@@ -111,11 +113,11 @@ function blocks(children, depth, style, links) {
       continue
     }
     flush()
-    if (HEADINGS[child.tag]) out.push(paragraph(runs(child.children, style, links), { styleName: HEADINGS[child.tag] }))
+    if (HEADINGS[child.tag]) out.push(paragraph(runs(child.children, { ...style, bold: true, size: HEADINGS[child.tag] }, links), { heading: true }))
     else if (child.tag === 'hr') out.push(paragraph('', { border: true }))
     else if (LISTS.includes(child.tag)) out.push(...listParagraphs(child, depth, style, links))
     else if (child.tag === 'table') out.push(tableXml(child, style, links))
-    else if (child.tag === 'pre') out.push(paragraph(runs(child.children, { ...style, code: true }, links), { styleName: 'Code', indent: INDENT * depth }))
+    else if (child.tag === 'pre') out.push(paragraph(runs(child.children, { ...style, code: true }, links), { code: true, indent: INDENT * depth }))
     else if (child.tag === 'blockquote') out.push(...blocks(child.children, depth + 1, { ...style, italic: true }, links))
     else out.push(...blocks(child.children, depth, style, links))
   }
@@ -123,15 +125,14 @@ function blocks(children, depth, style, links) {
   return out
 }
 
-const CONTENT_TYPES = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/><Override PartName="/word/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.styles+xml"/></Types>'
+const CONTENT_TYPES = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/></Types>'
 const ROOT_RELS = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/></Relationships>'
-const STYLES = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:styles xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:docDefaults><w:rPrDefault><w:rPr><w:rFonts w:ascii="Calibri" w:hAnsi="Calibri"/><w:sz w:val="22"/></w:rPr></w:rPrDefault><w:pPrDefault><w:pPr><w:spacing w:after="160" w:line="276" w:lineRule="auto"/></w:pPr></w:pPrDefault></w:docDefaults><w:style w:type="paragraph" w:default="1" w:styleId="Normal"><w:name w:val="Normal"/></w:style><w:style w:type="paragraph" w:styleId="Heading1"><w:name w:val="heading 1"/><w:basedOn w:val="Normal"/><w:pPr><w:keepNext/><w:spacing w:before="240" w:after="120"/></w:pPr><w:rPr><w:b/><w:sz w:val="40"/></w:rPr></w:style><w:style w:type="paragraph" w:styleId="Heading2"><w:name w:val="heading 2"/><w:basedOn w:val="Normal"/><w:pPr><w:keepNext/><w:spacing w:before="200" w:after="100"/></w:pPr><w:rPr><w:b/><w:sz w:val="30"/></w:rPr></w:style><w:style w:type="paragraph" w:styleId="Code"><w:name w:val="Code"/><w:basedOn w:val="Normal"/><w:pPr><w:shd w:val="clear" w:color="auto" w:fill="E3E0DA"/></w:pPr><w:rPr><w:rFonts w:ascii="Consolas" w:hAnsi="Consolas"/><w:sz w:val="20"/></w:rPr></w:style></w:styles>'
 
 export function toDocxXml(tree) {
   const links = []
   const body = blocks(tree.children, 0, {}, links).join('')
   const document = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><w:body>${body}<w:sectPr><w:pgSz w:w="11906" w:h="16838"/><w:pgMar w:top="1440" w:right="1440" w:bottom="1440" w:left="1440"/></w:sectPr></w:body></w:document>`
-  const rels = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>${links.map((link) => `<Relationship Id="${link.id}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/hyperlink" Target="${escapeXml(link.url)}" TargetMode="External"/>`).join('')}</Relationships>`
+  const rels = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">${links.map((link) => `<Relationship Id="${link.id}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/hyperlink" Target="${escapeXml(link.url)}" TargetMode="External"/>`).join('')}</Relationships>`
   return { document, rels }
 }
 
@@ -142,7 +143,6 @@ export function toDocx(tree) {
     { name: '[Content_Types].xml', data: encoder.encode(CONTENT_TYPES) },
     { name: '_rels/.rels', data: encoder.encode(ROOT_RELS) },
     { name: 'word/document.xml', data: encoder.encode(document) },
-    { name: 'word/_rels/document.xml.rels', data: encoder.encode(rels) },
-    { name: 'word/styles.xml', data: encoder.encode(STYLES) }
+    { name: 'word/_rels/document.xml.rels', data: encoder.encode(rels) }
   ])
 }

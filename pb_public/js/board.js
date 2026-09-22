@@ -437,7 +437,9 @@ export function createBoard({ area, layer, lasso, guides, message, translate, la
     return item
   }
 
-  const referenceIds = (kind, id) => items.filter((item) => item.type === kind && item[kind] === id).map((item) => item.id)
+  const isLinked = (item, kind, id) => (item.type === kind && item[kind] === id) || (kind === 'file' && item.type === 'image' && item.file === id)
+
+  const referenceIds = (kind, id) => items.filter((item) => isLinked(item, kind, id)).map((item) => item.id)
 
   const linkImage = (id, record) => {
     const item = itemOf(id)
@@ -482,9 +484,10 @@ export function createBoard({ area, layer, lasso, guides, message, translate, la
 
   const renameReferences = (kind, id, name) => {
     for (const item of items) {
-      if (item.type !== kind || item[kind] !== id) continue
+      if (!isLinked(item, kind, id)) continue
       item.name = name
-      cards.refresh(item)
+      if (item.type === 'image') imageNote(item)
+      else cards.refresh(item)
     }
   }
 
