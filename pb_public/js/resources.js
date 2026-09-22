@@ -10,9 +10,9 @@ export function labelOf(entry) {
 }
 
 export function entriesOf(listing) {
-  const folders = listing.folders.map((folder) => ({ kind: 'folder', id: folder.id, name: labelOf(folder), title: folder.title, pinned: folder.pinned, updated: folder.updated, cover: folder.cover, count: folder.count || 0 }))
-  const docs = listing.docs.map((doc) => ({ kind: 'doc', id: doc.id, name: doc.name, updated: doc.updated, revision: doc.revision }))
-  const files = listing.files.map((file) => ({ kind: 'file', id: file.id, name: file.name, size: file.size, fileKind: file.kind, pic: file.pic || '', updated: file.updated }))
+  const folders = listing.folders.map((folder) => ({ kind: 'folder', id: folder.id, name: labelOf(folder), title: folder.title, pinned: folder.pinned, created: folder.created, updated: folder.updated, cover: folder.cover, count: folder.count || 0 }))
+  const docs = listing.docs.map((doc) => ({ kind: 'doc', id: doc.id, name: doc.name, created: doc.created, updated: doc.updated, revision: doc.revision }))
+  const files = listing.files.map((file) => ({ kind: 'file', id: file.id, name: file.name, size: file.size, fileKind: file.kind, pic: file.pic || '', created: file.created, updated: file.updated }))
   return [...folders, ...docs, ...files]
 }
 

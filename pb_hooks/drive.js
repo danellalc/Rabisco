@@ -127,10 +127,11 @@ function listFolder(app, userId, folderId) {
   const filter = folderId === ROOT ? "user = {:user} && parent = '' && trashed = ''" : "user = {:user} && parent = {:folder} && trashed = ''"
   const params = { user: userId, folder: folderId }
   const counts = childCounts(app, userId, folderId)
-  const folders = app.findRecordsByFilter('boards', filter, '-pinned,-updated', 500, 0, params).map((board) => Object.assign(summaryOf(board), { count: counts[board.id] || 0 }))
+  const folders = app.findRecordsByFilter('boards', filter, '-pinned,-updated', 500, 0, params).map((board) => Object.assign(summaryOf(board), { count: counts[board.id] || 0, created: board.getString('created') }))
   const docs = folderId === ROOT ? [] : app.findRecordsByFilter('docs', "user = {:user} && board = {:folder} && trashed = ''", '-updated', 500, 0, params).map((doc) => ({
     id: doc.id,
     name: doc.getString('name'),
+    created: doc.getString('created'),
     updated: doc.getString('updated'),
     revision: doc.getString('revision')
   }))
@@ -140,6 +141,7 @@ function listFolder(app, userId, folderId) {
     size: Number(file.get('size')) || 0,
     kind: file.getString('kind'),
     pic: file.getString('pic'),
+    created: file.getString('created'),
     updated: file.getString('created')
   }))
   const path = folder ? ancestors(app, folder).concat([folder]).map((board) => ({ id: board.id, name: board.getString('name'), title: board.getString('title') })) : []

@@ -296,7 +296,7 @@ export function initDrive({ elements, translate, language, formatBytes, actions 
     else if (event.key === 'F2') startRename(entry.id)
     else if (event.key === 'Escape') select([])
     else if (event.key === 'Delete' || event.key === 'Backspace') actions.remove(selected.has(entry.id) ? selectedEntries() : [entry])
-    else if (event.key === ' ') toggle(entry.id, event.shiftKey)
+    else if (event.key === ' ') (actions.preview || (() => {}))(entry)
     else {
       const sibling = siblingRow(element, event.key === 'ArrowDown')
       if (sibling) sibling.focus()

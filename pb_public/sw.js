@@ -37,6 +37,7 @@ const ASSETS = [
   '/js/panel.js',
   '/js/paste.js',
   '/js/picker.js',
+  '/js/preview.js',
   '/js/recent.js',
   '/js/resize.js',
   '/js/resources.js',
