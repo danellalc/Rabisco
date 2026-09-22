@@ -20,7 +20,7 @@ export const FILE_KINDS = {
   code: ['json', 'xml', 'html', 'css', 'py', 'go', 'ts', 'sql', 'sh', 'yml', 'yaml', 'toml']
 }
 export const REFERENCE_TYPES = ['file', 'doc', 'folder']
-export const TEXT_COLORS = ['hl1', 'hl2', 'hl3']
+export const TEXT_COLORS = ['hl1', 'hl2', 'hl3', 'hl4', 'hl5', 'hl6']
 const ID_ALPHABET = 'abcdefghijklmnopqrstuvwxyz0123456789'
 const SIZE_UNITS = ['B', 'KB', 'MB', 'GB']
 

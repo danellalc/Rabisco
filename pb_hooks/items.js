@@ -11,7 +11,9 @@ const FRAME_MAX = 20000
 const FRAME_NAME_LIMIT = 80
 const CARD_MIN_WIDTH = 230
 const ID_PATTERN = /^[A-Za-z0-9_-]{4,16}$/
-const TEXT_COLORS = ['hl1', 'hl2', 'hl3']
+const TEXT_COLORS = ['hl1', 'hl2', 'hl3', 'hl4', 'hl5', 'hl6']
+const TEXT_SIZES = ['small', 'large']
+const TEXT_ALIGNS = ['center', 'right']
 
 function has(list, value) {
   return list.indexOf(value) >= 0
@@ -52,6 +54,8 @@ const SHAPES = {
     if (item.w === null) return null
     item.html = tools.sanitizeHtml(String(raw.html || ''))
     if (has(TEXT_COLORS, raw.color)) item.color = raw.color
+    if (has(TEXT_SIZES, raw.size)) item.size = raw.size
+    if (has(TEXT_ALIGNS, raw.align)) item.align = raw.align
     return item
   },
   image: (item, raw, tools) => {

@@ -9,7 +9,8 @@ export const SHORTCUTS = [
   ['slashText', [
     ['Ctrl B', 'bold'], ['Ctrl I', 'italic'], ['Ctrl U', 'underline'], ['Ctrl E', 'code'], ['/', 'slashHelp'],
     ['# Space', 'heading1'], ['- Space', 'bulletList'], ['1. Space', 'numberedList'], ['[] Space', 'checklist'],
-    ['> Space', 'quote'], ['``` Enter', 'codeBlock'], ['--- Enter', 'divider']
+    ['> Space', 'quote'], ['``` Enter', 'codeBlock'], ['--- Enter', 'divider'],
+    ['Ctrl Shift L / E / R', 'alignHelp'], ['Ctrl Alt C / V', 'copyPasteStyle']
   ]],
   ['helpApp', [['Ctrl K', 'searchAll'], ['Ctrl Alt N', 'newFolder'], ['?', 'shortcuts']]]
 ]

@@ -40,6 +40,7 @@ import { initShortcuts } from './shortcuts.js'
 import { initSlash } from './slash.js'
 import { migrateStorage, store } from './store.js'
 import { createInsertTable } from './table.js'
+import { STYLE_COMMANDS, styleEntries } from './textstyle.js'
 import { initToolbar } from './toolbar.js'
 import { createVisitor } from './visitor.js'
 import { buildZip, uniqueName } from './zip.js'
@@ -346,7 +347,7 @@ const wireEditor = ({ insertImageInText, addImageOnBoard, addFilesOnBoard, addRe
       pasteOnBoard({ images: imageFiles(transfer), others: otherFiles(transfer), text: transfer.getData('text/plain') }, point ? board.worldPoint(point) : board.center())
     }
   })
-  initToolbar({ host, area, bar: document.getElementById('toolbar'), apply: formatter.apply, active: formatter.active, beforeChange })
+  initToolbar({ host, area, bar: document.getElementById('toolbar'), apply: (name) => (STYLE_COMMANDS[name] ? board.styleCommand(name) : formatter.apply(name)), active: formatter.active, beforeChange })
   initChecklist(host, beforeChange)
   return pasteOnBoard
 }
@@ -422,7 +423,8 @@ const canvasMenu = (ids, item, point, { owner }) => {
   const duplicateAction = { label: translate('duplicate'), hint: 'Ctrl D', run: () => board.duplicate(ids) }
   const removeKey = removeKeyOf(ids)
   const removeAction = { label: translate(removeKey), danger: removeKey === 'delete', hint: 'Del', run: () => board.remove(ids) }
-  if (!single) return [{ label: translate('frameSelection'), run: () => board.frameSelection(ids) }, duplicateAction, front, back, { separator: true }, removeAction]
+  const pasteStyleAction = board.hasCopiedStyle() && board.textIds(ids).length > 0 ? [{ label: translate('pasteStyle'), hint: 'Ctrl Alt V', run: () => board.pasteStyle(ids) }] : []
+  if (!single) return [{ label: translate('frameSelection'), run: () => board.frameSelection(ids) }, duplicateAction, ...pasteStyleAction, front, back, { separator: true }, removeAction]
   const actions = []
   if (single.type === 'frame') {
     actions.push({ label: translate('rename'), hint: 'Enter', run: () => board.renameFile(single.id) })
@@ -437,6 +439,9 @@ const canvasMenu = (ids, item, point, { owner }) => {
       { label: translate('copyItems'), run: () => copyText(board.clipboardText(ids)) },
       { label: translate('export'), run: () => itemMenu.open(textExportMenu(single.id, point), point) },
       { swatches: ['', ...TEXT_COLORS], current: single.color || '', labelOf: (value) => translate(value ? `noteColor_${value}` : 'noteColorNone'), pick: (value) => board.setColor(ids, value) },
+      ...styleEntries(board.styleOf(single.id), translate, (patch) => board.setStyle(ids, patch)),
+      { label: translate('copyStyle'), hint: 'Ctrl Alt C', run: () => board.copyStyle(single.id) },
+      ...pasteStyleAction,
       front, back, { separator: true }, removeAction
     )
     return actions

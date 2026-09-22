@@ -52,6 +52,7 @@ const ASSETS = [
   '/js/snap.js',
   '/js/store.js',
   '/js/table.js',
+  '/js/textstyle.js',
   '/js/toolbar.js',
   '/js/visitor.js',
   '/js/widths.js',
