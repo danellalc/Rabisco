@@ -52,6 +52,18 @@ test('an image keeps a free height when one is given, and a text block keeps a k
   assert.equal(items[3].color, undefined)
 })
 
+test('a text block keeps the six colors, a size and an alignment from the enums, and drops junk and defaults', () => {
+  const board = normalize([
+    { id: 'txt1', type: 'text', x: 0, y: 0, z: 1, w: 300, html: 'a', color: 'hl6', size: 'large', align: 'center' },
+    { id: 'txt2', type: 'text', x: 0, y: 0, z: 1, w: 300, html: 'b', color: 'hl7', size: 'huge', align: 'diagonal' },
+    { id: 'txt3', type: 'text', x: 0, y: 0, z: 1, w: 300, html: 'c', size: 'normal', align: 'left' }
+  ])
+  const items = JSON.parse(board.content)
+  assert.deepEqual(items[0], { id: 'txt1', type: 'text', x: 0, y: 0, z: 1, w: 300, html: 'a', color: 'hl6', size: 'large', align: 'center' })
+  assert.deepEqual(items[1], { id: 'txt2', type: 'text', x: 0, y: 0, z: 1, w: 300, html: 'b' })
+  assert.deepEqual(items[2], { id: 'txt3', type: 'text', x: 0, y: 0, z: 1, w: 300, html: 'c' })
+})
+
 test('frame items keep a clamped size and a clean short name', () => {
   const board = normalize([
     { id: 'frm1', type: 'frame', x: 10, y: 20, z: 0, w: 5, h: 99999, name: '  Sprint\u0000 1  ' },

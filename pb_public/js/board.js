@@ -5,6 +5,7 @@ import { createFileCards } from './file-card.js'
 import { CARD_HEIGHT, CARD_WIDTH, FRAME_MIN, IMAGE_MIN_HEIGHT, IMAGE_MIN_WIDTH, REFERENCE_TYPES, TEXT_COLORS, TEXT_MIN_WIDTH, boundsOf, frameAround, frameMembers, kindOf, linkLabel, newId, nextZ, overlaps, parseContent, readingOrder } from './items.js'
 import { render, safeHref, safeImageSource, serialize } from './sanitize.js'
 import { GRID, SNAP_DISTANCE, snapMove, snapToGrid, tidy } from './snap.js'
+import { STYLE_COMMANDS, cleanStyle, isShort, styleClasses, styleKey, styleOf } from './textstyle.js'
 
 const DRAG_THRESHOLD = 4
 const NUDGE = 8
@@ -45,6 +46,7 @@ export function cleanItems(raw) {
     if (clean.type === 'text') {
       clean.html = String(clean.html || '')
       if (!TEXT_COLORS.includes(clean.color)) delete clean.color
+      cleanStyle(clean)
     }
     if (REFERENCE_TYPES.includes(clean.type)) clean.name = String(clean.name || '')
     if (clean.type === 'frame') {
@@ -83,6 +85,7 @@ export function createBoard({ area, layer, lasso, guides, message, translate, la
   let broken = false
   let documentNote = null
   let documentEditable = false
+  let copiedStyle = null
 
   const itemOf = (id) => items.find((item) => item.id === id)
   const noteOf = (id) => elements.get(id).querySelector('.note')
@@ -154,9 +157,15 @@ export function createBoard({ area, layer, lasso, guides, message, translate, la
 
   const frameLabel = (item) => item.name || translate('frame')
 
-  const applyColor = (item) => {
+  const markShort = (element) => {
+    element.classList.toggle('short', isShort(element.querySelector('.note').textContent))
+  }
+
+  const applyStyle = (item) => {
     const element = elements.get(item.id)
     for (const color of TEXT_COLORS) element.classList.toggle(`color-${color}`, item.color === color)
+    for (const [name, on] of styleClasses(item)) element.classList.toggle(name, on)
+    markShort(element)
   }
 
   const resizable = (element) => element.dataset.type !== 'file' || element.classList.contains('playing')
@@ -267,7 +276,7 @@ export function createBoard({ area, layer, lasso, guides, message, translate, la
     }
     elements.set(item.id, element)
     applyGeometry(item)
-    if (item.type === 'text') applyColor(item)
+    if (item.type === 'text') applyStyle(item)
     return element
   }
 
@@ -491,17 +500,57 @@ export function createBoard({ area, layer, lasso, guides, message, translate, la
     }
   }
 
-  const setColor = (ids, color) => {
+  const setStyle = (ids, patch) => {
     beforeChange()
     for (const id of ids) {
       const item = itemOf(id)
       if (!item || item.type !== 'text') continue
-      if (TEXT_COLORS.includes(color)) item.color = color
-      else delete item.color
-      applyColor(item)
+      if ('color' in patch) {
+        if (TEXT_COLORS.includes(patch.color)) item.color = patch.color
+        else delete item.color
+      }
+      if ('size' in patch) item.size = patch.size
+      if ('align' in patch) item.align = patch.align
+      cleanStyle(item)
+      applyStyle(item)
     }
     onChange()
   }
+
+  const setColor = (ids, color) => setStyle(ids, { color })
+
+  const styleCommand = (name) => {
+    const item = itemOf(editing)
+    if (!item || !STYLE_COMMANDS[name]) return
+    setStyle([editing], STYLE_COMMANDS[name](styleOf(item)))
+  }
+
+  const copyStyle = (id) => {
+    const item = itemOf(id)
+    if (item && item.type === 'text') copiedStyle = styleOf(item)
+  }
+
+  const pasteStyle = (ids) => {
+    if (copiedStyle) setStyle(ids, copiedStyle)
+  }
+
+  const textIds = (ids) => ids.filter((id) => (itemOf(id) || {}).type === 'text')
+
+  layer.addEventListener('input', (event) => {
+    const element = editing ? elements.get(editing) : null
+    if (element && element.contains(event.target)) markShort(element)
+  })
+
+  document.addEventListener('keydown', (event) => {
+    const action = styleKey(event)
+    if (!action || !editable || documentNote || !focusInBoard()) return
+    const ids = editing ? [editing] : textIds([...selection])
+    if (ids.length === 0) return
+    event.preventDefault()
+    if (action === 'copy') copyStyle(ids[0])
+    else if (action === 'paste') pasteStyle(ids)
+    else setStyle(ids, action)
+  })
 
   const duplicateItems = (ids) => {
     if (ids.length === 0) return
@@ -1174,6 +1223,13 @@ export function createBoard({ area, layer, lasso, guides, message, translate, la
     addPicture,
     refreshCards,
     setColor,
+    setStyle,
+    styleOf: (id) => styleOf(itemOf(id) || {}),
+    styleCommand,
+    copyStyle,
+    pasteStyle,
+    hasCopiedStyle: () => copiedStyle !== null,
+    textIds,
     setFileProgress: cards.setProgress,
     setFileRecord: cards.setRecord,
     renameFile: renameItem,
